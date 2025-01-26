@@ -87,13 +87,16 @@ fetch_schedules <- function(libraries, session_data) {
                             slice(1)  # Take the first matching row, if multiple
                         
                         if (nrow(current_time_row) > 0) {
-                            open_now <- current_time_row$status %>%
-                                case_when(
-                                    . == 0 ~ "Temporarily closed",
-                                    . == 1 ~ "Open",
-                                    . == 2 ~ "Self-service",
-                                    TRUE   ~ "Unknown"
-                                )
+                            open_now <- current_time_row %>%
+                                mutate(
+                                    open_now = case_when(
+                                        status == 0 ~ "Temporarily closed",
+                                        status == 1 ~ "Open",
+                                        status == 2 ~ "Self-service",
+                                        TRUE        ~ "Unknown"
+                                    )
+                                ) %>% 
+                                pull(open_now)
                             
                             opening_hours <- paste0(current_time_row$from, " - ", current_time_row$to)
                             
