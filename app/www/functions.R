@@ -1,5 +1,3 @@
-# Updated functions.R
-
 # Function to fetch the list of libraries from Kirjastot.fi API ----
 fetch_libraries <- function(session_data) {
     if (!is.null(session_data$libraries)) {
