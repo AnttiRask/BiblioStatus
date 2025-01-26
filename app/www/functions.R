@@ -79,7 +79,7 @@ fetch_schedules <- function(libraries, session_data) {
                                 to   = as.character(to)
                             )
                         
-                        now <- format(Sys.time(), "%H:%M")
+                        now <- format(Sys.time(), tz = "Europe/Helsinki", "%H:%M")
                         
                         # Filter only the row that corresponds to the current time
                         current_time_row <- times %>%
