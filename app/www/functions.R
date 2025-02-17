@@ -3,37 +3,49 @@ fetch_libraries <- function(session_data) {
     if (!is.null(session_data$libraries)) {
         return(session_data$libraries)
     }
-    api_url <- "https://api.kirjastot.fi/v4/library"
-    response <- GET(
-        api_url,
-        query = list(
-            city.name = "Helsinki",
-            type = "municipal",
-            limit = 100
+    cities    <- c(
+        "Espoo",
+        "Helsinki",
+        "Lahti",
+        "Vantaa" )
+    api_url   <- "https://api.kirjastot.fi/v4/library"
+    libraries <- map_dfr(cities, function(city) {
+        response <- GET(
+            api_url,
+            query = list(
+                city.name = city,
+                type      = "municipal",
+                limit     = 100
+            )
         )
-    )
-    
-    if (status_code(response) == 200) {
-        content_text <- content(response, "text", encoding = "UTF-8")
-        data <- fromJSON(content_text, flatten = TRUE)
         
-        if (!is.null(data$items) && is.data.frame(data$items)) {
-            libraries <- data$items %>% 
-                transmute(
-                    id,
-                    library_branch_name = name,
-                    lat = coordinates.lat,
-                    lon = coordinates.lon
-                ) %>%
-                filter(!is.na(lat) & !is.na(lon) & id != 84923)  # Exclude Monikielinen kirjasto
-            session_data$libraries <- libraries  # Store in reactiveValues
-            return(libraries)
-        } else {
-            stop("Invalid response: 'items' field is missing or not a data frame in the API response.")
+        if (status_code(response) == 200) {
+            content_text <- content(response, "text", encoding = "UTF-8")
+            data <- fromJSON(content_text, flatten = TRUE)
+            
+            if (!is.null(data$items) && is.data.frame(data$items)) {
+                return(
+                    data$items %>% 
+                        transmute(
+                            id,
+                            library_branch_name = name,
+                            lat                 = coordinates.lat,
+                            lon                 = coordinates.lon,
+                            city_name           = address.city
+                        )
+                )
+            }
         }
-    } else {
-        stop("Failed to fetch libraries: ", status_code(response))
-    }
+        tibble()
+    })
+    
+    # Filter out invalid coordinates and duplicates (like Monikielinen kirjasto & Venäjänkielinen kirjasto)
+    libraries <- libraries %>%
+        filter(!is.na(lat) & !is.na(lon) & !id %in% c(84923, 86000)) %>%
+        distinct(id, .keep_all = TRUE)
+    
+    session_data$libraries <- libraries # Store in reactiveValues
+    return(libraries)
 }
 
 # Function to fetch schedules for libraries ----
@@ -57,7 +69,7 @@ fetch_schedules <- function(libraries, session_data) {
                 
                 # print(data)  # Debug
                 
-                if (!is.null(data$items) && nrow(data$items) > 0) {
+                if (!is.null(data$items) && is.data.frame(data$items) && nrow(data$items) > 0) {
                     closed <- data$items$closed[1]
                     
                     if (closed) {
@@ -119,7 +131,7 @@ fetch_schedules <- function(libraries, session_data) {
     library_status <- libraries %>%
         left_join(updated_status, by = "id") %>%
         mutate(
-            open_status = coalesce(open_status, "Unknown"),
+            open_status   = coalesce(open_status, "Unknown"),
             opening_hours = coalesce(opening_hours, NA_character_)
         )
     

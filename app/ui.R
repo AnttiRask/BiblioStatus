@@ -7,9 +7,14 @@ ui <- fluidPage(
     tags$head(
         tags$style(HTML("#map { visibility: hidden; }"))
     ),
-    titlePanel("BiblioStatus - Which (Helsinki) Libraries Are Open Right Now?"),
+    titlePanel("BiblioStatus - Which Libraries Are Open Right Now?"),
     sidebarLayout(
         sidebarPanel(
+            selectInput(
+                inputId  = "city_filter",
+                label    = "Select City:",
+                choices  = NULL # Empty for now, will be updated later
+            ),
             actionButton("refresh", "Refresh Opening Statuses")
         ),
         mainPanel(
