@@ -45,12 +45,11 @@ server <- function(input, output, session) {
                         lng   = ~lon,
                         lat   = ~lat,
                         color = ~case_when(
-                            open_status == "Open"                     ~ "green",
-                            open_status == "Self-service"             ~ "orange",
-                            open_status == "Closed"                   ~ "red",
-                            open_status == "Closed for the whole day" ~ "darkgray",
-                            open_status == "Temporarily closed"       ~ "lightgray",
-                            TRUE                                      ~ "black"
+                            open_status == "Open"                              ~ "green",
+                            open_status == "Self-service"                      ~ "orange",
+                            open_status %in% c("Closed", "Temporarily closed") ~ "red",
+                            open_status == "Closed for the whole day"          ~ "darkgray",
+                            TRUE                                               ~ "black"
                         ),
                         radius = 8,
                         popup  = ~paste(
@@ -63,8 +62,8 @@ server <- function(input, output, session) {
                     ) %>%
                     addLegend(
                         position = "topright",
-                        colors   = c("green", "orange", "red", "darkgray", "lightgray"),
-                        labels   = c("Open", "Self-service", "Closed", "Closed for the whole day", "Temporarily closed"),
+                        colors   = c("green", "orange", "red", "darkgray"),
+                        labels   = c("Open", "Self-service", "Closed", "Closed for the whole day"),
                         title    = "Status"
                     )
             }
