@@ -1,6 +1,7 @@
+library(here)
 library(rsconnect)
 
-source("app/www/secret.R")
+source(here("app/www/secret.R"))
 
 setAccountInfo(
     name   = SHINY_APPS_NAME,
@@ -9,7 +10,7 @@ setAccountInfo(
 )
 
 deployApp(
-    appDir      = "app/",
+    appDir      = here("app/"),
     appName     = "BiblioStatus",
     account     = "youcanbeapirate",
     forceUpdate = TRUE
