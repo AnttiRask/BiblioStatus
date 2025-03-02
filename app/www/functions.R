@@ -1,140 +1,41 @@
-# Function to fetch the list of libraries from Kirjastot.fi API ----
-fetch_libraries <- function(session_data) {
-    if (!is.null(session_data$libraries)) {
-        return(session_data$libraries)
-    }
-    cities    <- c(
-        "Espoo",
-        "Helsinki",
-        "Lahti",
-        "Vantaa" )
-    api_url   <- "https://api.kirjastot.fi/v4/library"
-    libraries <- map_dfr(cities, function(city) {
-        response <- GET(
-            api_url,
-            query = list(
-                city.name = city,
-                type      = "municipal",
-                limit     = 100
-            )
-        )
-        
-        if (status_code(response) == 200) {
-            content_text <- content(response, "text", encoding = "UTF-8")
-            data <- fromJSON(content_text, flatten = TRUE)
-            
-            if (!is.null(data$items) && is.data.frame(data$items)) {
-                return(
-                    data$items %>% 
-                        transmute(
-                            id,
-                            library_branch_name = name,
-                            lat                 = coordinates.lat,
-                            lon                 = coordinates.lon,
-                            city_name           = address.city
-                        )
-                )
-            }
-        }
-        tibble()
-    })
-    
-    # Filter out invalid coordinates and duplicates (like Monikielinen kirjasto & Venäjänkielinen kirjasto)
-    libraries <- libraries %>%
-        filter(!is.na(lat) & !is.na(lon) & !id %in% c(84923, 86000)) %>%
-        distinct(id, .keep_all = TRUE)
-    
-    session_data$libraries <- libraries # Store in reactiveValues
-    return(libraries)
+# Connect to DuckDB
+db_path <- "libraries.duckdb"
+
+# Function to fetch libraries from DuckDB
+fetch_libraries <- function() {
+  # fmt: skip
+  con       <- dbConnect(duckdb(), dbdir = db_path, read_only = TRUE)
+  libraries <- dbReadTable(con, "libraries")
+  dbDisconnect(con)
+  return(libraries)
 }
 
-# Function to fetch schedules for libraries ----
-fetch_schedules <- function(libraries, session_data) {
-    if (!is.null(session_data$schedules)) {
-        return(session_data$schedules)
-    }
-    
-    api_url <- "https://api.kirjastot.fi/v4/schedules"
-    
-    updated_status <- purrr::map_dfr(
-        seq_len(nrow(libraries)),
-        ~ {
-            library_id <- libraries$id[.x]
-            
-            response <- GET(api_url, query = list(library = library_id, date = Sys.Date()))
-            
-            if (status_code(response) == 200) {
-                content_text <- content(response, "text", encoding = "UTF-8")
-                data <- fromJSON(content_text, flatten = TRUE)
-                
-                # print(data)  # Debug
-                
-                if (!is.null(data$items) && is.data.frame(data$items) && nrow(data$items) > 0) {
-                    closed <- data$items$closed[1]
-                    
-                    if (closed) {
-                        return(tibble(id = library_id, open_status = "Closed for the whole day", opening_hours = NA_character_))
-                    }
-                    
-                    times <- data %>%
-                        pluck("items", "times", 1, .default = NULL)
-                    
-                    # print(times)  # Debug
-                    
-                    if (!is.null(times) && is.data.frame(times)) {
-                        # Ensure times are character strings for comparison
-                        times <- times %>%
-                            mutate(
-                                from = as.character(from),
-                                to   = as.character(to)
-                            )
-                        
-                        now <- format(Sys.time(), tz = "Europe/Helsinki", "%H:%M")
-                        
-                        # Filter only the row that corresponds to the current time
-                        current_time_row <- times %>%
-                            filter(from <= now & to >= now) %>%
-                            slice(1)  # Take the first matching row, if multiple
-                        
-                        if (nrow(current_time_row) > 0) {
-                            open_now <- current_time_row %>%
-                                mutate(
-                                    open_now = case_when(
-                                        status == 0 ~ "Temporarily closed",
-                                        status == 1 ~ "Open",
-                                        status == 2 ~ "Self-service",
-                                        TRUE        ~ "Unknown"
-                                    )
-                                ) %>% 
-                                pull(open_now)
-                            
-                            opening_hours <- paste0(current_time_row$from, " - ", current_time_row$to)
-                            
-                            return(
-                                tibble(
-                                    id            = library_id,
-                                    open_status   = open_now,
-                                    opening_hours = opening_hours
-                                )
-                            )
-                        } else {
-                            # Handle libraries that are closed at the current time
-                            return(tibble(id = library_id, open_status = "Closed", opening_hours = NA_character_))
-                        }
-                    }
-                }
-            }
-            tibble(id = library_id, open_status = "Unknown", opening_hours = NA_character_)
-        }
+# Function to fetch schedules from DuckDB and determine the current open status
+fetch_schedules <- function() {
+  # fmt: skip
+  con       <- dbConnect(duckdb(), dbdir = db_path, read_only = TRUE)
+  schedules <- dbReadTable(con, "schedules")
+  dbDisconnect(con)
+
+  now <- format(Sys.time(), tz = "Europe/Helsinki", "%H:%M")
+
+  schedules <- schedules %>%
+    mutate(
+      is_open_now = from <= now & to >= now,
+      # fmt: skip
+      open_status = case_when(
+        status_label               == "Closed for the whole day" ~ "Closed for the whole day",
+        is_open_now & status_label == "Open" ~ "Open",
+        is_open_now & status_label == "Self-service" ~ "Self-service",
+        is_open_now & status_label == "Temporarily closed" ~ "Temporarily closed",
+        TRUE ~ "Closed"
+      ),
+      opening_hours = if_else(
+        is_open_now,
+        paste0(from, " - ", to),
+        NA_character_
+      )
     )
-    
-    library_status <- libraries %>%
-        left_join(updated_status, by = "id") %>%
-        mutate(
-            open_status   = coalesce(open_status, "Unknown"),
-            opening_hours = coalesce(opening_hours, NA_character_)
-        )
-    
-    session_data$schedules <- library_status  # Store in reactiveValues
-    return(library_status)
+
+  return(schedules)
 }

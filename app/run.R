@@ -1,4 +1,4 @@
 library(shiny)
 
-# Run the application 
+# Run the application
 runApp("app/")
