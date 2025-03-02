@@ -46,12 +46,16 @@ jobs:
       - name: Fetch library data
         run: Rscript fetch_library_data.R  # Runs the script
 
+      - name: Debug Git Remote
+        run: git remote -v
+
       - name: Commit and push changes
         env:
-          GITHUB_PAT: ${{ secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.email "github-actions@users.noreply.github.com"
           git config --global user.name "GitHub Actions"
           git add libraries.duckdb
           git commit -m "Updated library data $(date -u +"%Y-%m-%d")" || echo "No changes to commit"
-          git push https://x-access-token:${{ secrets.GH_PAT }}@github.com/AnttiRask/BiblioStatus.git main
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
+          
