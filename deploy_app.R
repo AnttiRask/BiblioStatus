@@ -12,15 +12,15 @@ library(rsconnect)
 
 # fmt: skip
 setAccountInfo(
-  name   = Sys.getenv(SHINY_APPS_NAME),
-  token  = Sys.getenv(SHINY_APPS_TOKEN),
-  secret = Sys.getenv(SHINY_APPS_SECRET)
+  name   = Sys.getenv("SHINY_APPS_NAME"),
+  token  = Sys.getenv("SHINY_APPS_TOKEN"),
+  secret = Sys.getenv("SHINY_APPS_SECRET")
 )
 
 # fmt: skip
 deployApp(
   appDir      = here("app/"),
   appName     = "BiblioStatus",
-  account     = "youcanbeapirate",
+  account     = Sys.getenv("SHINY_APPS_NAME"),
   forceUpdate = TRUE
 )

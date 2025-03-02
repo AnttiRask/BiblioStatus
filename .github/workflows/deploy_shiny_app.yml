@@ -31,4 +31,5 @@ jobs:
           SHINY_APPS_NAME: ${{ secrets.SHINY_APPS_NAME }}
           SHINY_APPS_TOKEN: ${{ secrets.SHINY_APPS_TOKEN }}
           SHINY_APPS_SECRET: ${{ secrets.SHINY_APPS_SECRET }}
-        run: Rscript deploy_app.R  # Runs the script
+        run: Rscript deploy_app.R
+        
