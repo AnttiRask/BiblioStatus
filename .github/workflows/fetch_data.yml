@@ -21,7 +21,7 @@ jobs:
       - name: Cache R packages
         uses: actions/cache@v3
         with:
-          path: ~/work/BiblioStatus/BiblioStatus/renv/library
+          path: ~/work/BiblioStatus/renv/library
           key: ${{ runner.os }}-renv-${{ hashFiles('renv.lock') }}
           restore-keys: |
             ${{ runner.os }}-renv-
@@ -31,9 +31,9 @@ jobs:
         
       - name: Debug renv paths
         run: |
-          ls -l /home/runner/work/BiblioStatus/BiblioStatus
-          ls -l /home/runner/work/BiblioStatus/BiblioStatus/renv
-          ls -l /home/runner/work/BiblioStatus/BiblioStatus/renv/library
+          ls -l /home/runner/work/BiblioStatus/
+          ls -l /home/runner/work/BiblioStatus/renv
+          ls -l /home/runner/work/BiblioStatus/renv/library
 
       - name: Restore R dependencies
         run: Rscript -e 'renv::restore(project = "/home/runner/work/BiblioStatus/BiblioStatus")'
