@@ -1,0 +1,32 @@
+name: Fetch Library Data
+
+on:
+  schedule:
+    - cron: "0 0 * * *"  # Runs daily at midnight UTC
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  fetch_data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4  # Ensures we have the latest repo
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2  # Sets up R
+
+      - name: Install dependencies
+        run: |
+          Rscript -e 'install.packages(c("httr", "jsonlite", "dplyr", "purrr", "duckdb"))'
+
+      - name: Fetch library data
+        run: Rscript fetch_library_data.R  # Runs the script
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.email "github-actions@users.noreply.github.com"
+          git config --global user.name "GitHub Actions"
+          git add libraries.duckdb
+          git commit -m "Updated library data $(date -u +"%Y-%m-%d")" || echo "No changes to commit"
+          git push origin main
