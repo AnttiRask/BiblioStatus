@@ -1,0 +1,29 @@
+name: Deploy Shiny App
+
+on:
+  workflow_run:
+    workflows: ["Fetch Library Data"]
+    types:
+      - completed
+  workflow_dispatch:  # Allows manual deployment
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Install rsconnect
+        run: Rscript -e 'install.packages(c("here", "rsconnect"))'
+
+      - name: Deploy to Shinyapps.io
+        env:
+          SHINY_APPS_NAME: ${{ secrets.SHINY_APPS_NAME }}
+          SHINY_APPS_TOKEN: ${{ secrets.SHINY_APPS_TOKEN }}
+          SHINY_APPS_SECRET: ${{ secrets.SHINY_APPS_SECRET }}
+        run: Rscript deploy_app.R  # Runs the script
