@@ -21,7 +21,7 @@ jobs:
       - name: Cache R packages
         uses: actions/cache@v3
         with:
-          path: ~/work/BiblioStatus/renv/library
+          path: renv/library
           key: ${{ runner.os }}-renv-${{ hashFiles('renv.lock') }}
           restore-keys: |
             ${{ runner.os }}-renv-
@@ -31,12 +31,17 @@ jobs:
         
       - name: Debug renv paths
         run: |
-          ls -l /home/runner/work/BiblioStatus/
-          ls -l /home/runner/work/BiblioStatus/renv
-          ls -l /home/runner/work/BiblioStatus/renv/library
+          echo "Checking repo root:"
+          ls -l ~/work/BiblioStatus/BiblioStatus
+          echo "Checking renv folder:"
+          ls -l ~/work/BiblioStatus/BiblioStatus/renv || echo "renv folder does not exist"
+          echo "Checking renv library folder:"
+          ls -l ~/work/BiblioStatus/BiblioStatus/renv/library || echo "renv/library does not exist"
 
       - name: Restore R dependencies
-        run: Rscript -e 'renv::restore(project = "/home/runner/work/BiblioStatus/BiblioStatus")'
+        run: |
+          Rscript -e 'if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv")'
+          Rscript -e 'renv::restore()'
 
       - name: Fetch library data
         run: Rscript fetch_library_data.R  # Runs the script
