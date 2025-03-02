@@ -18,6 +18,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev
 
+      - name: Set working directory to project root
+        run: cd ..
+
       - name: Cache R packages
         uses: actions/cache@v3
         with:
