@@ -33,10 +33,14 @@ jobs:
         with:
           r-version: 'renv'
         
+      - name: Install DuckDB
+        run: Rscript -e 'install.packages("duckdb")'
+      
       - name: Restore R dependencies
         run: |
           Rscript -e 'if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv")'
           Rscript -e 'renv::restore()'
+          Rscript -e 'if (!requireNamespace("duckdb", quietly = TRUE)) {stop("DuckDB is not installed!")}'
 
       - name: Deploy to Shinyapps.io
         env:
