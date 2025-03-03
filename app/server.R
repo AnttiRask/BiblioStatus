@@ -1,11 +1,12 @@
 # Load required libraries
 library(dplyr)
 library(duckdb)
+library(here)
 library(leaflet)
 library(shiny)
 library(shinyjs)
 
-source("www/functions.R")
+source(here("app/www/functions.R"))
 
 server <- function(input, output, session) {
     
