@@ -66,7 +66,7 @@ server <- function(input, output, session) {
         # Prevent unnecessary reactivity
         data <- isolate(library_data())
         # Ensure data is available before proceeding
-        req(data) %>% View()
+        req(data)
         city_choices <- city_choices <- sort(unique(data$city_name))
         # fmt: skip
         updateSelectInput(
