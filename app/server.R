@@ -6,7 +6,10 @@ library(leaflet)
 library(shiny)
 library(shinyjs)
 
-source(here("app/www/functions.R"))
+# Uncomment for the local version
+# source(here("app/www/functions.R"))
+
+source("www/functions.R")
 
 server <- function(input, output, session) {
     
