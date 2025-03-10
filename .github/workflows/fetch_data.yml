@@ -2,7 +2,7 @@ name: Fetch Library Data
 
 on:
   schedule:
-    - cron: "0 2 * * *"  # Runs daily at midnight UTC
+    - cron: "0 2 * * *"  # Runs daily at 2 am UTC
   workflow_dispatch:  # Allows manual triggering
 
 jobs:
@@ -26,7 +26,7 @@ jobs:
       - name: Verify DuckDB Installation
         run: duckdb --version  # Check if DuckDB installed correctly
       
-      - name: Cache R packages (excluding DuckDB)
+      - name: Cache R packages (Boosts Speed)
         uses: actions/cache@v3
         with:
           path: renv/library
@@ -37,8 +37,11 @@ jobs:
       - name: Setup R
         uses: r-lib/actions/setup-r@v2
 
-      - name: Restore R dependencies (excluding DuckDB)
-        run: Rscript -e 'renv::restore(exclude = "duckdb")'
+      - name: Repair and Restore R Dependencies (Only Fixes Issues)
+        run: Rscript -e 'renv::repair(); renv::restore()'
+
+      - name: Install R DuckDB package (Only if Missing)
+        run: Rscript -e 'if (!requireNamespace("duckdb", quietly = TRUE)) install.packages("duckdb", repos = "https://cran.rstudio.com")'
 
       - name: Fetch library data
         run: Rscript fetch_library_data.R

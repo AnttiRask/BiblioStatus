@@ -15,12 +15,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install system dependencies (including DuckDB)
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libpng-dev gdal-bin libgdal-dev
 
-      - name: Install DuckDB using GitHub Action
+      - name: Install DuckDB system-wide (Fast)
         uses: opt-nc/setup-duckdb-action@v1.0.8
         with:
           version: v1.2.1  # Change to the latest stable version
@@ -28,7 +28,7 @@ jobs:
       - name: Verify DuckDB Installation
         run: duckdb --version  # Check if DuckDB installed correctly
 
-      - name: Cache R packages (excluding DuckDB)
+      - name: Cache R packages (Boosts Speed)
         uses: actions/cache@v3
         with:
           path: renv/library
@@ -41,8 +41,8 @@ jobs:
         with:
           r-version: 'renv'
       
-      - name: Restore R dependencies
-        run: Rscript -e 'renv::restore(exclude = "duckdb")'
+      - name: Repair and Restore R Dependencies (Only Fixes Issues)
+        run: Rscript -e 'renv::repair(); renv::restore()'
 
       - name: Deploy to Shinyapps.io
         env:
