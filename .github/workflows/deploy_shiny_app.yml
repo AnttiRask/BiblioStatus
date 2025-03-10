@@ -23,12 +23,12 @@ jobs:
       - name: Install DuckDB using GitHub Action
         uses: opt-nc/setup-duckdb-action@v1.0.8
         with:
-          version: v1.2.0  # Change to the latest stable version
+          version: v1.2.1  # Change to the latest stable version
 
       - name: Verify DuckDB Installation
         run: duckdb --version  # Check if DuckDB installed correctly
 
-      - name: Cache R packages
+      - name: Cache R packages (excluding DuckDB)
         uses: actions/cache@v3
         with:
           path: renv/library
@@ -42,7 +42,7 @@ jobs:
           r-version: 'renv'
       
       - name: Restore R dependencies
-        run: Rscript -e 'renv::restore()'
+        run: Rscript -e 'renv::restore(exclude = "duckdb")'
 
       - name: Deploy to Shinyapps.io
         env:
