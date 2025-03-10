@@ -18,7 +18,12 @@ jobs:
       - name: Install system dependencies (including DuckDB)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libpng-dev gdal-bin libgdal-dev r-cran-duckdb
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libpng-dev gdal-bin libgdal-dev
+
+      - name: Set up DuckDB
+        uses: duckdb/duckdb-setup-action@v1
+        with:
+          version: latest  # Install the latest DuckDB version
 
       - name: Cache R packages
         uses: actions/cache@v3
@@ -34,9 +39,7 @@ jobs:
           r-version: 'renv'
       
       - name: Restore R dependencies
-        run: |
-          Rscript -e 'if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv")'
-          Rscript -e 'renv::restore()'
+        run: Rscript -e 'renv::restore()'
 
       - name: Deploy to Shinyapps.io
         env:
