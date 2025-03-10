@@ -13,10 +13,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4  # Ensures we have the latest repo
 
-      - name: Install system dependencies
+      - name: Install system dependencies (including DuckDB)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libpng-dev gdal-bin libgdal-dev 
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libpng-dev gdal-bin libgdal-dev r-cran-duckdb
 
       - name: Cache R packages
         uses: actions/cache@v3
