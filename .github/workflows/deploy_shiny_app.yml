@@ -18,20 +18,12 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libpng-dev gdal-bin libgdal-dev
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libpng-dev gdal-bin libgdal-dev libduckdb-dev
 
-      - name: Install DuckDB system-wide (Fast)
-        uses: opt-nc/setup-duckdb-action@v1.0.8
-        with:
-          version: v1.2.1  # Change to the latest stable version
-
-      - name: Verify DuckDB Installation
-        run: duckdb --version  # Check if DuckDB installed correctly
-
-      - name: Cache R packages (Boosts Speed)
+      - name: Cache R packages
         uses: actions/cache@v3
         with:
-          path: renv/library
+          path: ~/.cache/R/renv
           key: ${{ runner.os }}-renv-${{ hashFiles('renv.lock') }}
           restore-keys: |
             ${{ runner.os }}-renv-
@@ -41,8 +33,8 @@ jobs:
         with:
           r-version: 'renv'
       
-      - name: Repair and Restore R Dependencies (Only Fixes Issues)
-        run: Rscript -e 'renv::repair(); renv::restore()'
+      - name: Restore R Dependencies
+        run: Rscript -e 'renv::restore()'
 
       - name: Deploy to Shinyapps.io
         env:
