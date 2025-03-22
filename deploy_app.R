@@ -21,6 +21,8 @@ setAccountInfo(
 deployApp(
   appDir      = here("app/"),
   appName     = "BiblioStatus",
+  # Uncomment for the local version
+  # account     = SHINY_APPS_NAME,
   account     = Sys.getenv("SHINY_APPS_NAME"),
   forceUpdate = TRUE
 )
