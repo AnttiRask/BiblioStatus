@@ -23,7 +23,7 @@ jobs:
       - name: Cache R packages
         uses: actions/cache@v3
         with:
-          path: renv/library
+          path: ~/.cache/R/renv
           key: ${{ runner.os }}-renv-${{ hashFiles('renv.lock') }}
           restore-keys: |
             ${{ runner.os }}-renv-
@@ -32,15 +32,18 @@ jobs:
         uses: r-lib/actions/setup-r@v2
         with:
           r-version: 'renv'
-        
-      - name: Install DuckDB
-        run: Rscript -e 'install.packages("duckdb")'
-      
-      - name: Restore R dependencies
+          
+      - name: Install DuckDB (Binary)
         run: |
-          Rscript -e 'if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv")'
-          Rscript -e 'renv::restore()'
-          Rscript -e 'if (!requireNamespace("duckdb", quietly = TRUE)) {stop("DuckDB is not installed!")}'
+          wget https://github.com/duckdb/duckdb/releases/download/v1.2.0/duckdb_cli-linux-amd64.zip
+          unzip duckdb_cli-linux-amd64.zip
+          sudo mv duckdb /usr/local/bin/
+
+      - name: Install DuckDB in R (Without Compilation)
+        run: Rscript -e 'install.packages("duckdb", repos = "https://cran.rstudio.com")'
+      
+      - name: Restore R Dependencies
+        run: Rscript -e 'renv::restore(exclude = "duckdb")'
 
       - name: Deploy to Shinyapps.io
         env:
