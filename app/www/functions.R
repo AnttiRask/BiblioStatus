@@ -7,7 +7,7 @@ fetch_libraries <- function() {
   con       <- dbConnect(duckdb(), dbdir = db_path, read_only = TRUE)
   libraries <- dbReadTable(con, "libraries")
   dbDisconnect(con)
-  
+
   return(libraries)
 }
 
@@ -17,6 +17,6 @@ fetch_schedules <- function() {
   con       <- dbConnect(duckdb(), dbdir = db_path, read_only = TRUE)
   schedules <- dbReadTable(con, "schedules")
   dbDisconnect(con)
-  
+
   return(schedules)
 }
