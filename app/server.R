@@ -1,8 +1,8 @@
 # Load required libraries
 library(dplyr)
-library(duckdb)
 library(here)
 library(leaflet)
+library(RSQLite)
 library(shiny)
 library(shinyjs)
 

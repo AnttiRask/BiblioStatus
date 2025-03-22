@@ -1,10 +1,10 @@
-# Connect to DuckDB
-db_path <- "libraries.duckdb"
+# Connect to SQLite
+db_path <- "libraries.sqlite"
 
 # Function to fetch libraries from DuckDB
 fetch_libraries <- function() {
   # fmt: skip
-  con       <- dbConnect(duckdb(), dbdir = db_path, read_only = TRUE)
+  con <- dbConnect(SQLite(), dbname = db_path, read_only = TRUE)
   libraries <- dbReadTable(con, "libraries")
   dbDisconnect(con)
 
@@ -14,7 +14,7 @@ fetch_libraries <- function() {
 # Function to fetch schedules from DuckDB and determine the current open status
 fetch_schedules <- function() {
   # fmt: skip
-  con       <- dbConnect(duckdb(), dbdir = db_path, read_only = TRUE)
+  con <- dbConnect(SQLite(), dbname = db_path, read_only = TRUE)
   schedules <- dbReadTable(con, "schedules")
   dbDisconnect(con)
 

@@ -1,13 +1,13 @@
 library(dplyr)
-library(duckdb)
 library(httr)
 library(jsonlite)
 library(purrr)
+library(RSQLite)
 
-# Connect to DuckDB
+# Connect to SQLite
 con <- dbConnect(
-  duckdb(),
-  dbdir = "libraries.duckdb",
+  SQLite(),
+  dbname = "app/libraries.sqlite",
   read_only = FALSE
 )
 
@@ -162,7 +162,7 @@ fetch_schedules <- function(libraries) {
 libraries <- fetch_libraries()
 schedules <- fetch_schedules(libraries)
 
-# Write to DuckDB
+# Write to SQLite
 dbWriteTable(con, "libraries", libraries, overwrite = TRUE)
 dbWriteTable(con, "schedules", schedules, overwrite = TRUE)
 
