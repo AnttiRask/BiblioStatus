@@ -1,5 +1,5 @@
 # Connect to SQLite
-db_path <- "libraries.sqlite"
+db_path <- "app/libraries.sqlite"
 
 # Function to fetch libraries from DuckDB
 fetch_libraries <- function() {
