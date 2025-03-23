@@ -1,4 +1,5 @@
 library(dplyr)
+library(here)
 library(httr)
 library(jsonlite)
 library(purrr)
@@ -7,7 +8,7 @@ library(RSQLite)
 # Connect to SQLite
 con <- dbConnect(
   SQLite(),
-  dbname = "app/libraries.sqlite",
+  dbname = here("app/libraries.sqlite"),
   read_only = FALSE
 )
 
