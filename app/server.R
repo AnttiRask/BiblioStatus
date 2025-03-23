@@ -93,7 +93,6 @@ server <- function(input, output, session) {
 
     # Prevent errors if no libraries exist for the selected city
     if (nrow(data) == 0) {
-      # showNotification("No libraries found for this city.", type = "warning")
       return(NULL) # Stops execution
     }
 
