@@ -7,11 +7,11 @@ library(shiny)
 library(shinyjs)
 
 # Uncomment for the local version
-source(here("app/www/functions.R"))
-source(here("app/www/variables.R"))
+# source(here("app/www/functions.R"))
+# source(here("app/www/variables.R"))
 
-# source("www/functions.R")
-# source("www/variables.R")
+source("www/functions.R")
+source("www/variables.R")
 
 server <- function(input, output, session) {
     # Create a reactiveVal to store library data
