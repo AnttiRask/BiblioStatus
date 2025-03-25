@@ -1,8 +1,8 @@
 # Connect to SQLite
-# db_path <- here("libraries.sqlite")
+db_path <- here("libraries.sqlite")
 
 # Uncomment for the local version
-db_path <- here("app/libraries.sqlite")
+# db_path <- here("app/libraries.sqlite")
 
 # Function to fetch libraries from SQLite
 fetch_libraries <- function() {

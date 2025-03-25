@@ -15,14 +15,13 @@ ui <- fluidPage(
         inputId = "city_filter",
         label = "Select City/Municipality:",
         choices = NULL
+      ),
+      checkboxInput(
+          inputId = "dark_mode",
+          label = span("Dark mode", class = "dark-mode-label"),
+          # Light mode is default
+          value = FALSE
       )
-      # ,
-      # checkboxInput(
-      #     inputId = "dark_mode",
-      #     label = span("Dark mode", class = "dark-mode-label"),
-      #     # Light mode is default
-      #     value = FALSE
-      # )
     ),
     mainPanel(
       div(
