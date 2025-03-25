@@ -7,11 +7,11 @@ library(shiny)
 library(shinyjs)
 
 # Uncomment for the local version
-# source(here("app/www/functions.R"))
-# source(here("app/www/variables.R"))
+source(here("app/www/functions.R"))
+source(here("app/www/variables.R"))
 
-source("www/functions.R")
-source("www/variables.R")
+# source("www/functions.R")
+# source("www/variables.R")
 
 server <- function(input, output, session) {
     # Create a reactiveVal to store library data
@@ -66,6 +66,20 @@ server <- function(input, output, session) {
         ignoreNULL = FALSE
     )
     
+    # # Tile-switching logic
+    # observe({
+    #     req(input$dark_mode)
+    #     tile_provider <- if (input$dark_mode) {
+    #         providers$CartoDB.DarkMatter
+    #     } else {
+    #         providers$CartoDB.Positron
+    #     }
+    #     
+    #     leafletProxy("map") %>%
+    #         clearGroup("basemap") %>%
+    #         addProviderTiles(tile_provider, group = "basemap")
+    # })
+    
     # Populate city dropdown dynamically
     observe({
         # Prevent unnecessary reactivity
@@ -100,17 +114,9 @@ server <- function(input, output, session) {
         
         output$map <- renderLeaflet({
             
-            tiles <- reactive({
-                if (input$dark_mode) {
-                    providers$CartoDB.DarkMatter
-                } else {
-                    providers$CartoDB.Positron
-                }
-            })
-            
             map <- leaflet(data) %>%
                 clearMarkers() %>%
-                addProviderTiles(tiles()) %>%
+                addProviderTiles(providers$CartoDB.Positron, group = "basemap") %>%
                 addCircleMarkers(
                     lng = ~lon,
                     lat = ~lat,
