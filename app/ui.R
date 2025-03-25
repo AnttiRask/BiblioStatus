@@ -6,7 +6,7 @@ library(shinyjs)
 ui <- fluidPage(
   useShinyjs(),
   tags$head(
-    tags$style(HTML("#map { visibility: hidden; }"))
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
   ),
   titlePanel("BiblioStatus - Which Finnish Libraries Are Open Right Now?"),
   sidebarLayout(
@@ -16,13 +16,18 @@ ui <- fluidPage(
         label = "Select City/Municipality:",
         choices = NULL
       ),
-      actionButton("refresh", "Refresh Opening Status")
+      checkboxInput(
+          inputId = "dark_mode",
+          label = span("Dark mode", class = "dark-mode-label"),
+          # Light mode is default
+          value = FALSE
+      )
     ),
     mainPanel(
       div(
         id = "loading-spinner",
         "Loading data, please wait...",
-        style = "text-align: center; font-size: 20px; padding: 20px;"
+        class = "loading-text"
       ),
       leafletOutput("map", height = 600)
     )
