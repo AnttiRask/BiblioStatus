@@ -4,7 +4,7 @@ db_path <- here("libraries.sqlite")
 # Uncomment for the local version
 # db_path <- here("app/libraries.sqlite")
 
-# Function to fetch libraries from DuckDB
+# Function to fetch libraries from SQLite
 fetch_libraries <- function() {
   # fmt: skip
   con <- dbConnect(SQLite(), dbname = db_path, read_only = TRUE)
@@ -14,7 +14,7 @@ fetch_libraries <- function() {
   return(libraries)
 }
 
-# Function to fetch schedules from DuckDB and determine the current open status
+# Function to fetch schedules from SQLite and determine the current open status
 fetch_schedules <- function() {
   # fmt: skip
   con <- dbConnect(SQLite(), dbname = db_path, read_only = TRUE)

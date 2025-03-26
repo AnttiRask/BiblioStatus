@@ -4,6 +4,7 @@ library(httr)
 library(jsonlite)
 library(purrr)
 library(RSQLite)
+library(stringr)
 
 # Connect to SQLite
 con <- dbConnect(
@@ -15,13 +16,23 @@ con <- dbConnect(
 # Fetch libraries
 fetch_libraries <- function() {
   api_url <- "https://api.kirjastot.fi/v4/library"
-  response <- GET(api_url, query = list(type = "municipal", limit = 1000))
+  response <- GET(api_url, query = list(type = "municipal", limit = 1000, with = "primaryContactInfo", with = "services"))
 
   if (status_code(response) == 200) {
     data <- fromJSON(
       content(response, "text", encoding = "UTF-8"),
       flatten = TRUE
-    )$items
+    )$items %>% 
+        mutate(
+            library_services = map_chr(services, ~ {
+                if (is.data.frame(.x) && "standardName" %in% names(.x)) {
+                    str_c(.x$standardName, collapse = ", ")
+                    } else {
+                        NA_character_
+                }
+            })
+        )
+    
     libraries <- data %>%
       # fmt: skip
       transmute(
@@ -29,7 +40,11 @@ fetch_libraries <- function() {
         library_branch_name = name,
         lat                 = coordinates.lat,
         lon                 = coordinates.lon,
-        city_name           = address.city
+        city_name           = address.city,
+        zip_code            = address.zipcode,
+        street_address      = address.street,
+        library_url         = primaryContactInfo.homepage.url,
+        library_services
       ) %>%
       # Fixing Seinäjoki main library coordinates, because there are two
       # buildings with different opening hours. Also adding coordinates for
@@ -56,12 +71,15 @@ fetch_libraries <- function() {
           id == 86784 ~ 27.27313, # Mikkelin pääkirjasto
           id == 86787 ~ 26.47860, # Pertunmaan lähikirjasto
           TRUE ~ lon
-        )
+        ),
+        library_address = paste(street_address, zip_code, city_name, sep = ", ")
       ) %>%
       # 84923 = Monikielinen kirjasto
       # 86072 = Kajaanin pääkirjaston lehtilukusali
+      # 86636 = Kokkolan pääkirjaston lehtilukusali
       # 86653 = Valkeakosken kaupunginkirjaston lehtisali
-      filter(!is.na(lat) & !is.na(lon) & !id %in% c(84923, 86072, 86653))
+      filter(!is.na(lat) & !is.na(lon) & !id %in% c(84923, 86072, 86636, 86653)) %>% 
+        select(-c(street_address, zip_code))
 
     return(libraries)
   } else {
