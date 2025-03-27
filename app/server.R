@@ -136,7 +136,14 @@ server <- function(input, output, session) {
                 "<b>Hours: </b>NA"
               )
             ),
-            label = ~library_branch_name
+            label = ~library_branch_name,
+            labelOptions = labelOptions(
+              style = list(
+                "font-size" = "14px",
+                "font-weight" = "bold",
+                "color" = "#222"
+              )
+            )
           ) %>%
           addLegend(
             position = "topright",
@@ -203,6 +210,11 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$city_filter, {
+    selected_library(NULL)
+  })
+
+  # Hide selected library info when clicking on empty map area
+  observeEvent(input$map_click, {
     selected_library(NULL)
   })
 }
