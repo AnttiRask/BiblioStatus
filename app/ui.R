@@ -6,15 +6,16 @@ library(shinyjs)
 ui <- fluidPage(
     useShinyjs(),
     tags$head(
-        tags$script(
-            '
-      Shiny.addCustomMessageHandler("checkMobile", function(message) {
-      var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      Shiny.setInputValue("is_mobile", isMobile);
-      });
-      '
-        ),
-        tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
+      tags$meta(name = "viewport", content = "width=device-width, initial-scale=1"),
+      tags$script(
+        '
+        Shiny.addCustomMessageHandler("checkMobile", function(message) {
+        var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        Shiny.setInputValue("is_mobile", isMobile);
+        });
+        '
+      ),
+      tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
     ),
     tags$script("Shiny.onInputChange('is_mobile', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));"),
     titlePanel("BiblioStatus - Which Finnish Libraries Are Open Right Now?"),
