@@ -90,6 +90,10 @@ server <- function(input, output, session) {
       }
 
       output$map <- renderLeaflet({
+        
+        # Wait until input$is_mobile exists
+        req(input$is_mobile)
+          
         chosen_colors <- if (input$dark_mode) dark_colors else light_colors
 
         map <- leaflet(data) %>%
@@ -132,7 +136,11 @@ server <- function(input, output, session) {
                 "<b>Hours: </b>NA"
               )
             ),
-            label = ~library_branch_name,
+            label = if_else(
+                !isTRUE(input$is_mobile),
+                ~library_branch_name,
+                NULL
+            ),
             labelOptions = labelOptions(
               style = list(
                 "font-size" = "14px",
