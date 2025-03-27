@@ -176,8 +176,12 @@ server <- function(input, output, session) {
         return(map)
       })
 
+      runjs("window.LeafletMap = this; Shiny.setInputValue('popup_closed', false);")
+      
       hide("loading-spinner")
       runjs("document.getElementById('map').style.visibility = 'visible';")
+      
+      session$sendCustomMessage("bindPopupCloseEvent", list())
     }
   )
   observeEvent(input$map_marker_click, {
@@ -188,9 +192,7 @@ server <- function(input, output, session) {
   })
 
   output$library_services <- renderUI({
-    if (isTRUE(input$is_mobile)) {
-        return(NULL)
-    }
+    if (isTRUE(input$is_mobile)) return(NULL)
     
     selected <- selected_library()
     req(selected)
@@ -213,8 +215,12 @@ server <- function(input, output, session) {
     selected_library(NULL)
   })
 
-  # Hide selected library info when clicking on empty map area
+  # Hide selected library info when clicking on empty map area or closing the popup
   observeEvent(input$map_click, {
     selected_library(NULL)
+  })
+  
+  observeEvent(input$popup_closed, {
+      selected_library(NULL)
   })
 }

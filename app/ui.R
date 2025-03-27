@@ -16,8 +16,26 @@ ui <- fluidPage(
         '
       ),
       tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
+      tags$script(HTML("
+        Shiny.addCustomMessageHandler('bindPopupCloseEvent', function(message) {
+          var map = window.LeafletMap;
+          if (map) {
+            map.on('popupclose', function(e) {
+              Shiny.setInputValue('popup_closed', true, {priority: 'event'});
+            });
+          }
+        });
+      ")),
     ),
-    tags$script("Shiny.onInputChange('is_mobile', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));"),
+    tags$script(HTML("
+      Shiny.addCustomMessageHandler('checkMobile', function(message) {
+        var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        Shiny.setInputValue('is_mobile', isMobile, {priority: 'event'});
+      });
+      $(document).on('shiny:sessioninitialized', function() {
+        Shiny.setInputValue('is_mobile', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent), {priority: 'event'});
+      });
+    ")),
     titlePanel("BiblioStatus - Which Finnish Libraries Are Open Right Now?"),
     sidebarLayout(
         sidebarPanel(
