@@ -90,12 +90,9 @@ server <- function(input, output, session) {
       }
 
       output$map <- renderLeaflet({
-        
-        # Wait until input$is_mobile exists
-        # req(input$is_mobile)
           
         chosen_colors <- if (input$dark_mode) dark_colors else light_colors
-        chosen_label  <- if (!isTRUE(input$is_mobile)) data$library_branch_name else NULL
+        # chosen_label  <- if (!isTRUE(input$is_mobile)) data$library_branch_name else NULL
 
         map <- leaflet(data) %>%
           addProviderTiles(tile_provider, group = "basemap") %>%
@@ -137,7 +134,7 @@ server <- function(input, output, session) {
                 "<b>Hours: </b>NA"
               )
             ),
-            label = ~ chosen_label,
+            label = if (!isTRUE(input$is_mobile)) ~library_branch_name else NULL,
             labelOptions = labelOptions(
               style = list(
                 "font-size" = "14px",
