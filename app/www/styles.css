@@ -1,12 +1,21 @@
-/* Fonts */
+/* Import Gotham font */
 @import url("https://fonts.cdnfonts.com/css/gotham-6");
 
+/* Responsive map height on mobile devices */
+@media (max-width: 768px) {
+  #map {
+    height: 600px !important;
+  }
+}
+
+/* Global styles */
 body {
   font-family: "Gotham", sans-serif;
   background-color: #191414;
   color: #FFFFFF;
 }
 
+/* Main page title styling */
 h2, .h2 {
   font-family: "Gotham", sans-serif;
   color: #d94248;
@@ -14,38 +23,40 @@ h2, .h2 {
   text-align: center;
 }
 
-/* Dropdown and sidebar styles */
+/* Dropdown label styling (city selector, etc.) */
 .control-label {
-    color: #d94248;
-    font-weight: bold;
+  color: #d94248;       /* red label */
+  font-weight: bold;
 }
 
+/* Input field focus styling */
 .form-control:focus {
   border-color: #d94248;
   outline: 0;
   box-shadow: 0 0 8px #d94248;
 }
 
+/* Sidebar panel container style */
 .sidebar {
   background-color: #1a1a1a;
   border-radius: 5px;
   padding: 15px;
 }
 
-/* Title elements (keep red) */
+/* Highlighted sidebar titles and labels (in red) */
 .sidebar-panel h4,
 .sidebar-panel b {
   color: #d94248;
 }
 
-/* General sidebar text */
+/* General sidebar text styling (non-titles) */
 .sidebar-panel p,
 .sidebar-panel span,
 .sidebar-panel div {
-  color: #000000; /* black */
+  color: #000000;
 }
 
-/* Loading spinner text */
+/* Loading spinner text style */
 .loading-text {
   text-align: center;
   font-size: 20px;
@@ -53,18 +64,19 @@ h2, .h2 {
   color: #FFFFFF;
 }
 
-/* Dark mode switch label */
+/* Dark mode switch label styling */
 .dark-mode-label {
   color: #d94248;
   font-weight: bold;
 }
 
-/* Popup styles (from leaflet popups) */
+/* Leaflet map popup text styling */
 .leaflet-popup-content {
   font-size: 14px;
-  color: #000;
+  color: #000; /* black popup text */
 }
 
+/* Hyperlink styling */
 a {
   color: #1DB954;
   text-decoration: underline;

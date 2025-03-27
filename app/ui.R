@@ -4,36 +4,45 @@ library(shiny)
 library(shinyjs)
 
 ui <- fluidPage(
-  useShinyjs(),
-  tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
-  ),
-  titlePanel("BiblioStatus - Which Finnish Libraries Are Open Right Now?"),
-  sidebarLayout(
-    sidebarPanel(
-      class = "sidebar-panel",
-      selectInput(
-        inputId = "city_filter",
-        label = "Select City/Municipality:",
-        choices = NULL
-      ),
-      checkboxInput(
-        inputId = "dark_mode",
-        label = span("Dark mode", class = "dark-mode-label"),
-        # Light mode is default
-        value = FALSE
-      ),
-      br(),
-      # Dynamic info for selected library
-      uiOutput("library_services")
+    useShinyjs(),
+    tags$head(
+        tags$script(
+            '
+      Shiny.addCustomMessageHandler("checkMobile", function(message) {
+      var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      Shiny.setInputValue("is_mobile", isMobile);
+      });
+      '
+        ),
+        tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
     ),
-    mainPanel(
-      div(
-        id = "loading-spinner",
-        "Loading data, please wait...",
-        class = "loading-text"
-      ),
-      leafletOutput("map", height = "85vh")
+    tags$script("Shiny.onInputChange('is_mobile', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));"),
+    titlePanel("BiblioStatus - Which Finnish Libraries Are Open Right Now?"),
+    sidebarLayout(
+        sidebarPanel(
+            class = "sidebar-panel",
+            selectInput(
+                inputId = "city_filter",
+                label = "Select City/Municipality:",
+                choices = NULL
+            ),
+            checkboxInput(
+                inputId = "dark_mode",
+                label = span("Dark mode", class = "dark-mode-label"),
+                # Light mode is default
+                value = FALSE
+            ),
+            br(),
+            # Dynamic info for selected library
+            uiOutput("library_services")
+        ),
+        mainPanel(
+            div(
+                id = "loading-spinner",
+                "Loading data, please wait...",
+                class = "loading-text"
+            ),
+            leafletOutput("map", height = "85vh")
+        )
     )
-  )
 )

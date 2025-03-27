@@ -7,10 +7,6 @@ library(RSQLite)
 library(shiny)
 library(shinyjs)
 
-# Uncomment for the local version
-# source(here("app/www/functions.R"))
-# source(here("app/www/variables.R"))
-
 source("www/functions.R")
 source("www/variables.R")
 
@@ -192,6 +188,10 @@ server <- function(input, output, session) {
   })
 
   output$library_services <- renderUI({
+    if (isTRUE(input$is_mobile)) {
+        return(NULL)
+    }
+    
     selected <- selected_library()
     req(selected)
 
