@@ -92,9 +92,10 @@ server <- function(input, output, session) {
       output$map <- renderLeaflet({
         
         # Wait until input$is_mobile exists
-        req(input$is_mobile)
+        # req(input$is_mobile)
           
         chosen_colors <- if (input$dark_mode) dark_colors else light_colors
+        chosen_label  <- if (!isTRUE(input$is_mobile)) data$library_branch_name else NULL
 
         map <- leaflet(data) %>%
           addProviderTiles(tile_provider, group = "basemap") %>%
@@ -136,11 +137,7 @@ server <- function(input, output, session) {
                 "<b>Hours: </b>NA"
               )
             ),
-            label = if_else(
-                !isTRUE(input$is_mobile),
-                ~library_branch_name,
-                NULL
-            ),
+            label = ~ chosen_label,
             labelOptions = labelOptions(
               style = list(
                 "font-size" = "14px",
@@ -184,12 +181,12 @@ server <- function(input, output, session) {
         return(map)
       })
 
-      runjs("window.LeafletMap = this; Shiny.setInputValue('popup_closed', false);")
+      # runjs("window.LeafletMap = this; Shiny.setInputValue('popup_closed', false);")
       
       hide("loading-spinner")
       runjs("document.getElementById('map').style.visibility = 'visible';")
       
-      session$sendCustomMessage("bindPopupCloseEvent", list())
+      # session$sendCustomMessage("bindPopupCloseEvent", list())
     }
   )
   observeEvent(input$map_marker_click, {
@@ -223,12 +220,12 @@ server <- function(input, output, session) {
     selected_library(NULL)
   })
 
-  # Hide selected library info when clicking on empty map area or closing the popup
+  # Hide selected library info when clicking on empty map area
   observeEvent(input$map_click, {
     selected_library(NULL)
   })
   
-  observeEvent(input$popup_closed, {
-      selected_library(NULL)
-  })
+  # observeEvent(input$popup_closed, {
+  #     selected_library(NULL)
+  # })
 }

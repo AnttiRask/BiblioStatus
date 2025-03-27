@@ -16,25 +16,25 @@ ui <- fluidPage(
         '
       ),
       tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
-      tags$script(HTML("
-        Shiny.addCustomMessageHandler('popupClosed', function(message) {
-          Shiny.setInputValue('popup_closed', Math.random());
-        });
-
-        // Attach Leaflet event handler after map is rendered
-        function setupPopupCloseListener() {
-          var mapEl = document.getElementById('map');
-          if (!mapEl || !mapEl._leaflet_map) return;
-          mapEl._leaflet_map.on('popupclose', function() {
-            Shiny.setInputValue('popup_closed', Math.random());
-          });
-        }
-
-        // Wait for map to be ready
-        document.addEventListener('DOMContentLoaded', function() {
-          setTimeout(setupPopupCloseListener, 1000);
-        });
-      "))
+      # tags$script(HTML("
+      #   Shiny.addCustomMessageHandler('popupClosed', function(message) {
+      #     Shiny.setInputValue('popup_closed', Math.random());
+      #   });
+      # 
+      #   // Attach Leaflet event handler after map is rendered
+      #   function setupPopupCloseListener() {
+      #     var mapEl = document.getElementById('map');
+      #     if (!mapEl || !mapEl._leaflet_map) return;
+      #     mapEl._leaflet_map.on('popupclose', function() {
+      #       Shiny.setInputValue('popup_closed', Math.random());
+      #     });
+      #   }
+      # 
+      #   // Wait for map to be ready
+      #   document.addEventListener('DOMContentLoaded', function() {
+      #     setTimeout(setupPopupCloseListener, 1000);
+      #   });
+      # "))
     ),
     tags$script(HTML("
       Shiny.addCustomMessageHandler('checkMobile', function(message) {
