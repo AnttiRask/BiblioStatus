@@ -112,6 +112,7 @@ fetch_libraries <- function() {
             id == 85306 ~ 'https://www.jyvaskyla.fi/?vesangan-lahikirjasto', # Vesangan lähikirjasto
             id == 85308 ~ 'https://vaasankirjasto.finna.fi/OrganisationInfo/Home#85308', # Vaasan pääkirjasto
             id == 85309 ~ 'https://vaasankirjasto.finna.fi/OrganisationInfo/Home#85309', # Palosaaren kirjasto
+            id == 85317 ~ 'https://sonkajarvi.fi/fi/vapaa-aika/kirjasto', # Sonkajärven pääkirjasto
             id == 85319 ~ 'https://loisto.verkkokirjasto.fi/-/ylaneen-kirjasto#/', # Yläneen kirjasto
             id == 85331 ~ 'https://www.utsjoki.fi/vapaa-aika-ja-hyvinvointi/kirjasto/', # Pedar Jalvi kirjasto / Utsjoen kunnankirjasto
             id == 85340 ~ 'https://vanamo.finna.fi/OrganisationInfo/#85340', # Kalvolan kirjasto
@@ -119,6 +120,7 @@ fetch_libraries <- function() {
             id == 85358 ~ 'https://hakemisto.kirjastot.fi/palkane/aitoo', # Aitoon lainausasema
             id == 85376 ~ 'https://rutakko.verkkokirjasto.fi/-/iisalmen-kaupunginkirjasto', # Iisalmen kaupunginkirjasto
             id == 85425 ~ 'https://www.hausjarvi.fi/vapaa-aika-ja-matkailu/kirjasto/', # Hausjärven kirjasto
+            id == 85429 ~ 'https://laihia.fi/hyvinvointi-ja-vapaa-aika/kirjasto/', # Laihian kunnankirjasto
             id == 85507 ~ 'https://fredrika.finna.fi/OrganisationInfo/Home#85507', # Ylimarkun kirjasto
             id == 85519 ~ 'https://vaasankirjasto.finna.fi/OrganisationInfo/Home#85519', # Variskan kirjasto
             id == 85530 ~ 'https://satakirjastot.finna.fi/OrganisationInfo#85530', # Pihlavan kirjasto
@@ -136,12 +138,14 @@ fetch_libraries <- function() {
             id == 85774 ~ 'https://keski.finna.fi/Content/kirjastot?leivonmaen-lahikirjasto', # Leivonmäen lähikirjasto
             id == 85789 ~ 'https://outi.finna.fi/OrganisationInfo/Home#85789', # Revonlahden lähikirjasto
             id == 85793 ~ 'https://www.bibliotek.ax/-/kokars-kommunbibliotek#/', # Kökar
+            id == 85851 ~ 'https://vanamo.finna.fi/OrganisationInfo/#85851', # Hattulan kirjasto
             id == 85875 ~ 'https://vaasankirjasto.finna.fi/OrganisationInfo/Home#85875', # Sundomin omatoimikirjasto
             id == 85896 ~ 'https://lestijarvi.fi/vapaa-aika-ja-liikunta/kirjasto/', # Lestijärven kunnankirjasto
             id == 85920 ~ 'https://satakirjastot.finna.fi/OrganisationInfo#85920', # Noormarkun kirjasto
             id == 85940 ~ 'https://vanamo.finna.fi/OrganisationInfo/#85940', # Rengon kirjasto
             id == 85959 ~ 'https://satakirjastot.finna.fi/OrganisationInfo/Home#85959', # Kullaan kirjasto
             id == 86020 ~ 'https://vaasankirjasto.finna.fi/OrganisationInfo/Home#86020', # Vähänkyrön omatoimikirjasto
+            id == 86071 ~ ' https://loisto.verkkokirjasto.fi/-/oripaan-kirjasto#/', # Oripään kirjasto
             id == 86098 ~ 'https://www.jarvenpaa.fi/vapaa-aika-ja-harrastaminen/kirjasto', # Järvenpään kaupunginkirjasto
             id == 86326 ~ 'https://satakirjastot.finna.fi/OrganisationInfo#86326', # Lavian kirjasto
             id == 86436 ~ 'https://www.bibliotek.ax/-/foglo-kommunbibliotek#/', # Föglö
