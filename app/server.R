@@ -7,6 +7,10 @@ library(RSQLite)
 library(shiny)
 library(shinyjs)
 
+# Uncomment for the local version
+# source(here("app/www/functions.R"))
+# source(here("app/www/variables.R"))
+
 source("www/functions.R")
 source("www/variables.R")
 
@@ -90,7 +94,6 @@ server <- function(input, output, session) {
       }
 
       output$map <- renderLeaflet({
-          
         chosen_colors <- if (input$dark_mode) dark_colors else light_colors
         # chosen_label  <- if (!isTRUE(input$is_mobile)) data$library_branch_name else NULL
 
@@ -134,7 +137,8 @@ server <- function(input, output, session) {
                 "<b>Hours: </b>NA"
               )
             ),
-            label = if (!isTRUE(input$is_mobile)) ~library_branch_name else NULL,
+            label = if (!isTRUE(input$is_mobile)) ~library_branch_name else
+              NULL,
             labelOptions = labelOptions(
               style = list(
                 "font-size" = "14px",
@@ -180,7 +184,6 @@ server <- function(input, output, session) {
 
       hide("loading-spinner")
       runjs("document.getElementById('map').style.visibility = 'visible';")
-      
     }
   )
   observeEvent(input$map_marker_click, {
@@ -192,7 +195,7 @@ server <- function(input, output, session) {
 
   output$library_services <- renderUI({
     if (isTRUE(input$is_mobile)) return(NULL)
-    
+
     selected <- selected_library()
     req(selected)
 
