@@ -181,12 +181,9 @@ server <- function(input, output, session) {
         return(map)
       })
 
-      # runjs("window.LeafletMap = this; Shiny.setInputValue('popup_closed', false);")
-      
       hide("loading-spinner")
       runjs("document.getElementById('map').style.visibility = 'visible';")
       
-      # session$sendCustomMessage("bindPopupCloseEvent", list())
     }
   )
   observeEvent(input$map_marker_click, {
@@ -224,8 +221,4 @@ server <- function(input, output, session) {
   observeEvent(input$map_click, {
     selected_library(NULL)
   })
-  
-  # observeEvent(input$popup_closed, {
-  #     selected_library(NULL)
-  # })
 }
