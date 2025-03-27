@@ -11,17 +11,21 @@ ui <- fluidPage(
   titlePanel("BiblioStatus - Which Finnish Libraries Are Open Right Now?"),
   sidebarLayout(
     sidebarPanel(
+      class = "sidebar-panel",
       selectInput(
         inputId = "city_filter",
         label = "Select City/Municipality:",
         choices = NULL
       ),
       checkboxInput(
-          inputId = "dark_mode",
-          label = span("Dark mode", class = "dark-mode-label"),
-          # Light mode is default
-          value = FALSE
-      )
+        inputId = "dark_mode",
+        label = span("Dark mode", class = "dark-mode-label"),
+        # Light mode is default
+        value = FALSE
+      ),
+      br(),
+      # Dynamic info for selected library
+      uiOutput("library_services")
     ),
     mainPanel(
       div(

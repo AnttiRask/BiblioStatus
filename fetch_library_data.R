@@ -16,23 +16,34 @@ con <- dbConnect(
 # Fetch libraries
 fetch_libraries <- function() {
   api_url <- "https://api.kirjastot.fi/v4/library"
-  response <- GET(api_url, query = list(type = "municipal", limit = 1000, with = "primaryContactInfo", with = "services"))
+  response <- GET(
+    api_url,
+    query = list(
+      type = "municipal",
+      limit = 1000,
+      with = "primaryContactInfo",
+      with = "services"
+    )
+  )
 
   if (status_code(response) == 200) {
     data <- fromJSON(
       content(response, "text", encoding = "UTF-8"),
       flatten = TRUE
-    )$items %>% 
-        mutate(
-            library_services = map_chr(services, ~ {
-                if (is.data.frame(.x) && "standardName" %in% names(.x)) {
-                    str_c(.x$standardName, collapse = ", ")
-                    } else {
-                        NA_character_
-                }
-            })
+    )$items %>%
+      mutate(
+        library_services = map_chr(
+          services,
+          ~ {
+            if (is.data.frame(.x) && "standardName" %in% names(.x)) {
+              str_c(sort(.x$standardName), collapse = ", ")
+            } else {
+              NA_character_
+            }
+          }
         )
-    
+      )
+
     libraries <- data %>%
       # fmt: skip
       transmute(
@@ -78,8 +89,10 @@ fetch_libraries <- function() {
       # 86072 = Kajaanin pääkirjaston lehtilukusali
       # 86636 = Kokkolan pääkirjaston lehtilukusali
       # 86653 = Valkeakosken kaupunginkirjaston lehtisali
-      filter(!is.na(lat) & !is.na(lon) & !id %in% c(84923, 86072, 86636, 86653)) %>% 
-        select(-c(street_address, zip_code))
+      filter(
+        !is.na(lat) & !is.na(lon) & !id %in% c(84923, 86072, 86636, 86653)
+      ) %>%
+      select(-c(street_address, zip_code))
 
     return(libraries)
   } else {

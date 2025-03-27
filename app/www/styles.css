@@ -32,6 +32,20 @@ h2, .h2 {
   padding: 15px;
 }
 
+/* Title elements (keep red) */
+.sidebar-panel h4,
+.sidebar-panel b {
+  color: #d94248;
+}
+
+/* General sidebar text */
+.sidebar-panel p,
+.sidebar-panel span,
+.sidebar-panel div {
+  color: #000000; /* black */
+}
+
+
 /* Loading spinner text */
 .loading-text {
   text-align: center;
