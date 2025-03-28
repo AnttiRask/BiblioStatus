@@ -7,19 +7,20 @@ library(RSQLite)
 library(shiny)
 library(shinyjs)
 
+# Load helper functions and variables
+source("www/functions.R")
+source("www/variables.R")
+
 # Uncomment for the local version
 # source(here("app/www/functions.R"))
 # source(here("app/www/variables.R"))
 
-source("www/functions.R")
-source("www/variables.R")
-
 server <- function(input, output, session) {
-  # Create a reactiveVal to store library data
+  # State: reactive containers
   library_data <- reactiveVal(NULL)
   selected_library <- reactiveVal(NULL)
 
-  # Function to fetch and process data (only called on refresh)
+  # Data fetching and processing
   refresh_data <- function() {
     libraries <- fetch_libraries()
     schedules <- fetch_schedules()
@@ -55,6 +56,7 @@ server <- function(input, output, session) {
     library_data(data)
   }
 
+  # Initial fetch and manual refresh
   observeEvent(
     input$refresh,
     {
@@ -63,6 +65,7 @@ server <- function(input, output, session) {
     ignoreNULL = FALSE
   )
 
+  # Populate city selector
   observe({
     data <- isolate(library_data())
     req(data)
@@ -75,7 +78,7 @@ server <- function(input, output, session) {
     )
   })
 
-  # Combined observer to update map when either city or dark mode changes
+  # Update map on city/dark mode chang
   observeEvent(
     {
       input$city_filter
@@ -95,7 +98,6 @@ server <- function(input, output, session) {
 
       output$map <- renderLeaflet({
         chosen_colors <- if (input$dark_mode) dark_colors else light_colors
-        # chosen_label  <- if (!isTRUE(input$is_mobile)) data$library_branch_name else NULL
 
         map <- leaflet(data) %>%
           addProviderTiles(tile_provider, group = "basemap") %>%
@@ -137,8 +139,11 @@ server <- function(input, output, session) {
                 "<b>Hours: </b>NA"
               )
             ),
-            label = if (!isTRUE(input$is_mobile)) ~library_branch_name else
-              NULL,
+            label = if (!isTRUE(input$is_mobile)) {
+              ~library_branch_name
+            } else {
+              NULL
+            },
             labelOptions = labelOptions(
               style = list(
                 "font-size" = "14px",
@@ -162,6 +167,7 @@ server <- function(input, output, session) {
             title = "Status"
           )
 
+        # Zoom logic
         if (data %>% distinct(id) %>% nrow() <= 2) {
           map <- map %>%
             setView(
@@ -186,6 +192,7 @@ server <- function(input, output, session) {
       runjs("document.getElementById('map').style.visibility = 'visible';")
     }
   )
+  # Click marker to update sidebar
   observeEvent(input$map_marker_click, {
     click_id <- input$map_marker_click$id
     data <- isolate(library_data())
@@ -193,6 +200,17 @@ server <- function(input, output, session) {
     selected_library(selected)
   })
 
+  # Reset selected library on map click (not marker)
+  observeEvent(input$map_click, {
+    selected_library(NULL)
+  })
+
+  # Reset selected library on city change
+  observeEvent(input$city_filter, {
+    selected_library(NULL)
+  })
+
+  # Sidebar panel with library info
   output$library_services <- renderUI({
     if (isTRUE(input$is_mobile)) return(NULL)
 
@@ -211,14 +229,5 @@ server <- function(input, output, session) {
         p(selected$library_services)
       )
     }
-  })
-
-  observeEvent(input$city_filter, {
-    selected_library(NULL)
-  })
-
-  # Hide selected library info when clicking on empty map area
-  observeEvent(input$map_click, {
-    selected_library(NULL)
   })
 }
