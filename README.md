@@ -25,8 +25,6 @@
 app/
 ├── libraries.sqlite        # SQLite file to store the data pulled from the API 
 ├── fetch_library_data.R    # Pulls data from [Kirkanta API (v4)](https://api.kirjastot.fi/)
-├── deploy_app.R            # Deploy script using rsconnect
-├── rsconnect/              # Connecting to the shinyappss.io for deployment
 ├── run.R                   # Running the app
 ├── server.R                # Server logic and reactivity
 ├── ui.R                    # UI definition
@@ -77,7 +75,6 @@ shiny::runApp("app/")
 - [jsonlite](https://github.com/jeroen/jsonlite)
 - [leaflet](https://rstudio.github.io/leaflet/)
 - [purrr](https://purrr.tidyverse.org/)
-- [rsconnect](https://rstudio.github.io/rsconnect/)
 - [RSQLite](https://rsqlite.r-dbi.org/)
 - [shiny](https://shiny.posit.co/r/getstarted/shiny-basics/lesson1/)
 - [shinyjs](https://deanattali.com/shinyjs/)

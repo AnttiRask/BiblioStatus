@@ -45,8 +45,5 @@ vignettes/*.pdf
 # translation temp files
 po/*~
 
-# RStudio Connect folder
-rsconnect/
-
 # Docker environment
 .env
