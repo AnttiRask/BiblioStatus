@@ -22,10 +22,10 @@
 ## 🛠️ Project Structure
 
 ```
+fetch_library_data.R        # Pulls data from Kirkanta API (v4)
 app/
-├── libraries.sqlite        # SQLite file to store the data pulled from the API 
-├── fetch_library_data.R    # Pulls data from [Kirkanta API (v4)](https://api.kirjastot.fi/)
-├── run.R                   # Running the app
+├── libraries.sqlite        # SQLite database (updated nightly by GitHub Actions)
+├── run.R                   # App entry point (host/port config)
 ├── server.R                # Server logic and reactivity
 ├── ui.R                    # UI definition
 └── www/
