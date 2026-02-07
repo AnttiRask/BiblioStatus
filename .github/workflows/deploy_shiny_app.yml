@@ -1,4 +1,4 @@
-name: Deploy Shiny App
+name: Deploy to Cloud Run
 
 on:
   workflow_run:
@@ -15,31 +15,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install system dependencies
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build container image
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libpng-dev gdal-bin libgdal-dev
+          gcloud builds submit \
+            --tag europe-north1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloud-run-source-deploy/bibliostatus-app \
+            --region europe-north1 \
+            --timeout 3600 \
+            --project ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Cache R packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/R/renv
-          key: ${{ runner.os }}-renv-${{ hashFiles('renv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-renv-
-
-      - name: Setup R
-        uses: r-lib/actions/setup-r@v2
-        with:
-          r-version: 'renv'
-          
-      - name: Restore R Dependencies
-        run: Rscript -e 'renv::restore()'
-
-      - name: Deploy to Shinyapps.io
-        env:
-          SHINY_APPS_NAME: ${{ secrets.SHINY_APPS_NAME }}
-          SHINY_APPS_TOKEN: ${{ secrets.SHINY_APPS_TOKEN }}
-          SHINY_APPS_SECRET: ${{ secrets.SHINY_APPS_SECRET }}
-        run: Rscript deploy_app.R
-        
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy bibliostatus-app \
+            --image europe-north1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloud-run-source-deploy/bibliostatus-app \
+            --platform managed \
+            --region europe-north1 \
+            --allow-unauthenticated \
+            --memory 1Gi \
+            --timeout 300 \
+            --project ${{ secrets.GCP_PROJECT_ID }}

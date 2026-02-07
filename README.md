@@ -17,7 +17,7 @@
 
 ## 🚀 Live App
 
-👉 [Try it live on shinyapps.io](https://youcanbeapirate.shinyapps.io/BiblioStatus/)
+👉 [Try it live](https://bibliostatus.youcanbeapirate.com)
 
 ## 🛠️ Project Structure
 
@@ -45,29 +45,30 @@ app/
 
 ## 🔐 Deployment
 
-This project uses rsconnect to deploy to shinyapps.io:
+This project is deployed as a Docker container on Google Cloud Run. See [DEPLOY.md](DEPLOY.md) for full instructions.
 
-```r
-source("deploy_app.R")
+Quick deploy:
+
+```bash
+./deploy.sh
 ```
-
-Secrets are passed through environment variables:
-SHINY_APPS_NAME, SHINY_APPS_TOKEN, SHINY_APPS_SECRET
 
 ## 🧪 Local Development
 
-```r
-# Install dependencies
-renv::restore()
+With Docker:
 
-# Fetch fresh data
-source("fetch_library_data.R")
-
-# Run app locally
-shiny::runApp("app/")
+```bash
+docker compose up --build
+# Open http://localhost:8082
 ```
 
-You may need to modify database paths in functions.R if testing locally.
+Or with R directly:
+
+```r
+renv::restore()
+source("fetch_library_data.R")
+shiny::runApp("app/")
+```
 
 ## 📦 Required R Packages
 

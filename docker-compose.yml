@@ -1,0 +1,12 @@
+services:
+  shiny-app:
+    build: .
+    ports:
+      - "8082:8080"
+    environment:
+      - PORT=8080
+      - SHINY_ENV=development
+    volumes:
+      # Mount for development - allows live code changes
+      - ./app:/srv/shiny-server/app/app
+    restart: unless-stopped

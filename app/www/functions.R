@@ -1,8 +1,9 @@
-# Connect to SQLite
-db_path <- here("libraries.sqlite")
-
-# Uncomment for the local version
-# db_path <- here("app/libraries.sqlite")
+# Connect to SQLite (auto-detect path for shinyapps.io vs Docker/local)
+db_path <- if (file.exists(here("libraries.sqlite"))) {
+  here("libraries.sqlite")
+} else {
+  here("app", "libraries.sqlite")
+}
 
 # Function to fetch libraries from SQLite
 fetch_libraries <- function() {
