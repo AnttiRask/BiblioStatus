@@ -1,10 +1,10 @@
 # 📚 BiblioStatus
 
-**BiblioStatus** is a Shiny web app that shows the real-time opening status of Finnish public libraries on a map interface. Users can explore open/self-service/closed statuses for library branches across the country.
+**BiblioStatus** is a web app that shows the real-time opening status of Finnish public libraries on a map.
 
 ## 🔍 Features
 
-- 🌍 Interactive leaflet map with open/closed statuses color-coded
+- 🌍 Interactive map with open/self-service/closed statuses color-coded
 - 📱 Mobile-optimized layout with adjusted UI
 - 🌗 Dark mode toggle
 - 🏢 City/municipality filter
@@ -17,11 +17,11 @@
 
 ## 🚀 Live App
 
-👉 [Try it live](https://bibliostatus.youcanbeapirate.com)
+👉 [Try it here!](https://bibliostatus.youcanbeapirate.com)
 
 ## 🛠️ Project Structure
 
-```
+```bash
 fetch_library_data.R        # Pulls data from Kirkanta API (v4)
 app/
 ├── libraries.sqlite        # SQLite database (updated nightly by GitHub Actions)
@@ -36,14 +36,14 @@ app/
 
 ## 🔄 Data Pipeline
 
-1. **GitHub Actions** runs `fetch_library_data.R` nightly.
-2. It fetches library info + schedules from [Kirkanta API (v4)](https://api.kirjastot.fi/).
-3. Saves to `libraries.sqlite` in `app/`.
-4. App loads the database on startup.
+1. GitHub Actions runs `fetch_library_data.R` nightly
+2. It fetches library info + schedules from [Kirkanta API (v4)](https://api.kirjastot.fi/)
+3. Saves to `libraries.sqlite` in `app/`
+4. App loads the database on startup
 
 ## 🔐 Deployment
 
-This project is deployed as a Docker container on Google Cloud Run. See [DEPLOY.md](DEPLOY.md) for full instructions.
+This project is deployed as a Docker container on Google Cloud Run. See [DEPLOY.md](DEPLOY.md) for full instructions
 
 Quick deploy:
 
@@ -60,7 +60,7 @@ docker compose up --build
 # Open http://localhost:8082
 ```
 
-Or with R directly:
+Or directly with R:
 
 ```r
 renv::restore()
