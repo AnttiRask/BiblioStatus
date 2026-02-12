@@ -18,22 +18,22 @@ body {
 /* Main page title styling */
 h2, .h2 {
   font-family: "Gotham", sans-serif;
-  color: #d94248;
+  color: #C1272D;
   font-size: 36px;
   text-align: center;
 }
 
 /* Dropdown label styling (city selector, etc.) */
 .control-label {
-  color: #d94248;       /* red label */
+  color: #C1272D;       /* red label */
   font-weight: bold;
 }
 
 /* Input field focus styling */
 .form-control:focus {
-  border-color: #d94248;
+  border-color: #C1272D;
   outline: 0;
-  box-shadow: 0 0 8px #d94248;
+  box-shadow: 0 0 8px #C1272D;
 }
 
 /* Sidebar panel container style */
@@ -46,7 +46,7 @@ h2, .h2 {
 /* Highlighted sidebar titles and labels (in red) */
 .sidebar-panel h4,
 .sidebar-panel b {
-  color: #d94248;
+  color: #C1272D;
 }
 
 /* General sidebar text styling (non-titles) */
@@ -66,7 +66,7 @@ h2, .h2 {
 
 /* Dark mode switch label styling */
 .dark-mode-label {
-  color: #d94248;
+  color: #C1272D;
   font-weight: bold;
 }
 
@@ -86,4 +86,47 @@ a:hover,
 a:focus {
   color: #168d40;
   text-decoration: none;
+}
+
+/* Footer styling */
+.app-footer {
+    border-top: 1px solid #333333;
+    margin-top: 3rem;
+    padding-top: 2rem;
+}
+
+.app-footer a {
+    color: #C1272D;
+    text-decoration: none;
+}
+
+.app-footer a:hover {
+    color: #a02025;
+    text-decoration: underline;
+}
+
+.app-footer .text-muted {
+    color: #808080 !important;
+}
+
+/* Accessibility - Keyboard Navigation */
+a:focus, button:focus, input:focus, select:focus {
+    outline: 2px solid #C1272D;
+    outline-offset: 2px;
+}
+
+/* Skip link for screen readers */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: #191414;
+    color: #fff;
+    padding: 8px;
+    text-decoration: none;
+    z-index: 100;
+}
+
+.skip-link:focus {
+    top: 0;
 }
