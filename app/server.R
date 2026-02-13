@@ -87,17 +87,18 @@ server <- function(input, output, session) {
     },
     {
       req(input$city_filter)
+      req(library_data())
       data <- library_data() %>% filter(city_name == input$city_filter)
       req(nrow(data) > 0)
 
-      tile_provider <- if (input$dark_mode) {
+      tile_provider <- if (isTRUE(input$dark_mode)) {
         providers$CartoDB.DarkMatter
-      } else {
-        providers$CartoDB.Positron
-      }
+        } else {
+          providers$CartoDB.Positron
+          }
 
       output$map <- renderLeaflet({
-        chosen_colors <- if (input$dark_mode) dark_colors else light_colors
+        chosen_colors <- if (isTRUE(input$dark_mode)) dark_colors else light_colors
 
         map <- leaflet(data) %>%
           addProviderTiles(tile_provider, group = "basemap") %>%
