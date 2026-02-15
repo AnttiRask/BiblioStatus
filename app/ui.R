@@ -78,6 +78,7 @@ ui <- page_sidebar(
 
   # Sidebar
   sidebar = sidebar(
+    width = 350,
     selectInput(
       inputId = "city_filter",
       label = "Select City/Municipality:",
