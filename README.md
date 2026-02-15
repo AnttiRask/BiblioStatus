@@ -8,6 +8,8 @@
 - 📍 **Find Nearest Open Library** - Uses GPS to find 3-5 closest open libraries with distances
 - 🗺️ **Get Directions** - One-click Google Maps navigation to any library
 - 📱 Mobile-optimized layout with responsive sidebar and touch controls
+- 📞 **Contact Information** - Phone and email links for each library
+- 📅 **Complete Daily Schedule** - View all opening periods (e.g., "10:00-14:00 Open, 14:00-20:00 Self-service")
 - 🌗 Dark mode toggle
 - 🏢 City/municipality filter
 - 🔗 Clickable popups with library information and links

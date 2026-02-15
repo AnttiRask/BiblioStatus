@@ -55,6 +55,8 @@ fetch_libraries <- function() {
         zip_code            = address.zipcode,
         street_address      = address.street,
         library_url         = primaryContactInfo.homepage.url,
+        library_phone       = primaryContactInfo.phone.number,
+        library_email       = primaryContactInfo.email.email,
         library_services
       ) %>%
       # Fixing Seinäjoki main library coordinates, because there are two

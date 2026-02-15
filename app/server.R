@@ -21,6 +21,7 @@ server <- function(input, output, session) {
   selected_library <- reactiveVal(NULL)
   user_location <- reactiveVal(NULL)
   nearest_libraries <- reactiveVal(NULL)
+  all_library_schedules <- reactiveVal(NULL)
 
   # Data fetching and processing
   refresh_data <- function() {
@@ -29,6 +30,7 @@ server <- function(input, output, session) {
 
     now <- format(Sys.time(), tz = "Europe/Helsinki", "%H:%M")
 
+    # Add computed fields to schedules
     schedules <- schedules %>%
       mutate(
         is_open_now = from <= now & to >= now,
@@ -40,7 +42,19 @@ server <- function(input, output, session) {
           is_open_now & status_label == "Temporarily closed" ~
             "Temporarily closed",
           TRUE ~ "Closed"
-        ),
+        )
+      )
+
+    # Store ALL schedules for detail panel
+    all_library_schedules(schedules)
+
+    # Create map display version (one status per library for marker colors)
+    map_display <- schedules %>%
+      group_by(library_id) %>%
+      arrange(desc(is_open_now), desc(to)) %>%
+      slice(1) %>%
+      ungroup() %>%
+      mutate(
         opening_hours = if_else(
           is_open_now,
           paste0(from, " - ", to),
@@ -48,12 +62,9 @@ server <- function(input, output, session) {
         )
       )
 
+    # Join libraries with map display data
     data <- libraries %>%
-      left_join(schedules, by = join_by(id == library_id)) %>%
-      group_by(id) %>%
-      arrange(desc(is_open_now), desc(to)) %>%
-      slice(1) %>%
-      ungroup()
+      left_join(map_display, by = join_by(id == library_id))
 
     library_data(data)
   }
@@ -397,6 +408,7 @@ server <- function(input, output, session) {
   output$library_services <- renderUI({
     selected <- selected_library()
     req(selected)
+    schedules <- all_library_schedules()
 
     if (!is.null(selected$library_services)) {
       maps_url <- sprintf(
@@ -404,19 +416,61 @@ server <- function(input, output, session) {
         selected$lat, selected$lon
       )
 
+      # Get current time for schedule formatting
+      now <- format(Sys.time(), tz = "Europe/Helsinki", "%H:%M")
+
+      # Format all schedule periods
+      schedule_html <- if (!is.null(schedules)) {
+        format_schedule_periods(selected$id, schedules, now)
+      } else {
+        "<p>No schedule information available</p>"
+      }
+
       tagList(
         h4(selected$library_branch_name),
         p(selected$library_address),
-        tags$b("Status:"),
+
+        # Current status (prominently displayed)
+        tags$b("Current Status:"),
         p(selected$open_status),
-        tags$b("Hours:"),
-        p(selected$opening_hours),
+
+        # Today's full schedule
+        tags$b("Today's Schedule:"),
+        HTML(schedule_html),
+        br(),
+
+        # Contact information (phone)
+        if (!is.na(selected$library_phone)) {
+          tagList(
+            tags$a(
+              href = paste0("tel:", selected$library_phone),
+              icon("phone"), " ", selected$library_phone,
+              style = "display: block; margin-bottom: 8px; color: #C1272D; text-decoration: none;"
+            )
+          )
+        },
+
+        # Contact information (email)
+        if (!is.na(selected$library_email)) {
+          tagList(
+            tags$a(
+              href = paste0("mailto:", selected$library_email),
+              icon("envelope"), " ", selected$library_email,
+              style = "display: block; margin-bottom: 8px; color: #C1272D; text-decoration: none;"
+            )
+          )
+        },
+        br(),
+
+        # Get Directions button
         tags$a(
           href = maps_url,
           target = "_blank",
           class = "btn btn-sm btn-directions mb-3",
           icon("location-arrow"), " Get Directions"
         ),
+
+        # Services
         tags$b("Services (in Finnish):"),
         p(selected$library_services)
       )

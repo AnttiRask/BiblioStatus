@@ -56,3 +56,34 @@ calculate_distances_to_libraries <- function(user_lat, user_lon, library_data) {
       distance_display = sprintf("%.1f km", distance_km)
     )
 }
+
+# Format all schedule periods for a library
+# Highlights current period to emphasize "right now" status
+format_schedule_periods <- function(library_id, all_schedules, now_time) {
+  periods <- all_schedules %>%
+    filter(library_id == !!library_id) %>%
+    arrange(from) %>%
+    mutate(
+      is_current = from <= now_time & to >= now_time,
+      period_text = paste0(
+        from, "-", to, " (", status_label, ")",
+        if_else(is_current, " ← now", "")
+      )
+    )
+
+  if (nrow(periods) == 0) {
+    return("No schedule information available")
+  }
+
+  # Return as HTML list (current period bolded)
+  period_items <- periods %>%
+    mutate(html = if_else(
+      is_current,
+      paste0("<li><strong>", period_text, "</strong></li>"),
+      paste0("<li>", period_text, "</li>")
+    )) %>%
+    pull(html) %>%
+    paste(collapse = "\n")
+
+  paste0("<ul style='margin: 0; padding-left: 20px;'>\n", period_items, "\n</ul>")
+}
