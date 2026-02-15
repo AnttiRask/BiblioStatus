@@ -235,8 +235,6 @@ server <- function(input, output, session) {
 
   # Sidebar panel with library info
   output$library_services <- renderUI({
-    if (isTRUE(input$is_mobile)) return(NULL)
-
     selected <- selected_library()
     req(selected)
 

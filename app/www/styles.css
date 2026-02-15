@@ -11,29 +11,6 @@
     height: 600px !important;
   }
 
-  /* Ensure sidebar appears above footer on mobile */
-  .bslib-sidebar-layout {
-    position: relative;
-    z-index: 1;
-  }
-
-  /* Offcanvas sidebar should have high z-index */
-  .offcanvas,
-  .bslib-sidebar-layout > .sidebar {
-    z-index: 1050 !important;
-  }
-
-  /* Footer should be below sidebar */
-  .app-footer {
-    position: relative;
-    z-index: 1;
-  }
-
-  /* Ensure proper stacking context */
-  .bslib-page-sidebar {
-    isolation: isolate;
-  }
-
   /* Mobile map improvements */
   /* Larger tap targets for markers */
   .leaflet-marker-icon,
