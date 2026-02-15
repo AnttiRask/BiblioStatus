@@ -101,8 +101,7 @@
 /* Global styles */
 body {
   font-family: "Gotham", sans-serif;
-  background-color: #191414;
-  color: #FFFFFF;
+  /* Background and text colors handled by bslib theme (respects dark/light mode) */
 }
 
 /* Main page title styling */
