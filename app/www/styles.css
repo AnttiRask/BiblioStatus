@@ -33,6 +33,69 @@
   .bslib-page-sidebar {
     isolation: isolate;
   }
+
+  /* Mobile map improvements */
+  /* Larger tap targets for markers */
+  .leaflet-marker-icon,
+  .leaflet-marker-shadow {
+    cursor: pointer !important;
+  }
+
+  /* Better popup styling on mobile */
+  .leaflet-popup {
+    margin-bottom: 20px !important;
+  }
+
+  .leaflet-popup-content-wrapper {
+    font-size: 14px !important;
+    line-height: 1.6 !important;
+    padding: 4px !important;
+  }
+
+  .leaflet-popup-content {
+    margin: 12px !important;
+    min-width: 180px !important;
+  }
+
+  /* Larger close button on mobile */
+  .leaflet-popup-close-button {
+    font-size: 24px !important;
+    width: 30px !important;
+    height: 30px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Larger zoom controls on mobile */
+  .leaflet-control-zoom {
+    margin-top: 10px !important;
+    margin-right: 10px !important;
+  }
+
+  .leaflet-control-zoom a {
+    width: 36px !important;
+    height: 36px !important;
+    line-height: 36px !important;
+    font-size: 20px !important;
+  }
+
+  /* Legend positioning on mobile */
+  .leaflet-top.leaflet-right {
+    top: 60px !important;
+  }
+
+  /* Better link styling in popups */
+  .leaflet-popup-content a {
+    color: #C1272D !important;
+    text-decoration: none !important;
+    font-weight: bold !important;
+  }
+
+  .leaflet-popup-content a:hover {
+    text-decoration: underline !important;
+  }
 }
 
 /* Global styles */

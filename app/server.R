@@ -100,7 +100,22 @@ server <- function(input, output, session) {
       output$map <- renderLeaflet({
         chosen_colors <- if (isTRUE(input$dark_mode)) dark_colors else light_colors
 
-        map <- leaflet(data) %>%
+        # Mobile-optimized leaflet options
+        leaflet_options <- if (isTRUE(input$is_mobile)) {
+          leafletOptions(
+            zoomControl = TRUE,
+            dragging = TRUE,
+            tap = TRUE,
+            tapTolerance = 20,  # Larger tap area for mobile
+            touchZoom = TRUE,
+            doubleClickZoom = FALSE,  # Prevent accidental double-tap zoom
+            scrollWheelZoom = FALSE   # Prevent scroll conflicts on mobile
+          )
+        } else {
+          leafletOptions()
+        }
+
+        map <- leaflet(data, options = leaflet_options) %>%
           addProviderTiles(tile_provider, group = "basemap") %>%
           addCircleMarkers(
             lng = ~lon,
@@ -114,7 +129,7 @@ server <- function(input, output, session) {
               open_status == "Closed for the whole day"          ~ chosen_colors$ClosedDay,
               TRUE                                               ~ chosen_colors$Unknown
             ),
-            radius = 8,
+            radius = if (isTRUE(input$is_mobile)) 10 else 8,  # Larger markers on mobile
             popup = ~ paste(
               if_else(
                 !is.na(library_url),
@@ -151,6 +166,13 @@ server <- function(input, output, session) {
                 "font-weight" = "bold",
                 "color" = "#222"
               )
+            ),
+            popupOptions = popupOptions(
+              maxWidth = if (isTRUE(input$is_mobile)) 250 else 300,
+              minWidth = if (isTRUE(input$is_mobile)) 200 else 100,
+              autoPan = TRUE,  # Auto-pan to show full popup
+              keepInView = TRUE,  # Keep popup in view
+              closeButton = TRUE
             )
           ) %>%
           addLegend(
