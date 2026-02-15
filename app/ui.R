@@ -49,19 +49,16 @@ ui <- page_sidebar(
     )
   ),
 
+  # App title
+  title = "BiblioStatus - Which Finnish Libraries Are Open Right Now?",
+
   # Enable JavaScript interactivity
   useShinyjs(),
 
-  # Meta and styles/scripts
-  header = tags$head(
-    tags$link(rel = "shortcut icon", type = "image/png", href = "favicon.png"),
-    # Responsive design
-    tags$meta(
-      name = "viewport",
-      content = "width=device-width, initial-scale=1"
-    ),
-    # Custom styles
-    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
+  # Favicon and meta tags
+  tags$head(
+    tags$title("BiblioStatus"),
+    tags$link(rel = "icon", type = "image/png", href = "favicon.png"),
     # Detect if device is mobile, and store it in input$is_mobile
     tags$script(HTML(
       "
@@ -76,8 +73,8 @@ ui <- page_sidebar(
     ))
   ),
 
-  # App title
-  title = "BiblioStatus - Which Finnish Libraries Are Open Right Now?",
+  # Custom CSS
+  includeCSS("www/styles.css"),
 
   # Sidebar
   sidebar = sidebar(
