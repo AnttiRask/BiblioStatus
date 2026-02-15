@@ -1,10 +1,37 @@
 /* Import Gotham font */
 @import url("https://fonts.cdnfonts.com/css/gotham-6");
 
-/* Responsive map height on mobile devices */
+/* ============================================
+   MOBILE RESPONSIVENESS
+   ============================================ */
+
 @media (max-width: 768px) {
+  /* Map height on mobile */
   #map {
     height: 600px !important;
+  }
+
+  /* Ensure sidebar appears above footer on mobile */
+  .bslib-sidebar-layout {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Offcanvas sidebar should have high z-index */
+  .offcanvas,
+  .bslib-sidebar-layout > .sidebar {
+    z-index: 1050 !important;
+  }
+
+  /* Footer should be below sidebar */
+  .app-footer {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Ensure proper stacking context */
+  .bslib-page-sidebar {
+    isolation: isolate;
   }
 }
 
