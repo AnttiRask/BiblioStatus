@@ -78,4 +78,7 @@ if (nrow(broken_urls) > 0) {
       ifelse(is.na(row$status), paste("ERROR -", row$error), paste("HTTP", row$status))
     ))
   }
+
+  # Exit with error code so GitHub Actions can send email
+  quit(status = 1, save = "no")
 }

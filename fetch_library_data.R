@@ -162,6 +162,44 @@ fetch_libraries <- function() {
             id == 86784 ~ 'https://kirjasto.mikkeli.fi/', # Mikkelin pääkirjasto
             id == 86787 ~ 'https://lumme.finna.fi/OrganisationInfo/Home#86787', # Pertunmaan lähikirjasto
             id == 86788 ~ 'https://www.pyharanta.fi/vapaa-aika-ja-hyvinvointi/kirjasto/', # Pyhärannan kirjasto
+            # Fixed broken URLs (2026-02-15)
+            id == 84749 ~ 'https://helmet.finna.fi/OrganisationInfo?_=1771170939393#84749', # Auroran sairaalan potilaskirjasto
+            id == 84750 ~ 'https://hakemisto.kirjastot.fi/helsinki/kontulan-palvelukeskuskirjasto/', # Kontulan palvelukeskuskirjasto
+            id == 84751 ~ 'https://hakemisto.kirjastot.fi/helsinki/kustaankartanon-palvelukeskuskirjasto/', # Kustaankartanon palvelukeskuskirjasto
+            id == 84762 ~ 'https://hakemisto.kirjastot.fi/helsinki/helsinki-psykiatriakeskuksen-kirjasto/', # Psykiatriakeskuksen potilaskirjasto
+            id == 84763 ~ 'https://hakemisto.kirjastot.fi/helsinki/riistavuoren-palvelukeskuskirjasto', # Riistavuoren palvelukeskuskirjasto
+            id == 85009 ~ 'https://ypaja.fi/kirjasto-ja-omatoimikirjasto/', # Ypäjän kunnankirjasto
+            id == 85088 ~ 'https://lapinlahti.fi/fi/kulttuuri-ja-vapaa-aika/kirjasto/varpaisjarven-lahikirjasto-0/', # Varpaisjärven lähikirjasto
+            id == 85099 ~ 'https://loisto.verkkokirjasto.fi/-/riihikosken-kirjasto/', # Riihikosken kirjasto
+            id == 85100 ~ 'https://loisto.verkkokirjasto.fi/-/kyron-kirjasto/', # Kyrön kirjasto
+            id == 85127 ~ 'https://www.pirkkala.fi/toimipisteet/nuolialan-kirjasto/', # Nuolialan kirjasto
+            id == 85128 ~ 'https://www.pirkkala.fi/toimipisteet/toivion-kirjasto/', # Toivion kirjasto
+            id == 85169 ~ 'https://www.virrat.fi/vapaa-ajan-palvelut/kirjasto/', # Virtain kaupunginkirjasto
+            id == 85179 ~ 'https://www.turku.fi/toimipaikat/aunelan-kirjasto/', # Aunelan kirjasto
+            id == 85190 ~ 'https://eepos.finna.fi/OrganisationInfo#85190', # Soinin kirjasto
+            id == 85275 ~ 'https://www.vehmaa.fi/hyvinvointi-ja-vapaa-aika/kirjasto/', # Vehmaan kunnankirjasto
+            id == 85314 ~ 'https://www.padasjoki.fi/hyvinvointi-ja-kulttuuri/kirjasto/', # Padasjoen kunnankirjasto
+            id == 85356 ~ 'https://www.kolari.fi/fi/kirjasto-ja-kulttuuri/kirjasto/', # Kolarin kunnankirjasto
+            id == 85462 ~ 'https://enontekio.fi/fi/vapaa-aika/kulttuuripalvelut/kirjasto/', # Enontekiön kirjasto
+            id == 85509 ~ 'https://www.pukkila.fi/hyvinvointi-ja-kulttuuri/kirjastopalvelut/', # Pukkilan kirjasto
+            id == 85524 ~ 'https://pyhtaa.fi/fi/vapaa-aika-kulttuuri/kirjasto/', # Pyhtään kunnankirjasto
+            id == 85662 ~ 'https://satakirjastot.finna.fi/OrganisationInfo/Home#85662', # Eurajoen pääkirjasto
+            id == 85684 ~ 'https://vierema.fi/vapaa-aika-ja-hyvinvointi/kirjasto/', # Vieremän kunnankirjasto
+            id == 85694 ~ 'https://kauhava.fi/vapaa_aika/kirjasto/kirjaston-palvelut/kortesjarven-kirjasto/', # Kortesjärven kirjasto
+            id == 85750 ~ 'https://satakirjastot.finna.fi/OrganisationInfo/Home#85750', # Vampulan kirjasto
+            id == 85830 ~ 'https://keski.finna.fi/OrganisationInfo?_=1771170939393#85830', # Pihlajakosken kirjastotila
+            id == 85967 ~ 'https://hakemisto.kirjastot.fi/masku/paakirjasto-masku/', # Maskun pääkirjasto
+            id == 85968 ~ 'https://hakemisto.kirjastot.fi/masku/askainen/', # Askaisten kirjasto
+            id == 85970 ~ 'https://hakemisto.kirjastot.fi/masku/lemu/', # Lemun kirjasto
+            id == 86006 ~ 'https://mikkeli.fi/ota-yhteytta/kirjastot/suomenniemen-kirjasto/', # Suomenniemen kirjasto
+            id == 86011 ~ 'https://www.ouka.fi/kirjastot-ja-kirjastoautot/martinniemen-kirjasto/', # Martinniemen kirjasto
+            id == 86074 ~ 'https://loisto.verkkokirjasto.fi/-/auran-kirjas-1#/', # Auran kirjasto
+            id == 86087 ~ 'https://kannus.fi/kirjasto/tilat-ja-palvelut/korpelan-lainausasema/', # Korpelan lainausasema
+            id == 86433 ~ 'https://keski.finna.fi/OrganisationInfo#86433', # Päijälän kirjastotila
+            id == 86521 ~ 'https://satakirjastot.finna.fi/OrganisationInfo/Home#86521', # Eurajoen lähikirjasto, Luvian kirjasto
+            id == 86542 ~ 'https://lapinlahti.fi/fi/kulttuuri-ja-vapaa-aika/kirjasto/lapinlahden-paakirjasto-0/', # Lapinlahden pääkirjasto
+            id == 86657 ~ 'https://www.urjala.fi/ela-ja-voi-hyvin/kirjasto/', # Urjalan kunnankirjasto
+            id == 86785 ~ 'https://www.heinola.fi/hyvinvointi-ja-vapaa-aika/kirjasto/lehtisali-ja-omatoimikirjasto/', # Heinolan lehtisali ja omatoimikirjasto
             TRUE        ~ library_url
             )
       ) %>%
