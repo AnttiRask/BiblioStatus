@@ -37,7 +37,7 @@ create_app_footer <- function(current_app = "") {
     )
 }
 
-ui <- page_sidebar(
+ui <- page_navbar(
   theme = bs_theme(
     version = 5,
     bg = "#191414",
@@ -49,14 +49,7 @@ ui <- page_sidebar(
     )
   ),
 
-  # App title
-  title = "BiblioStatus - Which Finnish Libraries Are Open Right Now?",
-
-  # Enable JavaScript interactivity
-  useShinyjs(),
-
-  # Favicon and meta tags
-  tags$head(
+  header = tags$head(
     tags$title("BiblioStatus"),
     tags$link(rel = "icon", type = "image/png", href = "favicon.png"),
     # Detect if device is mobile, and store it in input$is_mobile
@@ -70,34 +63,50 @@ ui <- page_sidebar(
           Shiny.setInputValue('is_mobile', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent), {priority: 'event'});
         });
       "
-    ))
+    )),
+    # Enable JavaScript interactivity
+    useShinyjs(),
+    # Custom CSS
+    includeCSS("www/styles.css")
   ),
 
-  # Custom CSS
-  includeCSS("www/styles.css"),
+  # App title
+  title = "BiblioStatus",
+  id = "main_navbar",
 
-  # Sidebar
-  sidebar = sidebar(
-    width = 350,
-    selectInput(
-      inputId = "city_filter",
-      label = "Select City/Municipality:",
-      choices = NULL
-    ),
-    input_dark_mode(id = "dark_mode", mode = "light"),
-    br(),
-    # Shows details of selected library (desktop only)
-    uiOutput("library_services")
-  ),
+  # Main map view
+  nav_panel(
+    title = "Library Map",
+    value = "library_map",
 
-  # Main content
-  div(
-    id = "loading-spinner",
-    "Loading data, please wait...",
-    class = "loading-text"
+    layout_sidebar(
+      sidebar = sidebar(
+        width = 350,
+        h3("BiblioStatus"),
+        p("Which Finnish Libraries Are Open Right Now?"),
+        br(),
+        selectInput(
+          inputId = "city_filter",
+          label = "Select City/Municipality:",
+          choices = NULL
+        ),
+        input_dark_mode(id = "dark_mode", mode = "light"),
+        br(),
+        # Shows details of selected library (desktop only)
+        uiOutput("library_services")
+      ),
+
+      # Main content
+      div(
+        id = "loading-spinner",
+        "Loading data, please wait...",
+        class = "loading-text"
+      ),
+      leafletOutput("map", height = "85vh"),
+      div(style = "height: 40px;")
+    )
   ),
-  leafletOutput("map", height = "85vh"),
 
   # Footer
-  create_app_footer("bibliostatus")
+  footer = create_app_footer("bibliostatus")
 )
