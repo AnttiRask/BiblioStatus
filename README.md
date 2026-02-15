@@ -6,6 +6,7 @@
 
 - 🌍 Interactive map with open/self-service/closed statuses color-coded
 - 📍 **Find Nearest Open Library** - Uses GPS to find 3-5 closest open libraries with distances
+- 🗺️ **Get Directions** - One-click Google Maps navigation to any library
 - 📱 Mobile-optimized layout with responsive sidebar and touch controls
 - 🌗 Dark mode toggle
 - 🏢 City/municipality filter

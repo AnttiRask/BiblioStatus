@@ -155,6 +155,11 @@ server <- function(input, output, session) {
                 !is.na(opening_hours),
                 paste("<b>Hours: </b>", opening_hours),
                 "<b>Hours: </b>NA"
+              ),
+              "<br>",
+              sprintf(
+                "<a href='https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f' target='_blank' style='color: #C1272D; font-weight: bold;'>📍 Get Directions</a>",
+                lat, lon
               )
             ),
             label = if (!isTRUE(input$is_mobile)) {
@@ -331,7 +336,12 @@ server <- function(input, output, session) {
           ),
           "<br>", library_address,
           "<br><b>Distance: </b>", distance_display,
-          "<br><b>Status: </b>", open_status
+          "<br><b>Status: </b>", open_status,
+          "<br>",
+          sprintf(
+            "<a href='https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f' target='_blank' style='color: #C1272D; font-weight: bold;'>📍 Get Directions</a>",
+            lat, lon
+          )
         )
       ) %>%
       fitBounds(
@@ -359,14 +369,25 @@ server <- function(input, output, session) {
       h4("Nearest Open Libraries:", style = "color: #C1272D;"),
       lapply(1:nrow(nearest), function(i) {
         lib <- nearest[i, ]
+        maps_url <- sprintf(
+          "https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f",
+          lib$lat, lib$lon
+        )
         div(
-          style = "margin-bottom: 15px; padding: 10px; border-left: 3px solid #C1272D;",
+          style = "margin-bottom: 15px; padding: 10px; border-left: 3px solid #C1272D; background-color: rgba(193, 39, 45, 0.05);",
           tags$b(lib$library_branch_name),
           br(),
           tags$small(lib$city_name),
           br(),
           tags$small(style = "color: #C1272D; font-weight: bold;",
-            lib$distance_display)
+            lib$distance_display),
+          br(),
+          tags$a(
+            href = maps_url,
+            target = "_blank",
+            class = "btn btn-sm btn-directions mt-2",
+            icon("location-arrow"), " Get Directions"
+          )
         )
       })
     )
@@ -378,6 +399,11 @@ server <- function(input, output, session) {
     req(selected)
 
     if (!is.null(selected$library_services)) {
+      maps_url <- sprintf(
+        "https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f",
+        selected$lat, selected$lon
+      )
+
       tagList(
         h4(selected$library_branch_name),
         p(selected$library_address),
@@ -385,6 +411,12 @@ server <- function(input, output, session) {
         p(selected$open_status),
         tags$b("Hours:"),
         p(selected$opening_hours),
+        tags$a(
+          href = maps_url,
+          target = "_blank",
+          class = "btn btn-sm btn-directions mb-3",
+          icon("location-arrow"), " Get Directions"
+        ),
         tags$b("Services (in Finnish):"),
         p(selected$library_services)
       )

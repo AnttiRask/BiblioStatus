@@ -228,3 +228,42 @@ a:focus, button:focus, input:focus, select:focus {
     padding: 12px;
   }
 }
+
+/* ============================================
+   GET DIRECTIONS BUTTON STYLING
+   ============================================ */
+
+/* Get Directions button styling */
+.btn-directions {
+  background-color: #C1272D;
+  border-color: #C1272D;
+  color: #FFFFFF !important;
+  font-weight: bold;
+  text-decoration: none !important;
+  transition: all 0.3s ease;
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+
+.btn-directions:hover {
+  background-color: #a02025;
+  border-color: #a02025;
+  color: #FFFFFF !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-directions:active {
+  transform: translateY(0);
+}
+
+/* Mobile-specific directions button sizing */
+@media (max-width: 768px) {
+  .btn-directions {
+    font-size: 14px;
+    padding: 8px 12px;
+    width: 100%;
+    text-align: center;
+  }
+}
