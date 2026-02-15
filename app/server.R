@@ -19,6 +19,8 @@ server <- function(input, output, session) {
   # State: reactive containers
   library_data <- reactiveVal(NULL)
   selected_library <- reactiveVal(NULL)
+  user_location <- reactiveVal(NULL)
+  nearest_libraries <- reactiveVal(NULL)
 
   # Data fetching and processing
   refresh_data <- function() {
@@ -230,7 +232,144 @@ server <- function(input, output, session) {
 
   # Reset selected library on city change
   observeEvent(input$city_filter, {
+    if (!is.null(input$city_filter) && input$city_filter != "") {
+      nearest_libraries(NULL)
+      user_location(NULL)
+    }
     selected_library(NULL)
+  })
+
+  # Handle "Find Nearest" button click
+  observeEvent(input$find_nearest, {
+    nearest_libraries(NULL)
+    session$sendCustomMessage('requestGeolocation', list())
+  })
+
+  # Handle successful geolocation
+  observeEvent(input$user_location, {
+    req(input$user_location)
+    req(library_data())
+
+    user_loc <- input$user_location
+    user_location(user_loc)
+
+    # Filter to only open/self-service libraries
+    open_libs <- library_data() %>%
+      filter(open_status %in% c("Open", "Self-service"))
+
+    if (nrow(open_libs) == 0) {
+      nearest_libraries(data.frame())
+      showNotification("No open libraries found nearby", type = "warning")
+      return()
+    }
+
+    # Calculate distances and get top 5
+    libs_with_distance <- calculate_distances_to_libraries(
+      user_lat = user_loc$lat,
+      user_lon = user_loc$lon,
+      library_data = open_libs
+    )
+
+    nearest <- libs_with_distance %>%
+      arrange(distance_km) %>%
+      head(if (isTRUE(input$is_mobile)) 3 else 5)
+
+    nearest_libraries(nearest)
+
+    # Update map to show nearest libraries
+    update_map_for_nearest(nearest, user_loc)
+  })
+
+  # Handle geolocation errors
+  observeEvent(input$geolocation_error, {
+    req(input$geolocation_error)
+    showNotification(input$geolocation_error, type = "error", duration = 5)
+  })
+
+  # Map update function for nearest libraries
+  update_map_for_nearest <- function(nearest_libs, user_loc) {
+    req(nrow(nearest_libs) > 0)
+
+    tile_provider <- if (isTRUE(input$dark_mode)) {
+      providers$CartoDB.DarkMatter
+    } else {
+      providers$CartoDB.Positron
+    }
+
+    chosen_colors <- if (isTRUE(input$dark_mode)) dark_colors else light_colors
+
+    # Calculate map bounds
+    all_lats <- c(user_loc$lat, nearest_libs$lat)
+    all_lons <- c(user_loc$lon, nearest_libs$lon)
+
+    leafletProxy("map") %>%
+      clearMarkers() %>%
+      # User location marker
+      addMarkers(
+        lng = user_loc$lon,
+        lat = user_loc$lat,
+        popup = "<b>Your Location</b>"
+      ) %>%
+      # Nearest library markers
+      addCircleMarkers(
+        data = nearest_libs,
+        lng = ~lon,
+        lat = ~lat,
+        layerId = ~id,
+        color = ~ case_when(
+          open_status == "Open" ~ chosen_colors$Open,
+          open_status == "Self-service" ~ chosen_colors$Self,
+          TRUE ~ chosen_colors$Unknown
+        ),
+        radius = if (isTRUE(input$is_mobile)) 12 else 10,
+        popup = ~ paste(
+          if_else(
+            !is.na(library_url),
+            paste0("<b><a href='", library_url, "' target='_blank'>",
+                   library_branch_name, "</a></b>"),
+            paste0("<b>", library_branch_name, "</b>")
+          ),
+          "<br>", library_address,
+          "<br><b>Distance: </b>", distance_display,
+          "<br><b>Status: </b>", open_status
+        )
+      ) %>%
+      fitBounds(
+        lng1 = min(all_lons) - 0.01,
+        lat1 = min(all_lats) - 0.01,
+        lng2 = max(all_lons) + 0.01,
+        lat2 = max(all_lats) + 0.01
+      )
+  }
+
+  # Error display UI
+  output$geolocation_error_ui <- renderUI({
+    req(input$geolocation_error)
+    div(class = "alert alert-danger", style = "margin: 10px 0; padding: 10px;",
+      icon("exclamation-triangle"), " ", input$geolocation_error)
+  })
+
+  # Nearest libraries display UI
+  output$nearest_libraries_ui <- renderUI({
+    nearest <- nearest_libraries()
+    req(nearest)
+    req(nrow(nearest) > 0)
+
+    tagList(
+      h4("Nearest Open Libraries:", style = "color: #C1272D;"),
+      lapply(1:nrow(nearest), function(i) {
+        lib <- nearest[i, ]
+        div(
+          style = "margin-bottom: 15px; padding: 10px; border-left: 3px solid #C1272D;",
+          tags$b(lib$library_branch_name),
+          br(),
+          tags$small(lib$city_name),
+          br(),
+          tags$small(style = "color: #C1272D; font-weight: bold;",
+            lib$distance_display)
+        )
+      })
+    )
   })
 
   # Sidebar panel with library info

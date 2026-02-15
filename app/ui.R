@@ -62,6 +62,36 @@ ui <- page_navbar(
         $(document).on('shiny:sessioninitialized', function() {
           Shiny.setInputValue('is_mobile', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent), {priority: 'event'});
         });
+
+        // Geolocation handler for finding nearest library
+        Shiny.addCustomMessageHandler('requestGeolocation', function(message) {
+          if (!navigator.geolocation) {
+            Shiny.setInputValue('geolocation_error',
+              'Geolocation is not supported by your browser',
+              {priority: 'event'});
+            return;
+          }
+
+          Shiny.setInputValue('geolocation_loading', true, {priority: 'event'});
+
+          navigator.geolocation.getCurrentPosition(
+            function(position) {
+              Shiny.setInputValue('user_location', {
+                lat: position.coords.latitude,
+                lon: position.coords.longitude
+              }, {priority: 'event'});
+              Shiny.setInputValue('geolocation_loading', false, {priority: 'event'});
+            },
+            function(error) {
+              var errorMsg = error.code === 1 ?
+                'Please enable location permissions to find nearby libraries' :
+                'Unable to get your location. Please try again.';
+              Shiny.setInputValue('geolocation_error', errorMsg, {priority: 'event'});
+              Shiny.setInputValue('geolocation_loading', false, {priority: 'event'});
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+          );
+        });
       "
     )),
     # Enable JavaScript interactivity
@@ -90,6 +120,21 @@ ui <- page_navbar(
           label = "Select City/Municipality:",
           choices = NULL
         ),
+        br(),
+        actionButton(
+          inputId = "find_nearest",
+          label = "Find Nearest Open Library",
+          icon = icon("location-dot"),
+          class = "btn-primary w-100"
+        ),
+        conditionalPanel(
+          condition = "input.geolocation_loading",
+          div(class = "text-center", style = "color: #C1272D; margin: 10px 0;",
+            icon("spinner", class = "fa-spin"), " Getting your location...")
+        ),
+        uiOutput("geolocation_error_ui"),
+        br(),
+        uiOutput("nearest_libraries_ui"),
         input_dark_mode(id = "dark_mode", mode = "light"),
         br(),
         # Shows details of selected library (desktop only)

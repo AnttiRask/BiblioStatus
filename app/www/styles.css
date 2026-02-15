@@ -196,3 +196,35 @@ a:focus, button:focus, input:focus, select:focus {
 .skip-link:focus {
     top: 0;
 }
+
+/* ============================================
+   FIND NEAREST BUTTON STYLING
+   ============================================ */
+
+/* Find Nearest button styling */
+.btn-primary {
+  background-color: #C1272D;
+  border-color: #C1272D;
+  color: #FFFFFF;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: #a02025;
+  border-color: #a02025;
+}
+
+.btn-primary:disabled {
+  background-color: #666666;
+  border-color: #666666;
+  cursor: not-allowed;
+}
+
+/* Mobile-specific button sizing */
+@media (max-width: 768px) {
+  .btn-primary {
+    font-size: 16px;
+    padding: 12px;
+  }
+}
