@@ -6,15 +6,15 @@ library(purrr)
 library(RSQLite)
 library(stringr)
 
-# Connect to SQLite
-con <- dbConnect(
-  SQLite(),
-  dbname = here("app/libraries.sqlite"),
-  read_only = FALSE
-)
+# Load Turso helper functions
+source(here("R/turso.R"))
 
-# Fetch libraries
-fetch_libraries <- function() {
+# Determine update type from environment variable (default: schedules only)
+update_type <- Sys.getenv("UPDATE_TYPE", unset = "schedules")
+cat(sprintf("Update mode: %s\n", update_type))
+
+# Fetch libraries from API
+fetch_libraries_from_api <- function() {
   api_url <- "https://api.kirjastot.fi/v4/library"
   response <- GET(
     api_url,
@@ -220,8 +220,8 @@ fetch_libraries <- function() {
   }
 }
 
-# Fetch schedules
-fetch_schedules <- function(libraries) {
+# Fetch schedules from API
+fetch_schedules_from_api <- function(libraries) {
   api_url <- "https://api.kirjastot.fi/v4/schedules"
   today <- format(Sys.Date(), tz = "Europe/Helsinki")
 
@@ -240,8 +240,8 @@ fetch_schedules <- function(libraries) {
           tibble(
               library_id,
               date          = today,
-              from          = NA_character_,
-              to            = NA_character_,
+              from_time     = NA_character_,
+              to_time       = NA_character_,
               status_label  = "Unknown"
           )
         )
@@ -255,8 +255,8 @@ fetch_schedules <- function(libraries) {
           tibble(
               library_id,
               date          = today,
-              from          = NA_character_,
-              to            = NA_character_,
+              from_time     = NA_character_,
+              to_time       = NA_character_,
               status_label  = "Closed for the whole day"
           )
         )
@@ -273,8 +273,8 @@ fetch_schedules <- function(libraries) {
           tibble(
             library_id,
             date         = today,
-            from         = NA_character_,
-            to           = NA_character_,
+            from_time    = NA_character_,
+            to_time      = NA_character_,
             status_label = "Unknown"
           )
         )
@@ -285,8 +285,8 @@ fetch_schedules <- function(libraries) {
         mutate(
           library_id   = library_id,
           date         = today,
-          from         = as.character(from),
-          to           = as.character(to),
+          from_time    = as.character(from),
+          to_time      = as.character(to),
           status_label = case_when(
             status == 0 ~ "Temporarily closed",
             status == 1 ~ "Open",
@@ -294,14 +294,14 @@ fetch_schedules <- function(libraries) {
             TRUE ~ "Unknown"
           )
         ) %>%
-        select(library_id, date, from, to, status_label)
+        select(library_id, date, from_time, to_time, status_label)
     } else {
       # fmt: skip
       tibble(
         library_id,
         date         = today,
-        from         = NA_character_,
-        to           = NA_character_,
+        from_time    = NA_character_,
+        to_time      = NA_character_,
         status_label = "Unknown"
       )
     }
@@ -310,12 +310,125 @@ fetch_schedules <- function(libraries) {
   return(schedules)
 }
 
-# Execute fetching
-libraries <- fetch_libraries()
-schedules <- fetch_schedules(libraries)
+# =============================================================================
+# MODE 1: UPDATE LIBRARIES (Weekly - Sunday)
+# =============================================================================
 
-# Write to SQLite
-dbWriteTable(con, "libraries", libraries, overwrite = TRUE)
-dbWriteTable(con, "schedules", schedules, overwrite = TRUE)
+if (update_type %in% c("libraries", "both")) {
+  cat("\n=== Fetching library metadata ===\n")
+  libraries <- fetch_libraries_from_api()
+  cat(sprintf("Fetched %d libraries\n", nrow(libraries)))
 
-dbDisconnect(con)
+  # Write to Turso
+  turso_success <- tryCatch({
+    cat("Writing libraries to Turso...\n")
+
+    # Delete all existing libraries (replace mode)
+    turso_execute("DELETE FROM libraries")
+
+    # Insert each library
+    for (i in 1:nrow(libraries)) {
+      lib <- libraries[i, ]
+      turso_execute(
+        "INSERT INTO libraries (id, library_branch_name, lat, lon, city_name,
+                               library_url, library_phone, library_email,
+                               library_services, library_address)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        list(
+          lib$id, lib$library_branch_name, lib$lat, lib$lon, lib$city_name,
+          lib$library_url, lib$library_phone, lib$library_email,
+          lib$library_services, lib$library_address
+        )
+      )
+    }
+    cat(sprintf("✓ Wrote %d libraries to Turso\n", nrow(libraries)))
+    TRUE
+  }, error = function(e) {
+    warning("Failed to write libraries to Turso: ", conditionMessage(e))
+    FALSE
+  })
+
+  # Always write to SQLite as backup
+  cat("Writing libraries to SQLite backup...\n")
+  con <- dbConnect(SQLite(), dbname = here("app/libraries.sqlite"))
+  dbWriteTable(con, "libraries", libraries, overwrite = TRUE)
+  dbDisconnect(con)
+  cat("✓ Wrote libraries to SQLite\n")
+
+  if (!turso_success) {
+    warning("Turso write failed - SQLite backup maintained")
+  }
+}
+
+# =============================================================================
+# MODE 2: UPDATE SCHEDULES (Daily)
+# =============================================================================
+
+if (update_type %in% c("schedules", "both")) {
+  cat("\n=== Fetching schedule data ===\n")
+
+  # Get libraries from Turso or SQLite
+  libraries <- tryCatch({
+    turso_query("SELECT id FROM libraries")
+  }, error = function(e) {
+    warning("Failed to read libraries from Turso, using SQLite")
+    con <- dbConnect(SQLite(), dbname = here("app/libraries.sqlite"), read_only = TRUE)
+    libs <- dbReadTable(con, "libraries") %>% select(id)
+    dbDisconnect(con)
+    libs
+  })
+
+  schedules <- fetch_schedules_from_api(libraries)
+  cat(sprintf("Fetched %d schedule records\n", nrow(schedules)))
+
+  # Orphaned data detection
+  orphaned <- schedules %>%
+    anti_join(libraries, by = c("library_id" = "id"))
+
+  if (nrow(orphaned) > 0) {
+    warning(sprintf(
+      "Found %d orphaned schedule records for unknown libraries: %s",
+      nrow(orphaned),
+      paste(unique(orphaned$library_id), collapse = ", ")
+    ))
+  }
+
+  # Write to Turso (append mode - preserves historical data)
+  turso_success <- tryCatch({
+    cat("Writing schedules to Turso...\n")
+
+    for (i in 1:nrow(schedules)) {
+      sched <- schedules[i, ]
+      # Use INSERT OR IGNORE to skip duplicates (UNIQUE constraint handles this)
+      turso_execute(
+        "INSERT OR IGNORE INTO schedules (library_id, date, from_time, to_time, status_label)
+         VALUES (?, ?, ?, ?, ?)",
+        list(
+          sched$library_id, sched$date, sched$from_time,
+          sched$to_time, sched$status_label
+        )
+      )
+    }
+    cat(sprintf("✓ Wrote %d schedule records to Turso\n", nrow(schedules)))
+    TRUE
+  }, error = function(e) {
+    warning("Failed to write schedules to Turso: ", conditionMessage(e))
+    FALSE
+  })
+
+  # Always write to SQLite as backup (overwrite - only today's data)
+  cat("Writing schedules to SQLite backup...\n")
+  con <- dbConnect(SQLite(), dbname = here("app/libraries.sqlite"))
+  # Rename columns back to original schema for SQLite compatibility
+  schedules_sqlite <- schedules %>%
+    rename(from = from_time, to = to_time)
+  dbWriteTable(con, "schedules", schedules_sqlite, overwrite = TRUE)
+  dbDisconnect(con)
+  cat("✓ Wrote schedules to SQLite\n")
+
+  if (!turso_success) {
+    warning("Turso write failed - SQLite backup maintained")
+  }
+}
+
+cat("\n=== Data fetch complete ===\n")

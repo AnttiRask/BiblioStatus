@@ -39,6 +39,11 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
+# Local secrets for development
+secret.R
+app/secret.R
+TURSO_CREDENTIALS.txt
+
 # pkgdown site
 # docs/ - removed to allow GitHub Pages
 
