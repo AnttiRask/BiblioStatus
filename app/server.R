@@ -169,7 +169,7 @@ server <- function(input, output, session) {
               ),
               "<br>",
               sprintf(
-                "<a href='https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f' target='_blank' style='color: #C1272D; font-weight: bold;'>📍 Get Directions</a>",
+                "📍 <a href='https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f' target='_blank' style='color: #C1272D; font-weight: bold;'>Get Directions</a>",
                 lat, lon
               )
             ),
@@ -236,6 +236,12 @@ server <- function(input, output, session) {
   # Click marker to update sidebar
   observeEvent(input$map_marker_click, {
     click_id <- input$map_marker_click$id
+
+    # Ignore clicks on user location marker
+    if (is.null(click_id) || click_id == "user_location") {
+      return()
+    }
+
     data <- isolate(library_data())
     selected <- data %>% filter(id == click_id)
     selected_library(selected)
@@ -320,10 +326,16 @@ server <- function(input, output, session) {
 
     leafletProxy("map") %>%
       clearMarkers() %>%
-      # User location marker
-      addMarkers(
+      # User location marker (red "You Are Here" marker)
+      addCircleMarkers(
         lng = user_loc$lon,
         lat = user_loc$lat,
+        layerId = "user_location",
+        radius = 10,
+        color = "#FF0000",
+        fillColor = "#FF0000",
+        fillOpacity = 0.8,
+        weight = 2,
         popup = "<b>Your Location</b>"
       ) %>%
       # Nearest library markers
@@ -350,7 +362,7 @@ server <- function(input, output, session) {
           "<br><b>Status: </b>", open_status,
           "<br>",
           sprintf(
-            "<a href='https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f' target='_blank' style='color: #C1272D; font-weight: bold;'>📍 Get Directions</a>",
+            "📍 <a href='https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f' target='_blank' style='color: #C1272D; font-weight: bold;'>Get Directions</a>",
             lat, lon
           )
         )
