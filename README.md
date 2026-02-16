@@ -13,7 +13,8 @@
 - 🌗 Dark mode toggle
 - 🏢 City/municipality filter
 - 🔗 Clickable popups with library information and links
-- 📦 Data updated daily via GitHub Actions and stored in SQLite
+- 📦 Data updated daily via GitHub Actions and stored in Turso (cloud SQLite) with historical preservation
+- 📊 **Historical Data** - Schedule data preserved from 2026-01-01 onwards for year-end analysis
 - ✅ Automated URL monitoring with email alerts for broken links
 
 ## 📸 Screenshot
@@ -27,29 +28,48 @@
 ## 🛠️ Project Structure
 
 ```bash
-fetch_library_data.R        # Pulls data from Kirkanta API (v4)
+fetch_library_data.R        # Pulls data from Kirkanta API (v4) - daily schedules + weekly libraries
 check_library_urls.R        # Validates all library URLs
+R/
+├── turso.R                 # Turso database helper functions
+└── backfill_historical_data.R  # Backfill historical schedules
 .github/workflows/
-├── fetch_data.yml          # Nightly data fetch (2:00 AM UTC)
+├── fetch_data.yml          # Daily schedules (2:00 AM UTC) + weekly libraries (Sunday)
 ├── check_library_urls.yml  # Daily URL validation (3:00 AM UTC)
 └── deploy_shiny_app.yml    # Deploy to Google Cloud Run
 app/
-├── libraries.sqlite        # SQLite database (updated nightly)
+├── libraries.sqlite        # SQLite database fallback (updated nightly)
 ├── run.R                   # App entry point (host/port config)
 ├── server.R                # Server logic, geolocation, distance calculations
 ├── ui.R                    # UI with map, sidebar, "Find Nearest" feature
 └── www/
-    ├── functions.R         # Database queries, Haversine distance formula
+    ├── functions.R         # Database queries (Turso + SQLite fallback), Haversine distance
+    ├── turso.R             # Turso API wrapper for Shiny app
     ├── styles.css          # Mobile-responsive CSS
     └── variables.R         # Color config for map markers
 ```
 
 ## 🔄 Data Pipeline
 
-1. GitHub Actions runs `fetch_library_data.R` nightly at 2:00 AM UTC
-2. Fetches library info + schedules from [Kirkanta API (v4)](https://api.kirjastot.fi/)
-3. Saves to `libraries.sqlite` in `app/`
-4. App loads the database on startup
+**Daily Schedule Updates** (2:00 AM UTC):
+
+1. GitHub Actions runs `fetch_library_data.R` in "schedules" mode
+2. Fetches today's opening hours from [Kirkanta API (v4)](https://api.kirjastot.fi/)
+3. Writes to Turso (cloud SQLite) - preserves historical data
+4. Updates `libraries.sqlite` as backup/fallback
+
+**Weekly Library Metadata** (Sunday 2:00 AM UTC):
+
+1. Runs `fetch_library_data.R` in "both" mode
+2. Fetches library metadata (names, coordinates, URLs, contact info)
+3. Applies 50+ manual URL corrections and 8 coordinate fixes
+4. Replaces library data in Turso (no historical versioning needed)
+
+**App Data Access**:
+
+- Primary: Reads from Turso database via HTTP API
+- Fallback: Reads from `libraries.sqlite` if Turso unavailable
+- Filters to today's schedules for real-time status display
 
 ## ✅ Data Quality & URL Monitoring
 
@@ -94,6 +114,7 @@ shiny::runApp("app/")
 
 - [dplyr](https://dplyr.tidyverse.org/)
 - [here](https://here.r-lib.org/)
+- [httr2](https://httr2.r-lib.org/) - Turso HTTP API client
 - [jsonlite](https://github.com/jeroen/jsonlite)
 - [leaflet](https://rstudio.github.io/leaflet/)
 - [purrr](https://purrr.tidyverse.org/)
