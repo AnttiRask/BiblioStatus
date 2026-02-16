@@ -94,17 +94,93 @@ server <- function(input, output, session) {
     )
   })
 
-  # Update map on city/dark mode chang
+  # Library text search functionality
+  observeEvent(input$library_search, {
+    search_term <- input$library_search
+    data <- library_data()
+    req(data)
+
+    # Only search if at least 3 characters
+    if (!is.null(search_term) && nchar(search_term) >= 3) {
+      # Find matching libraries (case-insensitive)
+      matches <- data %>%
+        filter(stringr::str_detect(
+          stringr::str_to_lower(library_branch_name),
+          stringr::str_to_lower(search_term)
+        ))
+
+      if (nrow(matches) > 0) {
+        first_match <- matches[1, ]
+
+        # Change city to the matched library's city
+        updateSelectInput(
+          session,
+          "city_filter",
+          selected = first_match$city_name
+        )
+
+        # Zoom to the library location (after a brief delay to let city update)
+        # Use leafletProxy to update existing map
+        Sys.sleep(0.1)  # Small delay for city filter to update
+        leafletProxy("map") %>%
+          setView(
+            lng = first_match$lon,
+            lat = first_match$lat,
+            zoom = 15
+          )
+      }
+    }
+  })
+
+  # Populate service filter dropdown
+  observe({
+    services_data <- library_services_data()
+    req(services_data)
+
+    # Get unique services, sorted
+    service_names <- services_data %>%
+      pull(service_name) %>%
+      unique() %>%
+      sort()
+
+    updateSelectInput(
+      session,
+      "service_filter",
+      choices = c("All Services" = "", service_names),
+      selected = ""
+    )
+  })
+
+  # Update map on city/dark mode/service filter change
   observeEvent(
     {
       input$city_filter
       input$dark_mode
+      input$service_filter
       library_data()
+      library_services_data()
     },
     {
       req(input$city_filter)
       req(library_data())
+
+      # Start with city filter
       data <- library_data() %>% filter(city_name == input$city_filter)
+
+      # Apply service filter if selected
+      if (!is.null(input$service_filter) && input$service_filter != "") {
+        services_data <- library_services_data()
+        req(services_data)
+
+        # Get library IDs that offer the selected service
+        lib_ids_with_service <- services_data %>%
+          filter(service_name == input$service_filter) %>%
+          pull(library_id)
+
+        # Filter libraries to only those offering the service
+        data <- data %>% filter(id %in% lib_ids_with_service)
+      }
+
       req(nrow(data) > 0)
 
       tile_provider <- if (isTRUE(input$dark_mode)) {

@@ -121,6 +121,20 @@ ui <- page_navbar(
           choices = NULL
         ),
         br(),
+        textInput(
+          inputId = "library_search",
+          label = "Search Libraries:",
+          placeholder = "Type library name (min 3 chars)...",
+          value = ""
+        ),
+        br(),
+        selectInput(
+          inputId = "service_filter",
+          label = "Filter by Service:",
+          choices = NULL,  # Populated dynamically in server
+          selected = NULL
+        ),
+        br(),
         actionButton(
           inputId = "find_nearest",
           label = "Find Nearest Open Library",
