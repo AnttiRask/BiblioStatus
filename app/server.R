@@ -22,11 +22,13 @@ server <- function(input, output, session) {
   user_location <- reactiveVal(NULL)
   nearest_libraries <- reactiveVal(NULL)
   all_library_schedules <- reactiveVal(NULL)
+  library_services_data <- reactiveVal(NULL)
 
   # Data fetching and processing
   refresh_data <- function() {
     libraries <- fetch_libraries()
     schedules <- fetch_schedules()
+    services <- fetch_library_services()
 
     now <- format(Sys.time(), tz = "Europe/Helsinki", "%H:%M")
 
@@ -67,6 +69,7 @@ server <- function(input, output, session) {
       left_join(map_display, by = join_by(id == library_id))
 
     library_data(data)
+    library_services_data(services)
   }
 
   # Initial fetch and manual refresh
@@ -484,7 +487,23 @@ server <- function(input, output, session) {
 
         # Services
         tags$b("Services (in Finnish):"),
-        p(selected$library_services)
+        p({
+          services <- library_services_data()
+          if (!is.null(services)) {
+            lib_services <- services %>%
+              filter(library_id == selected$id) %>%
+              pull(service_name) %>%
+              sort()
+
+            if (length(lib_services) > 0) {
+              paste(lib_services, collapse = ", ")
+            } else {
+              "No services listed"
+            }
+          } else {
+            selected$library_services  # Fallback to old column if new data not loaded
+          }
+        })
       )
     }
   })

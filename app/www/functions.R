@@ -61,11 +61,7 @@ fetch_schedules <- function() {
 fetch_library_services <- function() {
   # Try Turso first
   tryCatch({
-    return(turso_query("
-      SELECT library_id, service_name
-      FROM library_services
-      ORDER BY library_id, service_name
-    "))
+    return(turso_query("SELECT library_id, service_name FROM library_services ORDER BY library_id, service_name"))
   }, error = function(e) {
     warning("Turso failed for services, using SQLite: ", e$message)
   })
