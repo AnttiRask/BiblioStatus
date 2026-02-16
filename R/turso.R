@@ -120,14 +120,20 @@ turso_query <- function(sql, params = list()) {
   }
 
   # Convert rows to data frame
-  df <- do.call(rbind, lapply(rows, function(row) {
-    values <- lapply(row, function(cell) {
-      if (is.null(cell$value)) NA else cell$value
+  # Build a list of vectors (one per row), then convert to data frame
+  rows_list <- lapply(rows, function(row) {
+    sapply(row, function(cell) {
+      if (is.null(cell) || is.null(cell$value)) NA else cell$value
     })
-    as.data.frame(values, stringsAsFactors = FALSE)
-  }))
+  })
 
+  # Convert to data frame with proper column names
+  df <- as.data.frame(do.call(rbind, rows_list), stringsAsFactors = FALSE)
   colnames(df) <- cols
+
+  # Convert columns from character to appropriate types
+  df[] <- lapply(df, function(x) type.convert(as.character(x), as.is = TRUE))
+
   return(df)
 }
 
