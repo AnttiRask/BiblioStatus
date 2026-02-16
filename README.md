@@ -6,6 +6,10 @@
 
 - 🌍 Interactive map with open/self-service/closed statuses color-coded
 - 📍 **Find Nearest Open Library** - Uses GPS to find 3-5 closest open libraries with distances
+- 🔍 **Library Text Search** - Search libraries by name, auto-switches to their city and zooms to location
+- 🏷️ **Service Filtering** - Filter map by library services (247 unique services across 575 libraries)
+- 💎 **Service Badges** - Services displayed as visual badges for better readability
+- 📊 **Service Statistics Dashboard** - Explore service distribution with city filtering and interactive charts
 - 🗺️ **Get Directions** - One-click Google Maps navigation to any library
 - 📱 Mobile-optimized layout with responsive sidebar and touch controls
 - 📞 **Contact Information** - Phone and email links for each library
@@ -14,7 +18,7 @@
 - 🏢 City/municipality filter
 - 🔗 Clickable popups with library information and links
 - 📦 Data updated daily via GitHub Actions and stored in Turso (cloud SQLite) with historical preservation
-- 📊 **Historical Data** - Schedule data preserved from 2026-01-01 onwards for year-end analysis
+- 📚 **Normalized Database** - Library services stored in proper relational structure (11,722 service records)
 - ✅ Automated URL monitoring with email alerts for broken links
 
 ## 📸 Screenshot
@@ -32,7 +36,8 @@ fetch_library_data.R        # Pulls data from Kirkanta API (v4) - daily schedule
 check_library_urls.R        # Validates all library URLs
 R/
 ├── turso.R                 # Turso database helper functions
-└── backfill_historical_data.R  # Backfill historical schedules
+├── backfill_historical_data.R  # Backfill historical schedules
+└── migrate_services.R      # One-time migration script for service normalization
 .github/workflows/
 ├── fetch_data.yml          # Daily schedules (2:00 AM UTC) + weekly libraries (Sunday)
 ├── check_library_urls.yml  # Daily URL validation (3:00 AM UTC)
@@ -40,10 +45,12 @@ R/
 app/
 ├── libraries.sqlite        # SQLite database fallback (updated nightly)
 ├── run.R                   # App entry point (host/port config)
-├── server.R                # Server logic, geolocation, distance calculations
-├── ui.R                    # UI with map, sidebar, "Find Nearest" feature
+├── server.R                # Server logic, search, filtering, geolocation, distance calculations
+├── ui.R                    # UI with map, sidebar, search, service filtering, statistics tab
+├── modules/
+│   └── service_stats.R     # Service statistics dashboard module
 └── www/
-    ├── functions.R         # Database queries (Turso + SQLite fallback), Haversine distance
+    ├── functions.R         # Database queries (Turso + SQLite fallback), service fetching
     ├── turso.R             # Turso API wrapper for Shiny app
     ├── styles.css          # Mobile-responsive CSS
     └── variables.R         # Color config for map markers
@@ -61,9 +68,10 @@ app/
 **Weekly Library Metadata** (Sunday 2:00 AM UTC):
 
 1. Runs `fetch_library_data.R` in "both" mode
-2. Fetches library metadata (names, coordinates, URLs, contact info)
+2. Fetches library metadata (names, coordinates, URLs, contact info, services)
 3. Applies 50+ manual URL corrections and 8 coordinate fixes
-4. Replaces library data in Turso (no historical versioning needed)
+4. Extracts and normalizes library services to `library_services` table (11,722 records)
+5. Replaces library data in Turso (no historical versioning needed)
 
 **App Data Access**:
 
@@ -112,16 +120,19 @@ shiny::runApp("app/")
 
 ## 📦 Required R Packages
 
-- [dplyr](https://dplyr.tidyverse.org/)
-- [here](https://here.r-lib.org/)
+- [dplyr](https://dplyr.tidyverse.org/) - Data manipulation
+- [DT](https://rstudio.github.io/DT/) - Interactive data tables
+- [ggplot2](https://ggplot2.tidyverse.org/) - Statistical graphics
+- [here](https://here.r-lib.org/) - Path management
 - [httr2](https://httr2.r-lib.org/) - Turso HTTP API client
-- [jsonlite](https://github.com/jeroen/jsonlite)
-- [leaflet](https://rstudio.github.io/leaflet/)
-- [purrr](https://purrr.tidyverse.org/)
-- [RSQLite](https://rsqlite.r-dbi.org/)
-- [shiny](https://shiny.posit.co/r/getstarted/shiny-basics/lesson1/)
-- [shinyjs](https://deanattali.com/shinyjs/)
-- [stringr](https://stringr.tidyverse.org/)
+- [jsonlite](https://github.com/jeroen/jsonlite) - JSON parsing
+- [leaflet](https://rstudio.github.io/leaflet/) - Interactive maps
+- [purrr](https://purrr.tidyverse.org/) - Functional programming
+- [RSQLite](https://rsqlite.r-dbi.org/) - SQLite database interface
+- [shiny](https://shiny.posit.co/r/getstarted/shiny-basics/lesson1/) - Web framework
+- [shinyjs](https://deanattali.com/shinyjs/) - JavaScript operations
+- [stringr](https://stringr.tidyverse.org/) - String manipulation
+- [tidyr](https://tidyr.tidyverse.org/) - Data tidying
 
 ## 📄 License
 
