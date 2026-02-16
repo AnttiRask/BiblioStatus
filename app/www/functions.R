@@ -57,6 +57,30 @@ fetch_schedules <- function() {
   return(data)
 }
 
+# Function to fetch library services (Turso primary, SQLite fallback)
+fetch_library_services <- function() {
+  # Try Turso first
+  tryCatch({
+    return(turso_query("
+      SELECT library_id, service_name
+      FROM library_services
+      ORDER BY library_id, service_name
+    "))
+  }, error = function(e) {
+    warning("Turso failed for services, using SQLite: ", e$message)
+  })
+
+  # Fallback to SQLite
+  con <- dbConnect(SQLite(), dbname = db_path, read_only = TRUE)
+  data <- dbGetQuery(con, "
+    SELECT library_id, service_name
+    FROM library_services
+    ORDER BY library_id, service_name
+  ")
+  dbDisconnect(con)
+  return(data)
+}
+
 # Calculate distance between two points using Haversine formula (km)
 calculate_distance <- function(lat1, lon1, lat2, lon2) {
   R <- 6371  # Earth's radius in km

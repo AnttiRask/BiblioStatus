@@ -319,6 +319,17 @@ if (update_type %in% c("libraries", "both")) {
   libraries <- fetch_libraries_from_api()
   cat(sprintf("Fetched %d libraries\n", nrow(libraries)))
 
+  # Extract services into normalized format from comma-separated field
+  cat("Extracting library services...\n")
+  library_services <- libraries %>%
+    filter(!is.na(library_services), library_services != "") %>%
+    mutate(services_list = str_split(library_services, ",\\s*")) %>%
+    unnest(services_list) %>%
+    select(library_id = id, service_name = services_list) %>%
+    distinct()
+  cat(sprintf("Extracted %d library-service combinations (%d unique services)\n",
+              nrow(library_services), n_distinct(library_services$service_name)))
+
   # Write to Turso
   turso_success <- tryCatch({
     cat("Writing libraries to Turso...\n")
@@ -342,6 +353,19 @@ if (update_type %in% c("libraries", "both")) {
       )
     }
     cat(sprintf("✓ Wrote %d libraries to Turso\n", nrow(libraries)))
+
+    # Write services to library_services table
+    cat("Writing library services to Turso...\n")
+    turso_execute("DELETE FROM library_services")
+    for (i in 1:nrow(library_services)) {
+      svc <- library_services[i, ]
+      turso_execute(
+        "INSERT INTO library_services (library_id, service_name) VALUES (?, ?)",
+        list(svc$library_id, svc$service_name)
+      )
+    }
+    cat(sprintf("✓ Wrote %d service records to Turso\n", nrow(library_services)))
+
     TRUE
   }, error = function(e) {
     warning("Failed to write libraries to Turso: ", conditionMessage(e))
@@ -349,11 +373,13 @@ if (update_type %in% c("libraries", "both")) {
   })
 
   # Always write to SQLite as backup
-  cat("Writing libraries to SQLite backup...\n")
+  cat("Writing libraries and services to SQLite backup...\n")
   con <- dbConnect(SQLite(), dbname = here("app/libraries.sqlite"))
   dbWriteTable(con, "libraries", libraries, overwrite = TRUE)
+  dbWriteTable(con, "library_services", library_services, overwrite = TRUE)
   dbDisconnect(con)
-  cat("✓ Wrote libraries to SQLite\n")
+  cat(sprintf("✓ Wrote %d libraries and %d services to SQLite\n",
+              nrow(libraries), nrow(library_services)))
 
   if (!turso_success) {
     warning("Turso write failed - SQLite backup maintained")
