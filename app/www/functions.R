@@ -49,8 +49,8 @@ fetch_schedules <- function() {
   # Fallback to SQLite (also filter by date for consistency)
   con <- dbConnect(SQLite(), dbname = db_path, read_only = TRUE)
   data <- dbGetQuery(con,
-    "SELECT library_id, date, from, to, status_label
-     FROM schedules WHERE date = ?",
+    'SELECT library_id, date, "from", "to", status_label
+     FROM schedules WHERE date = ?',
     params = list(today)
   )
   dbDisconnect(con)

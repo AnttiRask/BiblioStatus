@@ -50,18 +50,19 @@ for (date_idx in seq_along(dates)) {
 
   # Fetch schedules for all libraries on this date
   all_schedules <- map_dfr(library_ids, function(lib_id) {
+    # Rate limiting: 10 req/s
+    Sys.sleep(0.1)
+
     response <- GET(
       "https://api.kirjastot.fi/v4/schedules",
-      query = list(library = lib_id, date = date_str)
+      query = list(library = lib_id, period.start = date_str, period.end = date_str, limit = 100)
     )
 
     if (status_code(response) != 200) return(NULL)
 
     data <- fromJSON(content(response, "text"), flatten = TRUE)$items
-    if (length(data) == 0 || is.null(data$times)) {
-      # Library was unknown/closed/no data
-      return(NULL)
-    }
+    if (is.null(data)) return(NULL)
+    if (!is.data.frame(data) || nrow(data) == 0) return(NULL)
 
     closed <- data$closed[1]
     if (closed) {
@@ -99,9 +100,6 @@ for (date_idx in seq_along(dates)) {
         )
       ) %>%
       select(library_id, date, from_time, to_time, status_label)
-
-    # Rate limiting: 10 req/s
-    Sys.sleep(0.1)
   })
 
   # Insert into Turso
