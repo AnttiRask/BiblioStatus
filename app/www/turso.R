@@ -40,7 +40,12 @@ turso_query <- function(sql, params = list()) {
           sql = sql,
           args = if (length(params) > 0) {
             lapply(params, function(p) {
-              list(type = "text", value = as.character(p))
+              # Handle NULL and NA values
+              if (is.null(p) || (length(p) == 1 && is.na(p))) {
+                list(type = "null")
+              } else {
+                list(type = "text", value = as.character(p))
+              }
             })
           } else {
             list()
