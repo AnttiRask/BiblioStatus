@@ -463,17 +463,17 @@
                 <div class="step">
                     <div class="step-number">1</div>
                     <h3>Fetch</h3>
-                    <p>GitHub Actions runs nightly to fetch fresh data from the Kirkanta API.</p>
+                    <p>GitHub Actions runs daily (schedules) and weekly (library metadata) to fetch fresh data from the Kirkanta API.</p>
                 </div>
                 <div class="step">
                     <div class="step-number">2</div>
                     <h3>Store</h3>
-                    <p>Library info and schedules are saved to a SQLite database.</p>
+                    <p>Data is written to Turso (cloud SQLite) with historical preservation, plus a local SQLite backup for failover.</p>
                 </div>
                 <div class="step">
                     <div class="step-number">3</div>
                     <h3>Load</h3>
-                    <p>The Shiny app loads the database on startup for fast queries.</p>
+                    <p>The Shiny app queries Turso for real-time data, with automatic fallback to SQLite if needed.</p>
                 </div>
                 <div class="step">
                     <div class="step-number">4</div>
