@@ -10,10 +10,12 @@ library(shinyjs)
 # Load helper functions and variables
 source("www/functions.R")
 source("www/variables.R")
+source("modules/service_stats.R")
 
 # Uncomment for the local version
 # source(here("app/www/functions.R"))
 # source(here("app/www/variables.R"))
+# source(here("app/modules/service_stats.R"))
 
 server <- function(input, output, session) {
   # State: reactive containers
@@ -563,7 +565,7 @@ server <- function(input, output, session) {
 
         # Services
         tags$b("Services (in Finnish):"),
-        p({
+        {
           services <- library_services_data()
           if (!is.null(services)) {
             lib_services <- services %>%
@@ -572,15 +574,31 @@ server <- function(input, output, session) {
               sort()
 
             if (length(lib_services) > 0) {
-              paste(lib_services, collapse = ", ")
+              # Display as visual badges
+              div(
+                class = "service-badges mt-2",
+                lapply(lib_services, function(svc) {
+                  span(
+                    svc,
+                    class = "badge",
+                    style = "display: inline-block; background-color: #e3f2fd; color: #1976d2;
+                             padding: 6px 12px; margin: 3px; border-radius: 6px;
+                             font-size: 13px; font-weight: 500; line-height: 1.5;"
+                  )
+                })
+              )
             } else {
-              "No services listed"
+              p("No services listed", style = "color: #888; font-style: italic; margin-top: 8px;")
             }
           } else {
-            selected$library_services  # Fallback to old column if new data not loaded
+            # Fallback to old column if new data not loaded
+            p(selected$library_services)
           }
-        })
+        }
       )
     }
   })
+
+  # Service Statistics module
+  service_stats_server("stats", library_services_data, library_data)
 }

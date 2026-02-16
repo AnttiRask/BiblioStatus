@@ -104,7 +104,7 @@ ui <- page_navbar(
   title = "BiblioStatus",
   id = "main_navbar",
 
-  # Main map view
+  # Main map view tab
   nav_panel(
     title = "Library Map",
     value = "library_map",
@@ -163,6 +163,18 @@ ui <- page_navbar(
       ),
       leafletOutput("map", height = "85vh"),
       div(style = "height: 40px;")
+    )
+  ),
+
+  # Service Statistics tab
+  nav_panel(
+    title = "Service Statistics",
+    value = "service_stats",
+
+    div(
+      class = "container mt-4",
+      source("modules/service_stats.R", local = TRUE)$value,
+      service_stats_ui("stats")
     )
   ),
 
