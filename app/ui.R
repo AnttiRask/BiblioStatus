@@ -115,27 +115,29 @@ ui <- page_navbar(
     layout_sidebar(
       sidebar = sidebar(
         width = 350,
-        h3("BiblioStatus"),
-        p("Which Finnish Libraries Are Open Right Now?"),
-        br(),
         selectInput(
           inputId = "city_filter",
           label = "Select City/Municipality:",
           choices = NULL
         ),
-        br(),
-        textInput(
+        selectizeInput(
           inputId = "library_search",
-          label = "Search Libraries:",
-          placeholder = "Type library name (min 3 chars)...",
-          value = ""
+          label = "Select Library:",
+          choices = NULL,
+          options = list(placeholder = "All Libraries")
         ),
-        br(),
         selectInput(
           inputId = "service_filter",
-          label = "Filter by Service:",
-          choices = NULL,  # Populated dynamically in server
+          label = "Select Service:",
+          choices = NULL,
           selected = NULL
+        ),
+        actionButton(
+          inputId = "clear_filters",
+          label = NULL,
+          icon = icon("rotate-left"),
+          class = "btn btn-sm btn-outline-secondary mb-2",
+          title = "Clear all filters"
         ),
         br(),
         actionButton(
@@ -152,19 +154,22 @@ ui <- page_navbar(
         uiOutput("geolocation_error_ui"),
         br(),
         uiOutput("nearest_libraries_ui"),
-        input_dark_mode(id = "dark_mode", mode = "light"),
         br(),
         # Shows details of selected library (desktop only)
         uiOutput("library_services")
       ),
 
       # Main content
+      h4(
+        "Which Finnish Libraries Are Open Right Now?",
+        style = "margin: 12px 16px 4px; font-weight: 600;"
+      ),
       div(
         id = "loading-spinner",
         "Loading data, please wait...",
         class = "loading-text"
       ),
-      leafletOutput("map", height = "85vh"),
+      leafletOutput("map", height = "calc(100vh - 56px)"),
       div(style = "height: 40px;")
     )
   ),
@@ -179,6 +184,10 @@ ui <- page_navbar(
       service_stats_ui("stats")
     )
   ),
+
+  # Dark mode toggle (top-right in navbar)
+  nav_spacer(),
+  nav_item(input_dark_mode(id = "dark_mode", mode = "light")),
 
   # Footer
   footer = create_app_footer("bibliostatus")

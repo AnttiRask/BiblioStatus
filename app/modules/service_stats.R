@@ -42,7 +42,7 @@ service_stats_ui <- function(id) {
 }
 
 # Server function for service statistics
-service_stats_server <- function(id, library_services, libraries) {
+service_stats_server <- function(id, library_services, libraries, dark_mode) {
   moduleServer(id, function(input, output, session) {
 
     # Populate city choices
@@ -95,26 +95,41 @@ service_stats_server <- function(id, library_services, libraries) {
 
       req(nrow(data) > 0)
 
+      is_dark    <- isTRUE(dark_mode())
+      bg_color   <- if (is_dark) "#191414" else "#FFFFFF"
+      text_color <- if (is_dark) "#FFFFFF" else "#1a1a1a"
+
       ggplot(data, aes(x = reorder(service_name, library_count),
                        y = library_count)) +
-        geom_col(fill = "#1976d2") +
+        geom_col(fill = "#C1272D") +
+        geom_text(
+          aes(label = library_count),
+          hjust = -0.2, size = 3.5, color = text_color
+        ) +
         coord_flip() +
+        scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
         labs(
           title = if (!is.null(input$stats_city) && input$stats_city != "") {
             paste("Most Common Services in", input$stats_city)
           } else {
             "Most Common Library Services (All Cities)"
           },
-          x = "Service",
-          y = "Number of Libraries"
+          x = NULL,
+          y = NULL
         ) +
         theme_minimal() +
         theme(
-          text = element_text(size = 14),
-          axis.text = element_text(size = 12),
-          plot.title = element_text(size = 16, face = "bold")
+          text             = element_text(color = text_color),
+          axis.text.y      = element_text(size = 11, color = text_color),
+          axis.text.x      = element_blank(),
+          axis.ticks       = element_blank(),
+          panel.grid       = element_blank(),
+          plot.background  = element_rect(fill = bg_color, color = NA),
+          panel.background = element_rect(fill = bg_color, color = NA),
+          plot.title       = element_text(size = 14, face = "bold",
+                                          color = text_color)
         )
-    })
+    }, bg = "transparent")
 
     # Data table with all services
     output$service_table <- DT::renderDataTable({

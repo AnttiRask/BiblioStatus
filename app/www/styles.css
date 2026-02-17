@@ -159,6 +159,8 @@ a:focus {
     border-top: 1px solid #333333;
     margin-top: 3rem;
     padding-top: 2rem;
+    position: relative;
+    z-index: 10;
 }
 
 .app-footer a {
@@ -266,4 +268,14 @@ a:focus, button:focus, input:focus, select:focus {
     width: 100%;
     text-align: center;
   }
+}
+
+/* ============================================
+   SIDEBAR SCROLL (desktop)
+   ============================================ */
+
+/* Allow sidebar to scroll independently so map can fill full viewport height */
+.bslib-sidebar-layout > .sidebar > .sidebar-content {
+  max-height: calc(100vh - 56px);
+  overflow-y: auto;
 }

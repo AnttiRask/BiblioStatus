@@ -83,104 +83,212 @@ server <- function(input, output, session) {
     ignoreNULL = FALSE
   )
 
-  # Populate city selector
+  # Populate all filter selectors on data load
   observe({
-    data <- isolate(library_data())
-    req(data)
-    city_choices <- sort(unique(data$city_name))
-    updateSelectInput(
-      session,
-      "city_filter",
-      choices = city_choices,
-      selected = "Helsinki"
-    )
+    all_libs <- library_data()
+    all_svcs <- library_services_data()
+    req(all_libs, all_svcs)
+
+    city_choices <- all_libs %>% pull(city_name) %>% unique() %>% sort()
+    lib_choices  <- all_libs %>%
+      arrange(library_branch_name) %>%
+      { setNames(as.character(.$id), .$library_branch_name) }
+    svc_choices  <- all_svcs %>% pull(service_name) %>% unique() %>% sort()
+
+    isolate({
+      updateSelectInput(session, "city_filter",
+        choices = c("All Cities" = "", city_choices), selected = "")
+      updateSelectizeInput(session, "library_search",
+        choices = c("All Libraries" = "", lib_choices), server = TRUE)
+      updateSelectInput(session, "service_filter",
+        choices = c("All Services" = "", svc_choices), selected = "")
+    })
   })
 
-  # Library text search functionality
+  # Library selectize: selecting a library updates city and zooms map
   observeEvent(input$library_search, {
-    search_term <- input$library_search
-    data <- library_data()
-    req(data)
+    req(input$library_search != "")
 
-    # Only search if at least 3 characters
-    if (!is.null(search_term) && nchar(search_term) >= 3) {
-      # Find matching libraries (case-insensitive)
-      matches <- data %>%
-        filter(stringr::str_detect(
-          stringr::str_to_lower(library_branch_name),
-          stringr::str_to_lower(search_term)
-        ))
+    selected_lib <- library_data() %>%
+      filter(id == as.numeric(input$library_search))
+    req(nrow(selected_lib) > 0)
 
-      if (nrow(matches) > 0) {
-        first_match <- matches[1, ]
+    updateSelectInput(session, "city_filter",
+      selected = selected_lib$city_name[1])
 
-        # Change city to the matched library's city
-        updateSelectInput(
-          session,
-          "city_filter",
-          selected = first_match$city_name
-        )
+    leafletProxy("map") %>%
+      setView(lng = selected_lib$lon[1], lat = selected_lib$lat[1], zoom = 15)
+  }, ignoreInit = TRUE)
 
-        # Zoom to the library location (after a brief delay to let city update)
-        # Use leafletProxy to update existing map
-        Sys.sleep(0.1)  # Small delay for city filter to update
-        leafletProxy("map") %>%
-          setView(
-            lng = first_match$lon,
-            lat = first_match$lat,
-            zoom = 15
-          )
+  # Cascading: city → update library + service choices
+  observeEvent(input$city_filter, {
+    all_libs <- library_data()
+    all_svcs <- library_services_data()
+    req(all_libs, all_svcs)
+
+    # Current service selection as additional context (isolated)
+    current_service <- isolate(input$service_filter)
+
+    if (!is.null(input$city_filter) && input$city_filter != "") {
+      city_ids <- all_libs %>%
+        filter(city_name == input$city_filter) %>% pull(id)
+
+      # Library choices = intersection of city filter + current service filter
+      filtered_ids <- city_ids
+      if (!is.null(current_service) && current_service != "") {
+        svc_ids <- all_svcs %>%
+          filter(service_name == current_service) %>% pull(library_id)
+        filtered_ids <- intersect(filtered_ids, svc_ids)
       }
+
+      lib_choices <- all_libs %>%
+        filter(id %in% filtered_ids) %>%
+        arrange(library_branch_name) %>%
+        { setNames(as.character(.$id), .$library_branch_name) }
+
+      svc_choices <- all_svcs %>%
+        filter(library_id %in% city_ids) %>%
+        pull(service_name) %>% unique() %>% sort()
+    } else {
+      # No city filter: library choices based on service only
+      filtered_ids <- all_libs$id
+      if (!is.null(current_service) && current_service != "") {
+        svc_ids <- all_svcs %>%
+          filter(service_name == current_service) %>% pull(library_id)
+        filtered_ids <- intersect(filtered_ids, svc_ids)
+      }
+
+      lib_choices <- all_libs %>%
+        filter(id %in% filtered_ids) %>%
+        arrange(library_branch_name) %>%
+        { setNames(as.character(.$id), .$library_branch_name) }
+
+      svc_choices <- all_svcs %>% pull(service_name) %>% unique() %>% sort()
     }
+
+    updateSelectizeInput(session, "library_search",
+      choices = c("All Libraries" = "", lib_choices), server = TRUE)
+    updateSelectInput(session, "service_filter",
+      choices = c("All Services" = "", svc_choices))
+
+    # Reset state when city changes
+    nearest_libraries(NULL)
+    user_location(NULL)
+    selected_library(NULL)
+  }, ignoreInit = TRUE)
+
+  # Cascading: service → update city + library choices
+  observeEvent(input$service_filter, {
+    all_libs <- library_data()
+    all_svcs <- library_services_data()
+    req(all_libs, all_svcs)
+
+    # Current city selection as context (isolated)
+    current_city <- isolate(input$city_filter)
+
+    if (!is.null(input$service_filter) && input$service_filter != "") {
+      svc_ids <- all_svcs %>%
+        filter(service_name == input$service_filter) %>% pull(library_id)
+
+      # Library choices = intersection of service filter + current city filter
+      filtered_ids <- svc_ids
+      if (!is.null(current_city) && current_city != "") {
+        city_ids <- all_libs %>%
+          filter(city_name == current_city) %>% pull(id)
+        filtered_ids <- intersect(filtered_ids, city_ids)
+      }
+
+      lib_choices <- all_libs %>%
+        filter(id %in% filtered_ids) %>%
+        arrange(library_branch_name) %>%
+        { setNames(as.character(.$id), .$library_branch_name) }
+
+      city_choices <- all_libs %>%
+        filter(id %in% svc_ids) %>%
+        pull(city_name) %>% unique() %>% sort()
+    } else {
+      # No service filter: library choices based on city only
+      filtered_ids <- all_libs$id
+      if (!is.null(current_city) && current_city != "") {
+        city_ids <- all_libs %>%
+          filter(city_name == current_city) %>% pull(id)
+        filtered_ids <- intersect(filtered_ids, city_ids)
+      }
+
+      lib_choices <- all_libs %>%
+        filter(id %in% filtered_ids) %>%
+        arrange(library_branch_name) %>%
+        { setNames(as.character(.$id), .$library_branch_name) }
+
+      city_choices <- all_libs %>% pull(city_name) %>% unique() %>% sort()
+    }
+
+    updateSelectInput(session, "city_filter",
+      choices = c("All Cities" = "", city_choices))
+    updateSelectizeInput(session, "library_search",
+      choices = c("All Libraries" = "", lib_choices), server = TRUE)
+  }, ignoreInit = TRUE)
+
+  # Clear all filters
+  observeEvent(input$clear_filters, {
+    all_libs <- library_data()
+    all_svcs <- library_services_data()
+    req(all_libs, all_svcs)
+
+    city_choices <- all_libs %>% pull(city_name) %>% unique() %>% sort()
+    svc_choices  <- all_svcs %>% pull(service_name) %>% unique() %>% sort()
+    lib_choices  <- all_libs %>%
+      arrange(library_branch_name) %>%
+      { setNames(as.character(.$id), .$library_branch_name) }
+
+    updateSelectInput(session, "city_filter",
+      choices = c("All Cities" = "", city_choices), selected = "")
+    updateSelectizeInput(session, "library_search",
+      choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
+    updateSelectInput(session, "service_filter",
+      choices = c("All Services" = "", svc_choices), selected = "")
+
+    selected_library(NULL)
+    nearest_libraries(NULL)
+    user_location(NULL)
   })
 
-  # Populate service filter dropdown
-  observe({
-    services_data <- library_services_data()
-    req(services_data)
-
-    # Get unique services, sorted
-    service_names <- services_data %>%
-      pull(service_name) %>%
-      unique() %>%
-      sort()
-
-    updateSelectInput(
-      session,
-      "service_filter",
-      choices = c("All Services" = "", service_names),
-      selected = ""
-    )
-  })
-
-  # Update map on city/dark mode/service filter change
+  # Update map on filter/dark mode/data changes
   observeEvent(
     {
       input$city_filter
       input$dark_mode
       input$service_filter
+      input$library_search
       library_data()
       library_services_data()
     },
     {
-      req(input$city_filter)
       req(library_data())
 
-      # Start with city filter
-      data <- library_data() %>% filter(city_name == input$city_filter)
+      # Start with all libraries
+      data <- library_data()
 
-      # Apply service filter if selected
+      # Apply city filter
+      if (!is.null(input$city_filter) && input$city_filter != "") {
+        data <- data %>% filter(city_name == input$city_filter)
+      }
+
+      # Apply service filter
       if (!is.null(input$service_filter) && input$service_filter != "") {
         services_data <- library_services_data()
         req(services_data)
 
-        # Get library IDs that offer the selected service
         lib_ids_with_service <- services_data %>%
           filter(service_name == input$service_filter) %>%
           pull(library_id)
 
-        # Filter libraries to only those offering the service
         data <- data %>% filter(id %in% lib_ids_with_service)
+      }
+
+      # Apply specific library filter
+      if (!is.null(input$library_search) && input$library_search != "") {
+        data <- data %>% filter(id == as.numeric(input$library_search))
       }
 
       req(nrow(data) > 0)
@@ -314,6 +422,7 @@ server <- function(input, output, session) {
       runjs("document.getElementById('map').style.visibility = 'visible';")
     }
   )
+
   # Click marker to update sidebar
   observeEvent(input$map_marker_click, {
     click_id <- input$map_marker_click$id
@@ -330,15 +439,6 @@ server <- function(input, output, session) {
 
   # Reset selected library on map click (not marker)
   observeEvent(input$map_click, {
-    selected_library(NULL)
-  })
-
-  # Reset selected library on city change
-  observeEvent(input$city_filter, {
-    if (!is.null(input$city_filter) && input$city_filter != "") {
-      nearest_libraries(NULL)
-      user_location(NULL)
-    }
     selected_library(NULL)
   })
 
@@ -597,5 +697,6 @@ server <- function(input, output, session) {
   })
 
   # Service Statistics module
-  service_stats_server("stats", library_services_data, library_data)
+  service_stats_server("stats", library_services_data, library_data,
+                       reactive(input$dark_mode))
 }
