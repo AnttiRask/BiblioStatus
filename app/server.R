@@ -503,7 +503,7 @@ server <- function(input, output, session) {
     req(selected)
     schedules <- all_library_schedules()
 
-    if (!is.null(selected$library_services)) {
+    {
       maps_url <- sprintf(
         "https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f",
         selected$lat, selected$lon
@@ -590,9 +590,6 @@ server <- function(input, output, session) {
             } else {
               p("No services listed", style = "color: #888; font-style: italic; margin-top: 8px;")
             }
-          } else {
-            # Fallback to old column if new data not loaded
-            p(selected$library_services)
           }
         }
       )
