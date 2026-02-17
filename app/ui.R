@@ -4,6 +4,9 @@ library(leaflet)
 library(shiny)
 library(shinyjs)
 
+# Load module UI functions
+source("modules/service_stats.R", local = TRUE)
+
 # Shared footer component for cross-linking between apps
 create_app_footer <- function(current_app = "") {
     tags$footer(
@@ -173,7 +176,6 @@ ui <- page_navbar(
 
     div(
       class = "container mt-4",
-      source("modules/service_stats.R", local = TRUE)$value,
       service_stats_ui("stats")
     )
   ),
