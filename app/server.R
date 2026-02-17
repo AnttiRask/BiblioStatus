@@ -25,7 +25,8 @@ server <- function(input, output, session) {
   nearest_libraries <- reactiveVal(NULL)
   all_library_schedules <- reactiveVal(NULL)
   library_services_data <- reactiveVal(NULL)
-  startup_city_set <- reactiveVal(FALSE)  # Tracks whether initial city has been set
+  startup_city_set  <- reactiveVal(FALSE)    # Tracks whether initial city has been set
+  startup_city      <- reactiveVal("Helsinki") # City determined on startup (geolocation / fallback)
 
   # Data fetching and processing
   refresh_data <- function() {
@@ -120,6 +121,7 @@ server <- function(input, output, session) {
       slice(1) %>%
       pull(city_name)
 
+    startup_city(nearest_city)
     updateSelectInput(session, "city_filter", selected = nearest_city)
   })
 
@@ -277,7 +279,7 @@ server <- function(input, output, session) {
       { setNames(as.character(.$id), .$library_branch_name) }
 
     updateSelectInput(session, "city_filter",
-      choices = c("All Cities" = "", city_choices), selected = "Helsinki")
+      choices = c("All Cities" = "", city_choices), selected = startup_city())
     updateSelectizeInput(session, "library_search",
       choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
     updateSelectInput(session, "service_filter",
@@ -286,6 +288,7 @@ server <- function(input, output, session) {
     selected_library(NULL)
     nearest_libraries(NULL)
     user_location(NULL)
+    leafletProxy("map") %>% clearPopups()
   })
 
   # Update map on filter/dark mode/data changes

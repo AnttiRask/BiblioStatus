@@ -18,8 +18,8 @@ service_stats_ui <- function(id) {
         selectInput(
           ns("stats_city"),
           "Filter by City:",
-          choices = NULL,  # Populated in server
-          selected = NULL
+          choices = c("All Cities" = "all"),
+          selected = "all"
         )
       )
     ),
@@ -55,8 +55,8 @@ service_stats_server <- function(id, library_services, libraries, dark_mode) {
       updateSelectInput(
         session,
         "stats_city",
-        choices = c("All Cities" = "", cities),
-        selected = ""
+        choices = c("All Cities" = "all", cities),
+        selected = "all"
       )
     })
 
@@ -67,7 +67,7 @@ service_stats_server <- function(id, library_services, libraries, dark_mode) {
       req(services_data, libs)
 
       # Filter library_services by selected city
-      if (!is.null(input$stats_city) && input$stats_city != "") {
+      if (!is.null(input$stats_city) && input$stats_city != "all") {
         # Get library IDs in the selected city
         lib_ids_in_city <- libs %>%
           filter(city_name == input$stats_city) %>%
@@ -106,7 +106,7 @@ service_stats_server <- function(id, library_services, libraries, dark_mode) {
         coord_flip() +
         scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
         labs(
-          title = if (!is.null(input$stats_city) && input$stats_city != "") {
+          title = if (!is.null(input$stats_city) && input$stats_city != "all") {
             paste("Most Common Services in", input$stats_city)
           } else {
             "Most Common Library Services (All Cities)"

@@ -197,7 +197,9 @@ ui <- page_navbar(
         uiOutput("nearest_libraries_ui"),
         br(),
         # Shows details of selected library (desktop only)
-        uiOutput("library_services")
+        uiOutput("library_services"),
+        br(),
+        create_app_footer("bibliostatus")
       ),
 
       # Main content
@@ -228,14 +230,12 @@ ui <- page_navbar(
 
     div(
       class = "container mt-4",
-      service_stats_ui("stats")
+      service_stats_ui("stats"),
+      create_app_footer("bibliostatus")
     )
   ),
 
   # Dark mode toggle (top-right in navbar)
   nav_spacer(),
-  nav_item(input_dark_mode(id = "dark_mode", mode = "light")),
-
-  # Footer
-  footer = create_app_footer("bibliostatus")
+  nav_item(input_dark_mode(id = "dark_mode", mode = "light"))
 )
