@@ -62,11 +62,50 @@ ui <- page_navbar(
           var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
           Shiny.setInputValue('is_mobile', isMobile, {priority: 'event'});
         });
+
+        // Watch for bslib dark mode changes (data-bs-theme attribute on <html>)
+        var darkModeObserver = new MutationObserver(function(mutations) {
+          mutations.forEach(function(mutation) {
+            if (mutation.attributeName === 'data-bs-theme') {
+              var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+              Shiny.setInputValue('is_dark_mode', isDark, {priority: 'event'});
+            }
+          });
+        });
+        darkModeObserver.observe(document.documentElement, { attributes: true });
+
         $(document).on('shiny:sessioninitialized', function() {
           Shiny.setInputValue('is_mobile', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent), {priority: 'event'});
+
+          // Report initial dark mode state
+          var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+          Shiny.setInputValue('is_dark_mode', isDark, {priority: 'event'});
+
+          // Request geolocation on startup to determine nearest city
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              function(position) {
+                Shiny.setInputValue('startup_location', {
+                  lat: position.coords.latitude,
+                  lon: position.coords.longitude
+                }, {priority: 'event'});
+              },
+              function(error) {
+                Shiny.setInputValue('startup_geolocation_failed', true, {priority: 'event'});
+              },
+              { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 }
+            );
+          } else {
+            Shiny.setInputValue('startup_geolocation_failed', true, {priority: 'event'});
+          }
+
+          // Fallback: after 9 seconds, if startup location still not received, use Helsinki
+          setTimeout(function() {
+            Shiny.setInputValue('startup_geolocation_timeout', true, {priority: 'event'});
+          }, 9000);
         });
 
-        // Geolocation handler for finding nearest library
+        // Geolocation handler for finding nearest library (Find Nearest button)
         Shiny.addCustomMessageHandler('requestGeolocation', function(message) {
           if (!navigator.geolocation) {
             Shiny.setInputValue('geolocation_error',
@@ -106,6 +145,8 @@ ui <- page_navbar(
   # App title
   title = "BiblioStatus",
   id = "main_navbar",
+  # Library Map fills viewport; Service Statistics scrolls naturally
+  fillable = c("library_map" = TRUE, "service_stats" = FALSE),
 
   # Main map view tab
   nav_panel(
@@ -134,10 +175,10 @@ ui <- page_navbar(
         ),
         actionButton(
           inputId = "clear_filters",
-          label = NULL,
+          label = "Clear all selections",
           icon = icon("rotate-left"),
           class = "btn btn-sm btn-outline-secondary mb-2",
-          title = "Clear all filters"
+          title = "Clear all selections"
         ),
         br(),
         actionButton(
@@ -167,7 +208,13 @@ ui <- page_navbar(
       div(
         id = "loading-spinner",
         "Loading data, please wait...",
-        class = "loading-text"
+        class = "loading-text",
+        style = paste(
+          "position: absolute;",
+          "top: 50%; left: 50%;",
+          "transform: translate(-50%, -50%);",
+          "z-index: 1000;"
+        )
       ),
       leafletOutput("map", height = "calc(100vh - 56px)"),
       div(style = "height: 40px;")

@@ -50,10 +50,7 @@ service_stats_server <- function(id, library_services, libraries, dark_mode) {
       libs <- libraries()
       req(libs)
 
-      cities <- libs %>%
-        pull(city_name) %>%
-        unique() %>%
-        sort()
+      cities <- stringr::str_sort(unique(libs$city_name), locale = "fi")
 
       updateSelectInput(
         session,

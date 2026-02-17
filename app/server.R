@@ -25,6 +25,7 @@ server <- function(input, output, session) {
   nearest_libraries <- reactiveVal(NULL)
   all_library_schedules <- reactiveVal(NULL)
   library_services_data <- reactiveVal(NULL)
+  startup_city_set <- reactiveVal(FALSE)  # Tracks whether initial city has been set
 
   # Data fetching and processing
   refresh_data <- function() {
@@ -89,11 +90,11 @@ server <- function(input, output, session) {
     all_svcs <- library_services_data()
     req(all_libs, all_svcs)
 
-    city_choices <- all_libs %>% pull(city_name) %>% unique() %>% sort()
+    city_choices <- stringr::str_sort(unique(all_libs$city_name), locale = "fi")
     lib_choices  <- all_libs %>%
       arrange(library_branch_name) %>%
       { setNames(as.character(.$id), .$library_branch_name) }
-    svc_choices  <- all_svcs %>% pull(service_name) %>% unique() %>% sort()
+    svc_choices  <- stringr::str_sort(unique(all_svcs$service_name), locale = "fi")
 
     isolate({
       updateSelectInput(session, "city_filter",
@@ -105,7 +106,37 @@ server <- function(input, output, session) {
     })
   })
 
-  # Library selectize: selecting a library updates city and zooms map
+  # Startup geolocation: set city to nearest library's city
+  observeEvent(input$startup_location, {
+    req(!startup_city_set())
+    all_libs <- library_data()
+    req(all_libs)
+    startup_city_set(TRUE)
+
+    loc <- input$startup_location
+    nearest_city <- all_libs %>%
+      mutate(dist = (lat - loc$lat)^2 + (lon - loc$lon)^2) %>%
+      arrange(dist) %>%
+      slice(1) %>%
+      pull(city_name)
+
+    updateSelectInput(session, "city_filter", selected = nearest_city)
+  })
+
+  # Startup geolocation failed or timed out: default to Helsinki
+  observeEvent(input$startup_geolocation_failed, {
+    req(!startup_city_set())
+    startup_city_set(TRUE)
+    updateSelectInput(session, "city_filter", selected = "Helsinki")
+  })
+
+  observeEvent(input$startup_geolocation_timeout, {
+    req(!startup_city_set())
+    startup_city_set(TRUE)
+    updateSelectInput(session, "city_filter", selected = "Helsinki")
+  })
+
+  # Library selectize: selecting a library updates city, zooms map, activates sidebar
   observeEvent(input$library_search, {
     req(input$library_search != "")
 
@@ -115,6 +146,8 @@ server <- function(input, output, session) {
 
     updateSelectInput(session, "city_filter",
       selected = selected_lib$city_name[1])
+
+    selected_library(selected_lib)  # Activate library detail panel
 
     leafletProxy("map") %>%
       setView(lng = selected_lib$lon[1], lat = selected_lib$lat[1], zoom = 15)
@@ -146,9 +179,10 @@ server <- function(input, output, session) {
         arrange(library_branch_name) %>%
         { setNames(as.character(.$id), .$library_branch_name) }
 
-      svc_choices <- all_svcs %>%
-        filter(library_id %in% city_ids) %>%
-        pull(service_name) %>% unique() %>% sort()
+      svc_choices <- stringr::str_sort(
+        unique(all_svcs$service_name[all_svcs$library_id %in% city_ids]),
+        locale = "fi"
+      )
     } else {
       # No city filter: library choices based on service only
       filtered_ids <- all_libs$id
@@ -163,7 +197,7 @@ server <- function(input, output, session) {
         arrange(library_branch_name) %>%
         { setNames(as.character(.$id), .$library_branch_name) }
 
-      svc_choices <- all_svcs %>% pull(service_name) %>% unique() %>% sort()
+      svc_choices <- stringr::str_sort(unique(all_svcs$service_name), locale = "fi")
     }
 
     updateSelectizeInput(session, "library_search",
@@ -203,9 +237,10 @@ server <- function(input, output, session) {
         arrange(library_branch_name) %>%
         { setNames(as.character(.$id), .$library_branch_name) }
 
-      city_choices <- all_libs %>%
-        filter(id %in% svc_ids) %>%
-        pull(city_name) %>% unique() %>% sort()
+      city_choices <- stringr::str_sort(
+        unique(all_libs$city_name[all_libs$id %in% svc_ids]),
+        locale = "fi"
+      )
     } else {
       # No service filter: library choices based on city only
       filtered_ids <- all_libs$id
@@ -220,7 +255,7 @@ server <- function(input, output, session) {
         arrange(library_branch_name) %>%
         { setNames(as.character(.$id), .$library_branch_name) }
 
-      city_choices <- all_libs %>% pull(city_name) %>% unique() %>% sort()
+      city_choices <- stringr::str_sort(unique(all_libs$city_name), locale = "fi")
     }
 
     updateSelectInput(session, "city_filter",
@@ -229,20 +264,20 @@ server <- function(input, output, session) {
       choices = c("All Libraries" = "", lib_choices), server = TRUE)
   }, ignoreInit = TRUE)
 
-  # Clear all filters
+  # Clear all filters: reset to Helsinki default
   observeEvent(input$clear_filters, {
     all_libs <- library_data()
     all_svcs <- library_services_data()
     req(all_libs, all_svcs)
 
-    city_choices <- all_libs %>% pull(city_name) %>% unique() %>% sort()
-    svc_choices  <- all_svcs %>% pull(service_name) %>% unique() %>% sort()
+    city_choices <- stringr::str_sort(unique(all_libs$city_name), locale = "fi")
+    svc_choices  <- stringr::str_sort(unique(all_svcs$service_name), locale = "fi")
     lib_choices  <- all_libs %>%
       arrange(library_branch_name) %>%
       { setNames(as.character(.$id), .$library_branch_name) }
 
     updateSelectInput(session, "city_filter",
-      choices = c("All Cities" = "", city_choices), selected = "")
+      choices = c("All Cities" = "", city_choices), selected = "Helsinki")
     updateSelectizeInput(session, "library_search",
       choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
     updateSelectInput(session, "service_filter",
@@ -696,7 +731,7 @@ server <- function(input, output, session) {
     }
   })
 
-  # Service Statistics module
+  # Service Statistics module (is_dark_mode is set via JS MutationObserver)
   service_stats_server("stats", library_services_data, library_data,
-                       reactive(input$dark_mode))
+                       reactive(input$is_dark_mode))
 }

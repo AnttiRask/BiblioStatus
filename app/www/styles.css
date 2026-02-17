@@ -274,7 +274,12 @@ a:focus, button:focus, input:focus, select:focus {
    SIDEBAR SCROLL (desktop)
    ============================================ */
 
-/* Allow sidebar to scroll independently so map can fill full viewport height */
+/* Prevent outer sidebar wrapper from creating its own scrollbar */
+.bslib-sidebar-layout > .sidebar {
+  overflow: hidden;
+}
+
+/* Allow sidebar content to scroll independently so map fills full viewport height */
 .bslib-sidebar-layout > .sidebar > .sidebar-content {
   max-height: calc(100vh - 56px);
   overflow-y: auto;
