@@ -1,6 +1,7 @@
 -- BiblioStatus Turso Database Schema
 
 -- Libraries table (no historical versioning)
+-- Services moved to separate library_services table
 CREATE TABLE libraries (
     id INTEGER PRIMARY KEY,
     library_branch_name TEXT NOT NULL,
@@ -10,7 +11,6 @@ CREATE TABLE libraries (
     library_url TEXT,
     library_phone TEXT,
     library_email TEXT,
-    library_services TEXT,
     library_address TEXT,
     updated_at TEXT DEFAULT (datetime('now'))
 );

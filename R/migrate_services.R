@@ -17,10 +17,11 @@ libraries <- turso_query("SELECT id, library_services FROM libraries")
 cat(sprintf("Found %d libraries\n", nrow(libraries)))
 
 # 2. Split comma-separated services into rows
+# Use regex that splits on commas NOT inside parentheses
 cat("Splitting services into normalized format...\n")
 library_services <- libraries %>%
   filter(!is.na(library_services), library_services != "") %>%
-  mutate(services_list = str_split(library_services, ",\\s*")) %>%
+  mutate(services_list = str_split(library_services, ",\\s*(?![^()]*\\))")) %>%
   tidyr::unnest(services_list) %>%
   select(library_id = id, service_name = services_list) %>%
   distinct()

@@ -5,6 +5,7 @@ library(jsonlite)
 library(purrr)
 library(RSQLite)
 library(stringr)
+library(tidyr)
 
 # Load Turso helper functions
 source(here("R/turso.R"))
@@ -30,19 +31,8 @@ fetch_libraries_from_api <- function() {
     data <- fromJSON(
       content(response, "text", encoding = "UTF-8"),
       flatten = TRUE
-    )$items %>%
-      mutate(
-        library_services = map_chr(
-          services,
-          ~ {
-            if (is.data.frame(.x) && "standardName" %in% names(.x)) {
-              str_c(sort(unique(.x$standardName)), collapse = ", ")
-            } else {
-              NA_character_
-            }
-          }
-        )
-      )
+    )$items
+    # Note: Services extracted separately to library_services table (no join/split)
 
     libraries <- data %>%
       # fmt: skip
@@ -56,8 +46,7 @@ fetch_libraries_from_api <- function() {
         street_address      = address.street,
         library_url         = primaryContactInfo.homepage.url,
         library_phone       = primaryContactInfo.phone.number,
-        library_email       = primaryContactInfo.email.email,
-        library_services
+        library_email       = primaryContactInfo.email.email
       ) %>%
       # Fixing Seinäjoki main library coordinates, because there are two
       # buildings with different opening hours. Also adding coordinates for
@@ -214,7 +203,7 @@ fetch_libraries_from_api <- function() {
       ) %>%
       select(-c(street_address, zip_code))
 
-    return(libraries)
+    return(list(libraries = libraries, raw_data = data))
   } else {
     stop("Failed to fetch libraries")
   }
@@ -316,17 +305,35 @@ fetch_schedules_from_api <- function(libraries) {
 
 if (update_type %in% c("libraries", "both")) {
   cat("\n=== Fetching library metadata ===\n")
-  libraries <- fetch_libraries_from_api()
+  result <- fetch_libraries_from_api()
+  libraries <- result$libraries
+  raw_data <- result$raw_data
   cat(sprintf("Fetched %d libraries\n", nrow(libraries)))
 
-  # Extract services into normalized format from comma-separated field
+  # Extract library services directly from API data (no join/split needed!)
   cat("Extracting library services...\n")
-  library_services <- libraries %>%
-    filter(!is.na(library_services), library_services != "") %>%
-    mutate(services_list = str_split(library_services, ",\\s*")) %>%
-    unnest(services_list) %>%
-    select(library_id = id, service_name = services_list) %>%
-    distinct()
+
+  # Build list of all library-service pairs
+  all_services <- list()
+  for (i in 1:nrow(raw_data)) {
+    lib_id <- raw_data$id[i]
+    svcs <- raw_data$services[[i]]
+    if (is.data.frame(svcs) && nrow(svcs) > 0 && "standardName" %in% names(svcs)) {
+      for (j in 1:nrow(svcs)) {
+        if (!is.na(svcs$standardName[j]) && svcs$standardName[j] != "") {
+          all_services[[length(all_services) + 1]] <- data.frame(
+            library_id = lib_id,
+            service_name = svcs$standardName[j],
+            stringsAsFactors = FALSE
+          )
+        }
+      }
+    }
+  }
+  library_services <- dplyr::bind_rows(all_services) %>%
+    dplyr::distinct() %>%
+    # Only keep services for libraries that passed filtering
+    dplyr::filter(library_id %in% libraries$id)
   cat(sprintf("Extracted %d library-service combinations (%d unique services)\n",
               nrow(library_services), n_distinct(library_services$service_name)))
 
@@ -334,21 +341,24 @@ if (update_type %in% c("libraries", "both")) {
   turso_success <- tryCatch({
     cat("Writing libraries to Turso...\n")
 
+    # Delete library_services first (FK constraint requires this order)
+    turso_execute("DELETE FROM library_services")
+
     # Delete all existing libraries (replace mode)
     turso_execute("DELETE FROM libraries")
 
-    # Insert each library
+    # Insert each library (library_services now in separate table)
     for (i in 1:nrow(libraries)) {
       lib <- libraries[i, ]
       turso_execute(
         "INSERT INTO libraries (id, library_branch_name, lat, lon, city_name,
                                library_url, library_phone, library_email,
-                               library_services, library_address)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                               library_address)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         list(
           lib$id, lib$library_branch_name, lib$lat, lib$lon, lib$city_name,
           lib$library_url, lib$library_phone, lib$library_email,
-          lib$library_services, lib$library_address
+          lib$library_address
         )
       )
     }
@@ -356,7 +366,6 @@ if (update_type %in% c("libraries", "both")) {
 
     # Write services to library_services table
     cat("Writing library services to Turso...\n")
-    turso_execute("DELETE FROM library_services")
     for (i in 1:nrow(library_services)) {
       svc <- library_services[i, ]
       turso_execute(

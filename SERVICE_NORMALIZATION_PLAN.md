@@ -292,9 +292,24 @@ renv::snapshot()
 **Ready for:** Production deployment
 
 **Migration Results:**
-- Total service records: 11,722
-- Libraries with services: 575
-- Unique services: 247
+
+- Total service records: ~11,000 (reduced from 11,722 initial after fixing comma-splitting)
+- Libraries with services: 575+
+- Unique services: 240+ (reduced from 247 initial after fixing comma-splitting)
 - Zero data loss ✅
+- Fixed: Services with commas now stored correctly as single records
+  - "E-kirjasto (e-kirjat, äänikirjat, digilehdet)" - ONE row (was 3)
+  - "Kouluyhteistyö, kirjastonkäytön opetus ja kiertokäynnit" - ONE row (was 3)
+
+**Final Fix Applied:**
+
+- ✅ Extract services directly from API (no join/split that caused issues)
+- ✅ Filter out orphaned services for filtered-out libraries (84923, 86636)
+- ✅ Correct delete order: DELETE library_services BEFORE libraries (FK constraint)
+
+**Post-Migration Cleanup:**
+- ✅ Removed library_services column from libraries table
+- ✅ Updated fetch_library_data.R to extract services correctly from API
+- ✅ Updated schema.sql to reflect final structure
 
 **Implementation Date:** February 2026

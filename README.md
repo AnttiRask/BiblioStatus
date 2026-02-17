@@ -7,7 +7,7 @@
 - 🌍 Interactive map with open/self-service/closed statuses color-coded
 - 📍 **Find Nearest Open Library** - Uses GPS to find 3-5 closest open libraries with distances
 - 🔍 **Library Text Search** - Search libraries by name, auto-switches to their city and zooms to location
-- 🏷️ **Service Filtering** - Filter map by library services (247 unique services across 575 libraries)
+- 🏷️ **Service Filtering** - Filter map by library services (240+ unique services)
 - 💎 **Service Badges** - Services displayed as visual badges for better readability
 - 📊 **Service Statistics Dashboard** - Explore service distribution with city filtering and interactive charts
 - 🗺️ **Get Directions** - One-click Google Maps navigation to any library
@@ -18,7 +18,7 @@
 - 🏢 City/municipality filter
 - 🔗 Clickable popups with library information and links
 - 📦 Data updated daily via GitHub Actions and stored in Turso (cloud SQLite) with historical preservation
-- 📚 **Normalized Database** - Library services stored in proper relational structure (11,722 service records)
+- 📚 **Normalized Database** - Library services stored in proper relational structure (10,000+ service records)
 - ✅ Automated URL monitoring with email alerts for broken links
 
 ## 📸 Screenshot
@@ -70,7 +70,7 @@ app/
 1. Runs `fetch_library_data.R` in "both" mode
 2. Fetches library metadata (names, coordinates, URLs, contact info, services)
 3. Applies 50+ manual URL corrections and 8 coordinate fixes
-4. Extracts and normalizes library services to `library_services` table (11,722 records)
+4. Extracts and normalizes library services to `library_services` table (10,000+ records, 240+ unique services)
 5. Replaces library data in Turso (no historical versioning needed)
 
 **App Data Access**:
