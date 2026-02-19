@@ -157,8 +157,8 @@ a:focus {
 /* Footer styling */
 .app-footer {
     border-top: 1px solid #333333;
-    margin-top: 3rem;
-    padding-top: 2rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
     position: relative;
     z-index: 10;
 }
@@ -271,16 +271,29 @@ a:focus, button:focus, input:focus, select:focus {
 }
 
 /* ============================================
-   SIDEBAR SCROLL (desktop)
+   SIDEBAR SCROLL & LAYOUT (desktop)
    ============================================ */
+
+/* Move toggle button slightly left so it doesn't overlap the sidebar scrollbar */
+.bslib-sidebar-layout .collapse-toggle {
+  margin-right: 8px;
+}
 
 /* Prevent outer sidebar wrapper from creating its own scrollbar */
 .bslib-sidebar-layout > .sidebar {
   overflow: hidden;
 }
 
-/* Allow sidebar content to scroll independently so map fills full viewport height */
+/* Allow sidebar content to scroll independently so map fills full viewport height.
+   Flex column layout with uniform gap; footer is pushed to the bottom via margin-top: auto */
 .bslib-sidebar-layout > .sidebar > .sidebar-content {
   max-height: calc(100vh - 56px);
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bslib-sidebar-layout > .sidebar > .sidebar-content .app-footer {
+  margin-top: auto;
 }

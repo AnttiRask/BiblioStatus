@@ -93,8 +93,7 @@ service_stats_server <- function(id, library_services, libraries, dark_mode) {
       req(nrow(data) > 0)
 
       is_dark    <- isTRUE(dark_mode())
-      bg_color   <- if (is_dark) "#191414" else "#FFFFFF"
-      text_color <- if (is_dark) "#FFFFFF" else "#1a1a1a"
+      text_color <- if (is_dark) "#FFFFFF" else "#333333"
 
       ggplot(data, aes(x = reorder(service_name, library_count),
                        y = library_count)) +
@@ -121,8 +120,8 @@ service_stats_server <- function(id, library_services, libraries, dark_mode) {
           axis.text.x      = element_blank(),
           axis.ticks       = element_blank(),
           panel.grid       = element_blank(),
-          plot.background  = element_rect(fill = bg_color, color = NA),
-          panel.background = element_rect(fill = bg_color, color = NA),
+          plot.background  = element_rect(fill = "transparent", color = NA),
+          panel.background = element_rect(fill = "transparent", color = NA),
           plot.title       = element_text(size = 14, face = "bold",
                                           color = text_color)
         )

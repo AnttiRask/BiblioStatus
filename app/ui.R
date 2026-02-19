@@ -155,7 +155,7 @@ ui <- page_navbar(
 
     layout_sidebar(
       sidebar = sidebar(
-        width = 350,
+        width = 400,
         selectInput(
           inputId = "city_filter",
           label = "Select City/Municipality:",
@@ -180,7 +180,6 @@ ui <- page_navbar(
           class = "btn btn-sm btn-outline-secondary mb-2",
           title = "Clear all selections"
         ),
-        br(),
         actionButton(
           inputId = "find_nearest",
           label = "Find Nearest Open Library",
@@ -193,12 +192,9 @@ ui <- page_navbar(
             icon("spinner", class = "fa-spin"), " Getting your location...")
         ),
         uiOutput("geolocation_error_ui"),
-        br(),
         uiOutput("nearest_libraries_ui"),
-        br(),
         # Shows details of selected library (desktop only)
         uiOutput("library_services"),
-        br(),
         create_app_footer("bibliostatus")
       ),
 
