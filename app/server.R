@@ -331,6 +331,13 @@ server <- function(input, output, session) {
     # (input$library_search / service_filter update asynchronously via browser)
     post_clear_city(city)
     map_reset_counter(map_reset_counter() + 1)
+
+    # If the city value hasn't actually changed, the city_filter observer will NOT
+    # fire (Shiny only fires on value changes), so clearing_in_progress would stay
+    # TRUE and block the next legitimate city change.  Reset it here in that case.
+    if (identical(isolate(input$city_filter), city)) {
+      clearing_in_progress(FALSE)
+    }
   })
 
   # Update map on filter/dark mode/data changes
