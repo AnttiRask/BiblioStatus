@@ -285,13 +285,17 @@ a:focus, button:focus, input:focus, select:focus {
 }
 
 /* Allow sidebar content to scroll independently so map fills full viewport height.
-   Flex column layout with uniform gap; footer is pushed to the bottom via margin-top: auto */
+   Flex column layout with uniform gap; footer is pushed to the bottom via margin-top: auto.
+   padding-left reduced to shift content left; padding-right reserves space for the
+   collapse-toggle button so it does not overlap dropdowns/buttons. */
 .bslib-sidebar-layout > .sidebar > .sidebar-content {
   max-height: calc(100vh - 56px);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding-left: 8px;
+  padding-right: 36px;
 }
 
 .bslib-sidebar-layout > .sidebar > .sidebar-content .app-footer {

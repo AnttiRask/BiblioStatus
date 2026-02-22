@@ -28,6 +28,7 @@ server <- function(input, output, session) {
   startup_city_set  <- reactiveVal(FALSE)    # Tracks whether initial city has been set
   startup_city      <- reactiveVal("Helsinki") # City determined on startup (geolocation / fallback)
   map_reset_counter <- reactiveVal(0)          # Incremented by Clear to force map re-render
+  post_clear_city   <- reactiveVal(NULL)       # Set by Clear to bypass stale filter inputs
 
   # Data fetching and processing
   refresh_data <- function() {
@@ -205,8 +206,15 @@ server <- function(input, output, session) {
 
     updateSelectizeInput(session, "library_search",
       choices = c("All Libraries" = "", lib_choices), server = TRUE)
+    # Preserve the current service selection if it is still available in the new city;
+    # otherwise reset to "All Services" so the dropdown text stays in sync with filtering.
     updateSelectInput(session, "service_filter",
-      choices = c("All Services" = "", svc_choices))
+      choices = c("All Services" = "", svc_choices),
+      selected = if (!is.null(current_service) && current_service %in% svc_choices) {
+        current_service
+      } else {
+        ""
+      })
 
     # Reset state when city changes
     nearest_libraries(NULL)
@@ -306,6 +314,9 @@ server <- function(input, output, session) {
     nearest_libraries(NULL)
     user_location(NULL)
     leafletProxy("map") %>% clearPopups()
+    # Store the target city so the map observer bypasses stale filter inputs
+    # (input$library_search / service_filter update asynchronously via browser)
+    post_clear_city(city)
     map_reset_counter(map_reset_counter() + 1)
   })
 
@@ -326,26 +337,36 @@ server <- function(input, output, session) {
       # Start with all libraries
       data <- library_data()
 
-      # Apply city filter
-      if (!is.null(input$city_filter) && input$city_filter != "") {
-        data <- data %>% filter(city_name == input$city_filter)
-      }
+      # When Clear was just pressed, post_clear_city holds the target city so we
+      # can render correctly before the browser sends back the updated (empty)
+      # input$library_search / input$service_filter values.
+      pcc <- isolate(post_clear_city())
+      if (!is.null(pcc)) {
+        isolate(post_clear_city(NULL))   # consume the override
+        if (pcc != "") data <- data %>% filter(city_name == pcc)
+        # Skip service and library filters — they are stale at this point
+      } else {
+        # Apply city filter
+        if (!is.null(input$city_filter) && input$city_filter != "") {
+          data <- data %>% filter(city_name == input$city_filter)
+        }
 
-      # Apply service filter
-      if (!is.null(input$service_filter) && input$service_filter != "") {
-        services_data <- library_services_data()
-        req(services_data)
+        # Apply service filter
+        if (!is.null(input$service_filter) && input$service_filter != "") {
+          services_data <- library_services_data()
+          req(services_data)
 
-        lib_ids_with_service <- services_data %>%
-          filter(service_name == input$service_filter) %>%
-          pull(library_id)
+          lib_ids_with_service <- services_data %>%
+            filter(service_name == input$service_filter) %>%
+            pull(library_id)
 
-        data <- data %>% filter(id %in% lib_ids_with_service)
-      }
+          data <- data %>% filter(id %in% lib_ids_with_service)
+        }
 
-      # Apply specific library filter
-      if (!is.null(input$library_search) && input$library_search != "") {
-        data <- data %>% filter(id == as.numeric(input$library_search))
+        # Apply specific library filter
+        if (!is.null(input$library_search) && input$library_search != "") {
+          data <- data %>% filter(id == as.numeric(input$library_search))
+        }
       }
 
       req(nrow(data) > 0)
