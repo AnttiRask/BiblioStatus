@@ -29,7 +29,7 @@ server <- function(input, output, session) {
   startup_city      <- reactiveVal("Helsinki") # City determined on startup (geolocation / fallback)
   map_reset_counter <- reactiveVal(0)          # Incremented by Clear to force map re-render
   post_clear_city      <- reactiveVal(NULL)  # Set by Clear to bypass stale filter inputs
-  clearing_in_progress <- reactiveVal(FALSE) # Prevents city cascade from re-injecting stale service
+  service_being_cleared <- reactiveVal(FALSE) # Set by Clear; city cascade uses "" for service
 
   # Data fetching and processing
   refresh_data <- function() {
@@ -160,23 +160,24 @@ server <- function(input, output, session) {
 
   # Cascading: city → update library + service choices
   observeEvent(input$city_filter, {
-    # When Clear was just pressed the cascade must not run: it would read the stale
-    # service value and re-inject it, overriding the clear.  Refreshing post_clear_city
-    # here ensures the map render that fires from this city change also stays clean.
-    if (isTRUE(isolate(clearing_in_progress()))) {
-      isolate({
-        clearing_in_progress(FALSE)
-        post_clear_city(startup_city())
-      })
-      return()
-    }
-
     all_libs <- library_data()
     all_svcs <- library_services_data()
     req(all_libs, all_svcs)
 
-    # Current service selection as additional context (isolated)
-    current_service <- isolate(input$service_filter)
+    # When Clear was just pressed, treat the current service as "" so the cascade
+    # doesn't re-inject the stale browser value.  Also refresh post_clear_city so
+    # the map render triggered by this city change filters to the startup city
+    # cleanly (no service filter flash).
+    is_clearing <- isTRUE(isolate(service_being_cleared()))
+    current_service <- if (is_clearing) {
+      isolate({
+        service_being_cleared(FALSE)
+        post_clear_city(startup_city())
+      })
+      ""
+    } else {
+      isolate(input$service_filter)
+    }
 
     if (!is.null(input$city_filter) && input$city_filter != "") {
       city_ids <- all_libs %>%
@@ -236,6 +237,9 @@ server <- function(input, output, session) {
 
   # Cascading: service → update city + library choices
   observeEvent(input$service_filter, {
+    # Consume the flag in case the city didn't change (city_filter observer never fired).
+    service_being_cleared(FALSE)
+
     all_libs <- library_data()
     all_svcs <- library_services_data()
     req(all_libs, all_svcs)
@@ -289,7 +293,7 @@ server <- function(input, output, session) {
 
   # Clear all filters: reset to startup city with properly filtered choices
   observeEvent(input$clear_filters, {
-    clearing_in_progress(TRUE)   # Must be set before updateSelect* calls reach the browser
+    service_being_cleared(TRUE)
     all_libs <- library_data()
     all_svcs <- library_services_data()
     req(all_libs, all_svcs)
@@ -332,12 +336,6 @@ server <- function(input, output, session) {
     post_clear_city(city)
     map_reset_counter(map_reset_counter() + 1)
 
-    # If the city value hasn't actually changed, the city_filter observer will NOT
-    # fire (Shiny only fires on value changes), so clearing_in_progress would stay
-    # TRUE and block the next legitimate city change.  Reset it here in that case.
-    if (identical(isolate(input$city_filter), city)) {
-      clearing_in_progress(FALSE)
-    }
   })
 
   # Update map on filter/dark mode/data changes
