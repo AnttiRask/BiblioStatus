@@ -28,7 +28,8 @@ server <- function(input, output, session) {
   startup_city_set  <- reactiveVal(FALSE)    # Tracks whether initial city has been set
   startup_city      <- reactiveVal("Helsinki") # City determined on startup (geolocation / fallback)
   map_reset_counter <- reactiveVal(0)          # Incremented by Clear to force map re-render
-  post_clear_city   <- reactiveVal(NULL)       # Set by Clear to bypass stale filter inputs
+  post_clear_city      <- reactiveVal(NULL)  # Set by Clear to bypass stale filter inputs
+  clearing_in_progress <- reactiveVal(FALSE) # Prevents city cascade from re-injecting stale service
 
   # Data fetching and processing
   refresh_data <- function() {
@@ -159,6 +160,17 @@ server <- function(input, output, session) {
 
   # Cascading: city → update library + service choices
   observeEvent(input$city_filter, {
+    # When Clear was just pressed the cascade must not run: it would read the stale
+    # service value and re-inject it, overriding the clear.  Refreshing post_clear_city
+    # here ensures the map render that fires from this city change also stays clean.
+    if (isTRUE(isolate(clearing_in_progress()))) {
+      isolate({
+        clearing_in_progress(FALSE)
+        post_clear_city(startup_city())
+      })
+      return()
+    }
+
     all_libs <- library_data()
     all_svcs <- library_services_data()
     req(all_libs, all_svcs)
@@ -277,6 +289,7 @@ server <- function(input, output, session) {
 
   # Clear all filters: reset to startup city with properly filtered choices
   observeEvent(input$clear_filters, {
+    clearing_in_progress(TRUE)   # Must be set before updateSelect* calls reach the browser
     all_libs <- library_data()
     all_svcs <- library_services_data()
     req(all_libs, all_svcs)
