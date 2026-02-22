@@ -2,8 +2,7 @@ name: Fetch Library Data
 
 on:
   schedule:
-    - cron: "0 2 * * *"  # Daily at 2 AM UTC (schedules)
-    - cron: "0 2 * * 0"  # Sunday at 2 AM UTC (libraries + schedules)
+    - cron: "0 2 * * *"  # Daily at 2 AM UTC; Sunday runs fetch both (see Determine update type step)
   workflow_dispatch:  # Manual triggering
     inputs:
       update_type:
@@ -73,4 +72,5 @@ jobs:
           git config --global user.name "GitHub Actions"
           git add app/libraries.sqlite
           git commit -m "Update database $(date -u +"%Y-%m-%d %H:%M UTC")" || echo "No changes to commit"
+          git pull --rebase https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
