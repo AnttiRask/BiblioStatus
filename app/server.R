@@ -201,14 +201,10 @@ server <- function(input, output, session) {
       svc_choices <- stringr::str_sort(unique(all_svcs$service_name), locale = "fi")
     }
 
-    # Freeze both downstream inputs before updating them (Mastering Shiny pattern:
-    # "always use freezeReactiveValue when dynamically changing an input value").
-    # This prevents the service_filter cascade from firing with stale city data
-    # while the city_filter cascade is still processing.
-    freezeReactiveValue(input, "library_search")
+    # Reset library_search when city changes; keeping a stale library id causes
+    # nrow(data) == 0 in the map observer, making the map silently stick.
     updateSelectizeInput(session, "library_search",
       choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
-    freezeReactiveValue(input, "service_filter")
     # Preserve the current service selection if it is still available in the new city;
     # otherwise reset to "All Services" so the dropdown text stays in sync with filtering.
     updateSelectInput(session, "service_filter",
@@ -272,13 +268,8 @@ server <- function(input, output, session) {
       city_choices <- stringr::str_sort(unique(all_libs$city_name), locale = "fi")
     }
 
-    # Freeze both downstream inputs before updating them (Mastering Shiny pattern:
-    # "always use freezeReactiveValue when dynamically changing an input value").
-    # This prevents the city_filter cascade from firing with stale service data
-    # while the service_filter cascade is still processing.
-    # Also: always specify `selected` for city_filter to preserve the current city
-    # (omitting `selected` can cause Shiny to reset to the first choice).
-    freezeReactiveValue(input, "city_filter")
+    # Always specify `selected` when updating city_filter choices to preserve the
+    # current city (omitting it can cause Shiny to silently reset to the first choice).
     updateSelectInput(session, "city_filter",
       choices = c("All Cities" = "", city_choices),
       selected = if (!is.null(current_city) && current_city %in% city_choices) {
@@ -286,7 +277,6 @@ server <- function(input, output, session) {
       } else {
         ""
       })
-    freezeReactiveValue(input, "library_search")
     # Reset library_search; a stale id from the previous filter state would
     # produce 0 rows in the map observer and silently abort the map render.
     updateSelectizeInput(session, "library_search",
@@ -295,17 +285,13 @@ server <- function(input, output, session) {
   # so the Shiny default ignoreNULL = TRUE would silently skip the empty-string case).
   }, ignoreInit = TRUE, ignoreNULL = FALSE)
 
-  # Individual clear buttons — each clears one filter; cascades handle downstream updates.
-  # freezeReactiveValue before each update (Mastering Shiny: "always use freezeReactiveValue
-  # when dynamically changing an input value") so the cascade observer sees a clean state.
+  # Individual clear buttons — each clears one filter; cascades handle downstream updates
   observeEvent(input$clear_library, {
-    freezeReactiveValue(input, "library_search")
     updateSelectizeInput(session, "library_search", selected = "")
     selected_library(NULL)
   })
 
   observeEvent(input$clear_service, {
-    freezeReactiveValue(input, "service_filter")
     updateSelectInput(session, "service_filter", selected = "")
     selected_library(NULL)
   })
