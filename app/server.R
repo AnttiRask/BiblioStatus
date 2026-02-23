@@ -27,9 +27,6 @@ server <- function(input, output, session) {
   library_services_data <- reactiveVal(NULL)
   startup_city_set  <- reactiveVal(FALSE)    # Tracks whether initial city has been set
   startup_city      <- reactiveVal("Helsinki") # City determined on startup (geolocation / fallback)
-  map_reset_counter <- reactiveVal(0)          # Incremented by Clear to force map re-render
-  post_clear_city      <- reactiveVal(NULL)  # Set by Clear to bypass stale filter inputs
-  service_being_cleared <- reactiveVal(FALSE) # Set by Clear; city cascade uses "" for service
 
   # Data fetching and processing
   refresh_data <- function() {
@@ -164,19 +161,7 @@ server <- function(input, output, session) {
     all_svcs <- library_services_data()
     req(all_libs, all_svcs)
 
-    # When Clear was just pressed, treat the current service as "" so the cascade
-    # doesn't re-inject the stale browser value.  Do NOT touch post_clear_city here —
-    # clear_filters already set it, and the map observer will consume it naturally on
-    # whichever trigger fires first (map_reset_counter or this city round-trip).
-    # Setting pcc again in the cascade would leave a stale value that persists into
-    # the user's NEXT city change and forces the wrong city onto the map.
-    is_clearing <- isTRUE(isolate(service_being_cleared()))
-    current_service <- if (is_clearing) {
-      isolate(service_being_cleared(FALSE))
-      ""
-    } else {
-      isolate(input$service_filter)
-    }
+    current_service <- isolate(input$service_filter)
 
     if (!is.null(input$city_filter) && input$city_filter != "") {
       city_ids <- all_libs %>%
@@ -238,9 +223,6 @@ server <- function(input, output, session) {
 
   # Cascading: service → update city + library choices
   observeEvent(input$service_filter, {
-    # Consume the flag in case the city didn't change (city_filter observer never fired).
-    service_being_cleared(FALSE)
-
     all_libs <- library_data()
     all_svcs <- library_services_data()
     req(all_libs, all_svcs)
@@ -294,51 +276,23 @@ server <- function(input, output, session) {
       choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
   }, ignoreInit = TRUE)
 
-  # Clear all filters: reset to startup city with properly filtered choices
-  observeEvent(input$clear_filters, {
-    service_being_cleared(TRUE)
-    all_libs <- library_data()
-    all_svcs <- library_services_data()
-    req(all_libs, all_svcs)
-
-    city         <- startup_city()
-    city_choices <- stringr::str_sort(unique(all_libs$city_name), locale = "fi")
-
-    # Compute library/service choices for the startup city directly, so they're
-    # immediately correct even if city_filter value hasn't changed (no cascade fires)
-    if (city != "") {
-      city_ids <- all_libs %>% filter(city_name == city) %>% pull(id)
-      lib_choices <- all_libs %>%
-        filter(id %in% city_ids) %>%
-        arrange(library_branch_name) %>%
-        { setNames(as.character(.$id), .$library_branch_name) }
-      svc_choices <- stringr::str_sort(
-        unique(all_svcs$service_name[all_svcs$library_id %in% city_ids]),
-        locale = "fi"
-      )
-    } else {
-      lib_choices <- all_libs %>%
-        arrange(library_branch_name) %>%
-        { setNames(as.character(.$id), .$library_branch_name) }
-      svc_choices <- stringr::str_sort(unique(all_svcs$service_name), locale = "fi")
-    }
-
-    updateSelectInput(session, "city_filter",
-      choices = c("All Cities" = "", city_choices), selected = city)
-    updateSelectizeInput(session, "library_search",
-      choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
-    updateSelectInput(session, "service_filter",
-      choices = c("All Services" = "", svc_choices), selected = "")
-
+  # Individual clear buttons — each clears one filter; cascades handle downstream updates
+  observeEvent(input$clear_city, {
+    updateSelectInput(session, "city_filter", selected = "")
     selected_library(NULL)
     nearest_libraries(NULL)
     user_location(NULL)
     leafletProxy("map") %>% clearPopups()
-    # Store the target city so the map observer bypasses stale filter inputs
-    # (input$library_search / service_filter update asynchronously via browser)
-    post_clear_city(city)
-    map_reset_counter(map_reset_counter() + 1)
+  })
 
+  observeEvent(input$clear_library, {
+    updateSelectizeInput(session, "library_search", selected = "")
+    selected_library(NULL)
+  })
+
+  observeEvent(input$clear_service, {
+    updateSelectInput(session, "service_filter", selected = "")
+    selected_library(NULL)
   })
 
   # Update map on filter/dark mode/data changes
@@ -350,7 +304,6 @@ server <- function(input, output, session) {
       input$library_search
       library_data()
       library_services_data()
-      map_reset_counter()
     },
     {
       req(library_data())
@@ -358,36 +311,26 @@ server <- function(input, output, session) {
       # Start with all libraries
       data <- library_data()
 
-      # When Clear was just pressed, post_clear_city holds the target city so we
-      # can render correctly before the browser sends back the updated (empty)
-      # input$library_search / input$service_filter values.
-      pcc <- isolate(post_clear_city())
-      if (!is.null(pcc)) {
-        isolate(post_clear_city(NULL))   # consume the override
-        if (pcc != "") data <- data %>% filter(city_name == pcc)
-        # Skip service and library filters — they are stale at this point
-      } else {
-        # Apply city filter
-        if (!is.null(input$city_filter) && input$city_filter != "") {
-          data <- data %>% filter(city_name == input$city_filter)
-        }
+      # Apply city filter
+      if (!is.null(input$city_filter) && input$city_filter != "") {
+        data <- data %>% filter(city_name == input$city_filter)
+      }
 
-        # Apply service filter
-        if (!is.null(input$service_filter) && input$service_filter != "") {
-          services_data <- library_services_data()
-          req(services_data)
+      # Apply service filter
+      if (!is.null(input$service_filter) && input$service_filter != "") {
+        services_data <- library_services_data()
+        req(services_data)
 
-          lib_ids_with_service <- services_data %>%
-            filter(service_name == input$service_filter) %>%
-            pull(library_id)
+        lib_ids_with_service <- services_data %>%
+          filter(service_name == input$service_filter) %>%
+          pull(library_id)
 
-          data <- data %>% filter(id %in% lib_ids_with_service)
-        }
+        data <- data %>% filter(id %in% lib_ids_with_service)
+      }
 
-        # Apply specific library filter
-        if (!is.null(input$library_search) && input$library_search != "") {
-          data <- data %>% filter(id == as.numeric(input$library_search))
-        }
+      # Apply specific library filter
+      if (!is.null(input$library_search) && input$library_search != "") {
+        data <- data %>% filter(id == as.numeric(input$library_search))
       }
 
       # Self-heal: if a stale library id made data empty, clear it and retry next flush.

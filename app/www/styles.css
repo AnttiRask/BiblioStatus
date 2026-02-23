@@ -200,6 +200,25 @@ a:focus, button:focus, input:focus, select:focus {
 }
 
 /* ============================================
+   DROPDOWN CLEAR (×) BUTTON STYLING
+   ============================================ */
+
+.clear-select-btn {
+  color: #C1272D;
+  font-size: 18px;
+  line-height: 1;
+  opacity: 0.7;
+  text-decoration: none !important;
+}
+
+.clear-select-btn:hover,
+.clear-select-btn:focus {
+  color: #C1272D;
+  opacity: 1;
+  text-decoration: none !important;
+}
+
+/* ============================================
    FIND NEAREST BUTTON STYLING
    ============================================ */
 

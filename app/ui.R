@@ -156,29 +156,37 @@ ui <- page_navbar(
     layout_sidebar(
       sidebar = sidebar(
         width = 400,
-        selectInput(
-          inputId = "city_filter",
-          label = "Select City/Municipality:",
-          choices = NULL
+        div(
+          div(class = "d-flex justify-content-between align-items-baseline mb-1",
+            tags$label(`for` = "city_filter", class = "control-label mb-0",
+              "Select City/Municipality:"),
+            actionButton("clear_city", label = HTML("&times;"),
+              class = "btn btn-link p-0 clear-select-btn",
+              title = "Clear city selection")
+          ),
+          selectInput(inputId = "city_filter", label = NULL, choices = NULL)
         ),
-        selectizeInput(
-          inputId = "library_search",
-          label = "Select Library:",
-          choices = NULL,
-          options = list(placeholder = "All Libraries")
+        div(
+          div(class = "d-flex justify-content-between align-items-baseline mb-1",
+            tags$label(`for` = "library_search", class = "control-label mb-0",
+              "Select Library:"),
+            actionButton("clear_library", label = HTML("&times;"),
+              class = "btn btn-link p-0 clear-select-btn",
+              title = "Clear library selection")
+          ),
+          selectizeInput(inputId = "library_search", label = NULL, choices = NULL,
+            options = list(placeholder = "All Libraries"))
         ),
-        selectInput(
-          inputId = "service_filter",
-          label = "Select Service:",
-          choices = NULL,
-          selected = NULL
-        ),
-        actionButton(
-          inputId = "clear_filters",
-          label = "Clear all selections",
-          icon = icon("rotate-left"),
-          class = "btn btn-sm btn-outline-secondary mb-2",
-          title = "Clear all selections"
+        div(
+          div(class = "d-flex justify-content-between align-items-baseline mb-1",
+            tags$label(`for` = "service_filter", class = "control-label mb-0",
+              "Select Service:"),
+            actionButton("clear_service", label = HTML("&times;"),
+              class = "btn btn-link p-0 clear-select-btn",
+              title = "Clear service selection")
+          ),
+          selectInput(inputId = "service_filter", label = NULL, choices = NULL,
+            selected = NULL)
         ),
         actionButton(
           inputId = "find_nearest",
