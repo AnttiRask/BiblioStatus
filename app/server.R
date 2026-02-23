@@ -165,15 +165,14 @@ server <- function(input, output, session) {
     req(all_libs, all_svcs)
 
     # When Clear was just pressed, treat the current service as "" so the cascade
-    # doesn't re-inject the stale browser value.  Also refresh post_clear_city so
-    # the map render triggered by this city change filters to the startup city
-    # cleanly (no service filter flash).
+    # doesn't re-inject the stale browser value.  Do NOT touch post_clear_city here —
+    # clear_filters already set it, and the map observer will consume it naturally on
+    # whichever trigger fires first (map_reset_counter or this city round-trip).
+    # Setting pcc again in the cascade would leave a stale value that persists into
+    # the user's NEXT city change and forces the wrong city onto the map.
     is_clearing <- isTRUE(isolate(service_being_cleared()))
     current_service <- if (is_clearing) {
-      isolate({
-        service_being_cleared(FALSE)
-        post_clear_city(startup_city())
-      })
+      isolate(service_being_cleared(FALSE))
       ""
     } else {
       isolate(input$service_filter)
