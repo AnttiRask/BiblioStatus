@@ -217,8 +217,10 @@ server <- function(input, output, session) {
       svc_choices <- stringr::str_sort(unique(all_svcs$service_name), locale = "fi")
     }
 
+    # Reset library_search when city changes; keeping a stale library id causes
+    # nrow(data) == 0 in the map observer, making the map silently stick.
     updateSelectizeInput(session, "library_search",
-      choices = c("All Libraries" = "", lib_choices), server = TRUE)
+      choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
     # Preserve the current service selection if it is still available in the new city;
     # otherwise reset to "All Services" so the dropdown text stays in sync with filtering.
     updateSelectInput(session, "service_filter",
@@ -287,8 +289,10 @@ server <- function(input, output, session) {
 
     updateSelectInput(session, "city_filter",
       choices = c("All Cities" = "", city_choices))
+    # Reset library_search; a stale id from the previous filter state would
+    # produce 0 rows in the map observer and silently abort the map render.
     updateSelectizeInput(session, "library_search",
-      choices = c("All Libraries" = "", lib_choices), server = TRUE)
+      choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
   }, ignoreInit = TRUE)
 
   # Clear all filters: reset to startup city with properly filtered choices
@@ -387,6 +391,11 @@ server <- function(input, output, session) {
         }
       }
 
+      # Self-heal: if a stale library id made data empty, clear it and retry next flush.
+      if (nrow(data) == 0 && !is.null(input$library_search) && input$library_search != "") {
+        updateSelectizeInput(session, "library_search", selected = "")
+        return()
+      }
       req(nrow(data) > 0)
 
       tile_provider <- if (isTRUE(input$dark_mode)) {
