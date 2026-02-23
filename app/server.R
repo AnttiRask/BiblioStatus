@@ -274,17 +274,11 @@ server <- function(input, output, session) {
     # produce 0 rows in the map observer and silently abort the map render.
     updateSelectizeInput(session, "library_search",
       choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
-  }, ignoreInit = TRUE)
+  # ignoreNULL = FALSE: observer must fire when service is cleared back to "" (isTruthy("") = FALSE
+  # so the Shiny default ignoreNULL = TRUE would silently skip the empty-string case).
+  }, ignoreInit = TRUE, ignoreNULL = FALSE)
 
   # Individual clear buttons — each clears one filter; cascades handle downstream updates
-  observeEvent(input$clear_city, {
-    updateSelectInput(session, "city_filter", selected = "")
-    selected_library(NULL)
-    nearest_libraries(NULL)
-    user_location(NULL)
-    leafletProxy("map") %>% clearPopups()
-  })
-
   observeEvent(input$clear_library, {
     updateSelectizeInput(session, "library_search", selected = "")
     selected_library(NULL)

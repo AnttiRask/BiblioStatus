@@ -156,15 +156,10 @@ ui <- page_navbar(
     layout_sidebar(
       sidebar = sidebar(
         width = 400,
-        div(
-          div(class = "d-flex justify-content-between align-items-baseline mb-1",
-            tags$label(`for` = "city_filter", class = "control-label mb-0",
-              "Select City/Municipality:"),
-            actionButton("clear_city", label = HTML("&times;"),
-              class = "btn btn-link p-0 clear-select-btn",
-              title = "Clear city selection")
-          ),
-          selectInput(inputId = "city_filter", label = NULL, choices = NULL)
+        selectInput(
+          inputId = "city_filter",
+          label = "Select City/Municipality:",
+          choices = NULL
         ),
         div(
           div(class = "d-flex justify-content-between align-items-baseline mb-1",
