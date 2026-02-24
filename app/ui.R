@@ -184,6 +184,12 @@ ui <- page_navbar(
             selected = NULL)
         ),
         actionButton(
+          inputId = "apply_filters",
+          label = "Show on Map",
+          icon = icon("map"),
+          class = "btn-primary w-100 mb-2"
+        ),
+        actionButton(
           inputId = "find_nearest",
           label = "Find Nearest Open Library",
           icon = icon("location-dot"),

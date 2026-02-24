@@ -27,6 +27,11 @@ server <- function(input, output, session) {
   library_services_data <- reactiveVal(NULL)
   startup_city_set  <- reactiveVal(FALSE)    # Tracks whether initial city has been set
   startup_city      <- reactiveVal("Helsinki") # City determined on startup (geolocation / fallback)
+  # Committed filter state — what the map currently shows.
+  # Set by the "Show on Map" button or by startup; not updated by cascade observers.
+  committed_city    <- reactiveVal("")
+  committed_service <- reactiveVal("")
+  committed_library <- reactiveVal("")
 
   # Data fetching and processing
   refresh_data <- function() {
@@ -123,6 +128,7 @@ server <- function(input, output, session) {
 
     startup_city(nearest_city)
     updateSelectInput(session, "city_filter", selected = nearest_city)
+    committed_city(nearest_city)  # triggers initial map render (no browser round-trip needed)
   })
 
   # Startup geolocation failed or timed out: default to Helsinki
@@ -130,15 +136,18 @@ server <- function(input, output, session) {
     req(!startup_city_set())
     startup_city_set(TRUE)
     updateSelectInput(session, "city_filter", selected = "Helsinki")
+    committed_city("Helsinki")  # triggers initial map render
   })
 
   observeEvent(input$startup_geolocation_timeout, {
     req(!startup_city_set())
     startup_city_set(TRUE)
     updateSelectInput(session, "city_filter", selected = "Helsinki")
+    committed_city("Helsinki")  # triggers initial map render
   })
 
-  # Library selectize: selecting a library updates city, zooms map, activates sidebar
+  # Library selectize: selecting a library auto-updates the city dropdown.
+  # Map zoom happens when "Show on Map" is pressed.
   observeEvent(input$library_search, {
     req(input$library_search != "")
 
@@ -148,11 +157,6 @@ server <- function(input, output, session) {
 
     updateSelectInput(session, "city_filter",
       selected = selected_lib$city_name[1])
-
-    selected_library(selected_lib)  # Activate library detail panel
-
-    leafletProxy("map") %>%
-      setView(lng = selected_lib$lon[1], lat = selected_lib$lat[1], zoom = 15)
   }, ignoreInit = TRUE)
 
   # Cascading: city → update library + service choices
@@ -296,47 +300,62 @@ server <- function(input, output, session) {
     selected_library(NULL)
   })
 
-  # Update map on filter/dark mode/data changes
+  # "Show on Map" button: commit current dropdown state and re-render the map
+  observeEvent(input$apply_filters, {
+    committed_city(input$city_filter)
+    committed_service(input$service_filter)
+    committed_library(input$library_search)
+    selected_library(NULL)
+  })
+
+  # Render map when committed filter state, dark mode, or underlying data changes.
+  # Committed state is only updated by the "Show on Map" button or startup — so
+  # cascade observers updating dropdowns never trigger a premature map re-render.
   observeEvent(
     {
-      input$city_filter
+      committed_city()
+      committed_service()
+      committed_library()
       input$dark_mode
-      input$service_filter
-      input$library_search
       library_data()
-      library_services_data()
     },
     {
       req(library_data())
+      req(startup_city_set())  # wait until startup city is determined
 
       # Start with all libraries
       data <- library_data()
 
+      city_val    <- committed_city()
+      service_val <- committed_service()
+      library_val <- committed_library()
+
       # Apply city filter
-      if (!is.null(input$city_filter) && input$city_filter != "") {
-        data <- data %>% filter(city_name == input$city_filter)
+      if (!is.null(city_val) && city_val != "") {
+        data <- data %>% filter(city_name == city_val)
       }
 
       # Apply service filter
-      if (!is.null(input$service_filter) && input$service_filter != "") {
+      if (!is.null(service_val) && service_val != "") {
         services_data <- library_services_data()
         req(services_data)
 
         lib_ids_with_service <- services_data %>%
-          filter(service_name == input$service_filter) %>%
+          filter(service_name == service_val) %>%
           pull(library_id)
 
         data <- data %>% filter(id %in% lib_ids_with_service)
       }
 
       # Apply specific library filter
-      if (!is.null(input$library_search) && input$library_search != "") {
-        data <- data %>% filter(id == as.numeric(input$library_search))
+      if (!is.null(library_val) && library_val != "") {
+        data <- data %>% filter(id == as.numeric(library_val))
       }
 
-      # Self-heal: if a stale library id made data empty, clear it and retry next flush.
-      if (nrow(data) == 0 && !is.null(input$library_search) && input$library_search != "") {
+      # Self-heal: if committed library id produces 0 rows, clear it.
+      if (nrow(data) == 0 && !is.null(library_val) && library_val != "") {
         updateSelectizeInput(session, "library_search", selected = "")
+        committed_library("")
         return()
       }
       req(nrow(data) > 0)
