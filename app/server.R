@@ -159,7 +159,11 @@ server <- function(input, output, session) {
       selected = selected_lib$city_name[1])
   }, ignoreInit = TRUE)
 
-  # Cascading: city → update library + service choices
+  # Cascading: city → update library choices only.
+  # City and service dropdowns are NOT updated by each other — that bidirectional
+  # dependency caused stale-read race conditions where one cascade re-injected an
+  # outdated value from the other input (e.g. old service coming back after × clear).
+  # City choices stay as "all cities" (set by the populate observer on data load).
   observeEvent(input$city_filter, {
     all_libs <- library_data()
     all_svcs <- library_services_data()
@@ -167,57 +171,24 @@ server <- function(input, output, session) {
 
     current_service <- isolate(input$service_filter)
 
+    # Library choices = intersection of city + service filters
+    filtered_ids <- all_libs$id
     if (!is.null(input$city_filter) && input$city_filter != "") {
-      city_ids <- all_libs %>%
-        filter(city_name == input$city_filter) %>% pull(id)
-
-      # Library choices = intersection of city filter + current service filter
-      filtered_ids <- city_ids
-      if (!is.null(current_service) && current_service != "") {
-        svc_ids <- all_svcs %>%
-          filter(service_name == current_service) %>% pull(library_id)
-        filtered_ids <- intersect(filtered_ids, svc_ids)
-      }
-
-      lib_choices <- all_libs %>%
-        filter(id %in% filtered_ids) %>%
-        arrange(library_branch_name) %>%
-        { setNames(as.character(.$id), .$library_branch_name) }
-
-      svc_choices <- stringr::str_sort(
-        unique(all_svcs$service_name[all_svcs$library_id %in% city_ids]),
-        locale = "fi"
-      )
-    } else {
-      # No city filter: library choices based on service only
-      filtered_ids <- all_libs$id
-      if (!is.null(current_service) && current_service != "") {
-        svc_ids <- all_svcs %>%
-          filter(service_name == current_service) %>% pull(library_id)
-        filtered_ids <- intersect(filtered_ids, svc_ids)
-      }
-
-      lib_choices <- all_libs %>%
-        filter(id %in% filtered_ids) %>%
-        arrange(library_branch_name) %>%
-        { setNames(as.character(.$id), .$library_branch_name) }
-
-      svc_choices <- stringr::str_sort(unique(all_svcs$service_name), locale = "fi")
+      city_ids <- all_libs %>% filter(city_name == input$city_filter) %>% pull(id)
+      filtered_ids <- intersect(filtered_ids, city_ids)
+    }
+    if (!is.null(current_service) && current_service != "") {
+      svc_ids <- all_svcs %>% filter(service_name == current_service) %>% pull(library_id)
+      filtered_ids <- intersect(filtered_ids, svc_ids)
     }
 
-    # Reset library_search when city changes; keeping a stale library id causes
-    # nrow(data) == 0 in the map observer, making the map silently stick.
+    lib_choices <- all_libs %>%
+      filter(id %in% filtered_ids) %>%
+      arrange(library_branch_name) %>%
+      { setNames(as.character(.$id), .$library_branch_name) }
+
     updateSelectizeInput(session, "library_search",
       choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
-    # Preserve the current service selection if it is still available in the new city;
-    # otherwise reset to "All Services" so the dropdown text stays in sync with filtering.
-    updateSelectInput(session, "service_filter",
-      choices = c("All Services" = "", svc_choices),
-      selected = if (!is.null(current_service) && current_service %in% svc_choices) {
-        current_service
-      } else {
-        ""
-      })
 
     # Reset state when city changes
     nearest_libraries(NULL)
@@ -225,68 +196,34 @@ server <- function(input, output, session) {
     selected_library(NULL)
   }, ignoreInit = TRUE)
 
-  # Cascading: service → update city + library choices
+  # Cascading: service → update library choices only.
+  # Service choices stay as "all services" (set by the populate observer on data load).
+  # ignoreNULL = FALSE: must fire when service is cleared to "" (isTruthy("") = FALSE).
   observeEvent(input$service_filter, {
     all_libs <- library_data()
     all_svcs <- library_services_data()
     req(all_libs, all_svcs)
 
-    # Current city selection as context (isolated)
     current_city <- isolate(input$city_filter)
 
+    # Library choices = intersection of service + city filters
+    filtered_ids <- all_libs$id
     if (!is.null(input$service_filter) && input$service_filter != "") {
-      svc_ids <- all_svcs %>%
-        filter(service_name == input$service_filter) %>% pull(library_id)
-
-      # Library choices = intersection of service filter + current city filter
-      filtered_ids <- svc_ids
-      if (!is.null(current_city) && current_city != "") {
-        city_ids <- all_libs %>%
-          filter(city_name == current_city) %>% pull(id)
-        filtered_ids <- intersect(filtered_ids, city_ids)
-      }
-
-      lib_choices <- all_libs %>%
-        filter(id %in% filtered_ids) %>%
-        arrange(library_branch_name) %>%
-        { setNames(as.character(.$id), .$library_branch_name) }
-
-      city_choices <- stringr::str_sort(
-        unique(all_libs$city_name[all_libs$id %in% svc_ids]),
-        locale = "fi"
-      )
-    } else {
-      # No service filter: library choices based on city only
-      filtered_ids <- all_libs$id
-      if (!is.null(current_city) && current_city != "") {
-        city_ids <- all_libs %>%
-          filter(city_name == current_city) %>% pull(id)
-        filtered_ids <- intersect(filtered_ids, city_ids)
-      }
-
-      lib_choices <- all_libs %>%
-        filter(id %in% filtered_ids) %>%
-        arrange(library_branch_name) %>%
-        { setNames(as.character(.$id), .$library_branch_name) }
-
-      city_choices <- stringr::str_sort(unique(all_libs$city_name), locale = "fi")
+      svc_ids <- all_svcs %>% filter(service_name == input$service_filter) %>% pull(library_id)
+      filtered_ids <- intersect(filtered_ids, svc_ids)
+    }
+    if (!is.null(current_city) && current_city != "") {
+      city_ids <- all_libs %>% filter(city_name == current_city) %>% pull(id)
+      filtered_ids <- intersect(filtered_ids, city_ids)
     }
 
-    # Always specify `selected` when updating city_filter choices to preserve the
-    # current city (omitting it can cause Shiny to silently reset to the first choice).
-    updateSelectInput(session, "city_filter",
-      choices = c("All Cities" = "", city_choices),
-      selected = if (!is.null(current_city) && current_city %in% city_choices) {
-        current_city
-      } else {
-        ""
-      })
-    # Reset library_search; a stale id from the previous filter state would
-    # produce 0 rows in the map observer and silently abort the map render.
+    lib_choices <- all_libs %>%
+      filter(id %in% filtered_ids) %>%
+      arrange(library_branch_name) %>%
+      { setNames(as.character(.$id), .$library_branch_name) }
+
     updateSelectizeInput(session, "library_search",
       choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
-  # ignoreNULL = FALSE: observer must fire when service is cleared back to "" (isTruthy("") = FALSE
-  # so the Shiny default ignoreNULL = TRUE would silently skip the empty-string case).
   }, ignoreInit = TRUE, ignoreNULL = FALSE)
 
   # Individual clear buttons — each clears one filter; cascades handle downstream updates
@@ -300,12 +237,20 @@ server <- function(input, output, session) {
     selected_library(NULL)
   })
 
-  # "Show on Map" button: commit current dropdown state and re-render the map
+  # "Show on Map" button: commit current dropdown state and re-render the map.
+  # Also activates the library detail sidebar when a specific library is selected.
   observeEvent(input$apply_filters, {
     committed_city(input$city_filter)
     committed_service(input$service_filter)
     committed_library(input$library_search)
-    selected_library(NULL)
+
+    lib_id <- input$library_search
+    if (!is.null(lib_id) && lib_id != "") {
+      selected_lib <- library_data() %>% filter(id == as.numeric(lib_id))
+      selected_library(if (nrow(selected_lib) > 0) selected_lib else NULL)
+    } else {
+      selected_library(NULL)
+    }
   })
 
   # Render map when committed filter state, dark mode, or underlying data changes.
