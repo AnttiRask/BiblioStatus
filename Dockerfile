@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     gdal-bin \
     libgdal-dev \
+    curl \
+    libudunits2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
@@ -21,8 +23,7 @@ COPY renv/activate.R renv/activate.R
 COPY renv/settings.json renv/settings.json
 
 # Install renv and restore packages from lock file
-RUN R -e "install.packages('renv', repos = 'https://cloud.r-project.org/')" && \
-    R -e "renv::restore(prompt = FALSE)"
+RUN R -e "renv::restore(prompt = FALSE)"
 
 # Copy application files
 COPY . .

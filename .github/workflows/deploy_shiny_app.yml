@@ -45,6 +45,10 @@ jobs:
               break
             elif [ "$STATUS" = "FAILURE" ] || [ "$STATUS" = "TIMEOUT" ] || [ "$STATUS" = "CANCELLED" ]; then
               echo "Build failed with status: $STATUS"
+              echo "--- Cloud Build Logs ---"
+              gcloud builds log "$BUILD_ID" \
+                --region europe-north1 \
+                --project ${{ secrets.GCP_PROJECT_ID }} | tail -100
               exit 1
             fi
             sleep 30
