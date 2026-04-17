@@ -1,16 +1,19 @@
 # Use rocker/shiny as base image
 FROM rocker/shiny:4.4.3
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    libcurl4-openssl-dev \
-    libssl-dev \
-    libxml2-dev \
-    libpng-dev \
-    gdal-bin \
-    libgdal-dev \
-    curl \
-    libudunits2-dev \
+# Install system dependencies (retry to tolerate transient apt mirror failures)
+RUN for i in 1 2 3; do \
+        apt-get update && apt-get install -y --no-install-recommends \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            libxml2-dev \
+            libpng-dev \
+            gdal-bin \
+            libgdal-dev \
+            curl \
+            libudunits2-dev \
+        && break || { echo "apt attempt $i failed, retrying in $((i*15))s"; sleep $((i*15)); }; \
+    done \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
