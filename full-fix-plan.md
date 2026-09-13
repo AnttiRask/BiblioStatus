@@ -162,6 +162,15 @@ Add `testthat` (3rd edition) infrastructure and start with the highest-value, lo
 - `devtools::test()` or `testthat::test_dir("tests/testthat")` runs clean.
 - Deliberately re-introduce the Plan 1 bug locally and confirm the new `testServer()` test fails, then re-apply the fix and confirm it passes — proves the test actually catches the regression class it's meant to.
 
+### Outcome (done)
+Added `tests/testthat.R` + 3 test files + 1 fixture, exactly per plan, plus one small enabling refactor: extracted `turso_query()`'s response-parsing logic (`R/turso.R:87-137`) into a standalone `parse_turso_query_result(result)` function, so it can be unit-tested against fixture JSON without making a live HTTP call. `format_schedule_periods` already took `now_time` as an explicit parameter, so no change was needed there.
+
+**31/31 tests pass** (`FAIL 0 | WARN 6 | SKIP 0 | PASS 31`) — the 6 warnings are the expected, benign Turso→SQLite fallback warnings firing during the server's own startup data-refresh observer (this container's local Turso credentials don't resolve against the real cloud DB), not test failures.
+
+One thing narrower than originally planned: the `testServer()` cascade tests cover the two `committed_*` write-through bugs (clear_library/clear_service) directly, but **not** the service-label-resync behavior from Plan 1 item 3. Discovered mid-implementation that `shiny::testServer()` does not simulate the client-side JS round-trip `updateSelectInput()`/`updateSelectizeInput()` depend on to feed a changed value back into `input$x` — confirmed via a minimal repro. Any assertion on `input$service_filter` after such a call would pass/fail based on this testServer limitation, not actual app behavior. That specific behavior remains verified only by the one-off Playwright browser script used during Plan 1 — a permanent regression test for it would need `shinytest2` (drives a real browser) rather than `testServer()`. Noted in `tests/testthat/test-server-filters.R` as a comment for future reference.
+
+Also required adding `testthat` (and its transitive deps: `brio`, `callr`, `desc`, `diffobj`, `pkgbuild`, `pkgload`, `praise`, `processx`, `ps`, `waldo`) to `renv.lock`. Getting a clean lockfile diff required care: a bare `docker run` with the whole repo bind-mounted lost renv's library-path context and `renv::snapshot()` nearly wiped the lockfile down to 33 lines (caught before committing, reverted immediately via `git checkout`). The working approach: snapshot inside a normal `docker compose` container (isolated filesystem, correct renv context), then hand-merge just the new package JSON blocks into the host's `renv.lock` at their correct alphabetical positions via exact text extraction — not a full JSON reparse/rewrite, which would have reformatted the entire file. Final diff: 426 insertions, 0 deletions, exactly the 11 new packages.
+
 ---
 
 ## PLAN 4 — Consolidate the duplicated Turso client
@@ -588,7 +597,7 @@ Not yet planned in detail — needs investigation before a fix approach is writt
 
 Recommended sequence given dependencies:
 1. **Plan 1** (bug fixes) — independent, highest user-visible value. ✅ Done.
-2. **Plan 3** (tests) — write the cascade regression test against the Plan 1 fix while it's fresh.
+2. **Plan 3** (tests) — write the cascade regression test against the Plan 1 fix while it's fresh. ✅ Done (31/31 passing; service-label-resync test deferred to shinytest2, see Plan 3's Outcome).
 3. **Plan 2** (sidebar CSS) — independent, small, needs in-browser verification. ✅ Done (CSS cleanup applied; overlap itself not reproducible in testing, needs user confirmation).
 4. **Plan 4** (Turso client consolidation) — do before Plan 5, since Plan 5 benefits from the shared request-building helper this consolidation can produce.
 5. **Plan 5** (batch writes) — depends conceptually on Plan 4 being in place first (shared helpers), though not strictly blocking.

@@ -1,0 +1,46 @@
+{
+  "baton": null,
+  "base_url": null,
+  "results": [
+    {
+      "type": "ok",
+      "response": {
+        "type": "execute",
+        "result": {
+          "cols": [
+            { "name": "id", "decltype": "INTEGER" },
+            { "name": "library_branch_name", "decltype": "TEXT" },
+            { "name": "lat", "decltype": "REAL" },
+            { "name": "city_name", "decltype": "TEXT" }
+          ],
+          "rows": [
+            [
+              { "type": "integer", "value": "84921" },
+              { "type": "text", "value": "Arabianrannan kirjasto" },
+              { "type": "float", "value": "60.2103" },
+              { "type": "text", "value": "Helsinki" }
+            ],
+            [
+              { "type": "integer", "value": "84878" },
+              { "type": "text", "value": "Etelä-Haagan kirjasto" },
+              { "type": "float", "value": "60.2214" },
+              { "type": "text", "value": "Helsinki" }
+            ],
+            [
+              { "type": "integer", "value": "85103" },
+              { "type": "text", "value": "Ahlaisten kirjastopiste" },
+              { "type": "null", "value": null },
+              { "type": "text", "value": "Pori" }
+            ]
+          ],
+          "affected_row_count": 0,
+          "last_insert_rowid": null,
+          "replication_index": null,
+          "rows_read": 3,
+          "rows_written": 0,
+          "query_duration_ms": 0.5
+        }
+      }
+    }
+  ]
+}

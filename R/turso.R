@@ -86,6 +86,13 @@ turso_query <- function(sql, params = list()) {
   # Parse response
   result <- resp_body_json(response, simplifyVector = FALSE)
 
+  parse_turso_query_result(result)
+}
+
+# Parse a decoded /v2/pipeline response body into a data frame.
+# Split out from turso_query() so the parsing logic can be unit-tested
+# against fixture JSON without making a live HTTP call.
+parse_turso_query_result <- function(result) {
   # Check for errors
   if (!is.null(result$error)) {
     stop("Turso query error: ", result$error$message)
