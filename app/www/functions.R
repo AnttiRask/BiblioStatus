@@ -8,6 +8,12 @@ if (TURSO_DATABASE_URL == "" && file.exists("secret.R")) {
   source("secret.R")
 }
 
+# Load Carto API key (required by CartoDB basemap tiles)
+CARTO_API_KEY <- Sys.getenv("CARTO_API_KEY")
+if (CARTO_API_KEY == "" && file.exists("secret.R")) {
+  source("secret.R")
+}
+
 # SQLite fallback path (auto-detect for shinyapps.io vs Docker/local)
 db_path <- if (file.exists(here("libraries.sqlite"))) {
   here("libraries.sqlite")

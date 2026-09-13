@@ -330,7 +330,11 @@ server <- function(input, output, session) {
         }
 
         map <- leaflet(data, options = leaflet_options) %>%
-          addProviderTiles(tile_provider, group = "basemap") %>%
+          addProviderTiles(
+            tile_provider,
+            group = "basemap",
+            options = providerTileOptions(apikey = CARTO_API_KEY)
+          ) %>%
           addCircleMarkers(
             lng = ~lon,
             lat = ~lat,
