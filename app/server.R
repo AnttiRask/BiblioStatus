@@ -17,6 +17,11 @@ source("modules/service_stats.R")
 # source(here("app/www/variables.R"))
 # source(here("app/modules/service_stats.R"))
 
+carto_attribution <- paste0(
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ',
+  '&copy; <a href="https://carto.com/attributions">CARTO</a>'
+)
+
 server <- function(input, output, session) {
   # State: reactive containers
   library_data <- reactiveVal(NULL)
@@ -305,11 +310,11 @@ server <- function(input, output, session) {
       }
       req(nrow(data) > 0)
 
-      tile_provider <- if (isTRUE(input$dark_mode)) {
-        providers$CartoDB.DarkMatter
-        } else {
-          providers$CartoDB.Positron
-          }
+      tile_variant <- if (isTRUE(input$dark_mode)) "dark_all" else "light_all"
+      tile_url <- paste0(
+        "https://{s}.basemaps.cartocdn.com/", tile_variant,
+        "/{z}/{x}/{y}{r}.png?key=", CARTO_API_KEY
+      )
 
       output$map <- renderLeaflet({
         chosen_colors <- if (isTRUE(input$dark_mode)) dark_colors else light_colors
@@ -330,10 +335,10 @@ server <- function(input, output, session) {
         }
 
         map <- leaflet(data, options = leaflet_options) %>%
-          addProviderTiles(
-            tile_provider,
+          addTiles(
+            urlTemplate = tile_url,
             group = "basemap",
-            options = providerTileOptions(apikey = CARTO_API_KEY)
+            options = tileOptions(subdomains = "abcd", attribution = carto_attribution)
           ) %>%
           addCircleMarkers(
             lng = ~lon,
