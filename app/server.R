@@ -195,6 +195,16 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, "library_search",
       choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
 
+    # Re-affirm the currently selected service so its displayed label doesn't drift,
+    # but only if that service still has results in the new city. Otherwise reset it.
+    if (!is.null(current_service) && current_service != "") {
+      service_still_valid <- current_service %in% (all_svcs %>%
+        filter(library_id %in% (all_libs %>% filter(city_name == input$city_filter) %>% pull(id))) %>%
+        pull(service_name))
+      updateSelectInput(session, "service_filter",
+        selected = if (service_still_valid) current_service else "")
+    }
+
     # Reset state when city changes
     nearest_libraries(NULL)
     user_location(NULL)
@@ -231,15 +241,19 @@ server <- function(input, output, session) {
       choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
   }, ignoreInit = TRUE, ignoreNULL = FALSE)
 
-  # Individual clear buttons — each clears one filter; cascades handle downstream updates
+  # Individual clear buttons — each clears one filter; cascades handle downstream updates.
+  # Also write through to committed_* so the map updates immediately, without requiring
+  # "Show on Map" to be pressed again.
   observeEvent(input$clear_library, {
     updateSelectizeInput(session, "library_search", selected = "")
     selected_library(NULL)
+    committed_library("")
   })
 
   observeEvent(input$clear_service, {
     updateSelectInput(session, "service_filter", selected = "")
     selected_library(NULL)
+    committed_service("")
   })
 
   # "Show on Map" button: commit current dropdown state and re-render the map.

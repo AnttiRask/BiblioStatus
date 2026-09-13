@@ -102,24 +102,12 @@ h2, .h2 {
   box-shadow: 0 0 8px #C1272D;
 }
 
-/* Sidebar panel container style */
+/* Sidebar panel container style.
+   No padding here — the inner .sidebar-content (below) owns left/right padding
+   so it can reserve space for the collapse-toggle button without double-padding. */
 .sidebar {
   background-color: #1a1a1a;
   border-radius: 5px;
-  padding: 15px;
-}
-
-/* Highlighted sidebar titles and labels (in red) */
-.sidebar-panel h4,
-.sidebar-panel b {
-  color: #C1272D;
-}
-
-/* General sidebar text styling (non-titles) */
-.sidebar-panel p,
-.sidebar-panel span,
-.sidebar-panel div {
-  color: #000000;
 }
 
 /* Loading spinner text style */
