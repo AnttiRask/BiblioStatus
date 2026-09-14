@@ -49,28 +49,7 @@ turso_query <- function(sql, params = list()) {
   https_url <- convert_to_https(creds$url)
 
   # Build request body for Turso HTTP API
-  request_body <- list(
-    requests = list(
-      list(
-        type = "execute",
-        stmt = list(
-          sql = sql,
-          args = if (length(params) > 0) {
-            lapply(params, function(p) {
-              # Handle NULL and NA values
-              if (is.null(p) || (length(p) == 1 && is.na(p))) {
-                list(type = "null")
-              } else {
-                list(type = "text", value = as.character(p))
-              }
-            })
-          } else {
-            list()
-          }
-        )
-      )
-    )
-  )
+  request_body <- list(requests = list(build_execute_request(sql, params)))
 
   # Make HTTP request to Turso pipeline endpoint
   response <- tryCatch({
@@ -146,34 +125,37 @@ parse_turso_query_result <- function(result) {
   return(df)
 }
 
+# Encode a single statement's bind parameters into the Turso HTTP API's arg
+# shape. Shared by turso_query(), turso_execute(), and turso_execute_batch().
+build_turso_args <- function(params) {
+  if (length(params) == 0) return(list())
+  lapply(params, function(p) {
+    # Handle NULL and NA values
+    if (is.null(p) || (length(p) == 1 && is.na(p))) {
+      list(type = "null")
+    } else {
+      list(type = "text", value = as.character(p))
+    }
+  })
+}
+
+# Build one "execute" request entry for the /v2/pipeline requests array.
+build_execute_request <- function(sql, params = list()) {
+  list(
+    type = "execute",
+    stmt = list(
+      sql = sql,
+      args = build_turso_args(params)
+    )
+  )
+}
+
 # Execute an INSERT/UPDATE/DELETE statement
 turso_execute <- function(sql, params = list()) {
   creds <- load_turso_credentials()
   https_url <- convert_to_https(creds$url)
 
-  # Build request body
-  request_body <- list(
-    requests = list(
-      list(
-        type = "execute",
-        stmt = list(
-          sql = sql,
-          args = if (length(params) > 0) {
-            lapply(params, function(p) {
-              # Handle NULL and NA values
-              if (is.null(p) || (length(p) == 1 && is.na(p))) {
-                list(type = "null")
-              } else {
-                list(type = "text", value = as.character(p))
-              }
-            })
-          } else {
-            list()
-          }
-        )
-      )
-    )
-  )
+  request_body <- list(requests = list(build_execute_request(sql, params)))
 
   # Make HTTP request
   response <- tryCatch({
@@ -208,4 +190,66 @@ turso_execute <- function(sql, params = list()) {
   }
 
   return(invisible(NULL))
+}
+
+# Execute many INSERT/UPDATE/DELETE statements in as few HTTP round-trips as
+# possible, using Turso's /v2/pipeline support for multiple statements per
+# request. `statements` is a list of list(sql = ..., params = ...). Statements
+# are chunked into groups of `batch_size` to stay within practical HTTP
+# payload limits. Returns the total number of rows affected across all
+# statements.
+turso_execute_batch <- function(statements, batch_size = 200) {
+  if (length(statements) == 0) return(invisible(0))
+
+  creds <- load_turso_credentials()
+  https_url <- convert_to_https(creds$url)
+
+  total_affected <- 0
+  chunks <- split(statements, ceiling(seq_along(statements) / batch_size))
+
+  for (chunk in chunks) {
+    request_body <- list(
+      requests = lapply(chunk, function(stmt) {
+        build_execute_request(stmt$sql, stmt$params)
+      })
+    )
+
+    response <- tryCatch({
+      request(paste0(https_url, "/v2/pipeline")) %>%
+        req_headers(
+          Authorization = paste("Bearer", creds$token),
+          `Content-Type` = "application/json"
+        ) %>%
+        req_body_json(request_body) %>%
+        req_perform()
+    }, error = function(e) {
+      stop("Turso batch execute failed: ", conditionMessage(e))
+    })
+
+    result <- resp_body_json(response, simplifyVector = FALSE)
+
+    if (!is.null(result$error)) {
+      stop("Turso batch execute error: ", result$error$message)
+    }
+
+    # Check each statement's own result for a per-statement error, and sum
+    # affected row counts. Report which statement (1-indexed within the
+    # chunk) failed, since a bare error for a 200-statement batch would
+    # otherwise be very hard to debug.
+    for (i in seq_along(result$results)) {
+      stmt_result <- result$results[[i]]
+      if (!is.null(stmt_result$error)) {
+        stop(sprintf(
+          "Turso batch execute error on statement %d of %d: %s",
+          i, length(chunk), stmt_result$error$message
+        ))
+      }
+      affected <- stmt_result$response$result$affected_row_count
+      if (!is.null(affected)) {
+        total_affected <- total_affected + affected
+      }
+    }
+  }
+
+  total_affected
 }

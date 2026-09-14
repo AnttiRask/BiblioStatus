@@ -273,6 +273,15 @@ Add a batched execute function to `R/turso.R` alongside the existing `turso_exec
 - Test the error path deliberately (e.g. temporarily inject a bad statement into one batch) and confirm the new per-statement error reporting correctly identifies the failing row rather than failing opaquely.
 - Confirm the existing `warning()`-only failure handling (`fetch_library_data.R:379-382`) still wraps the new batched call the same way — no change needed there for this plan (that's Plan 10's concern).
 
+### Outcome (done)
+Added `turso_execute_batch(statements, batch_size = 200)` to `R/turso.R`, plus two small shared helpers (`build_turso_args()`, `build_execute_request()`) factored out and reused by `turso_query()`, `turso_execute()`, and the new batch function — eliminating the previously-duplicated request-building block across all three. Statements are chunked in groups of 200 to stay within practical HTTP payload limits; each chunk is one `/v2/pipeline` POST with N statements in its `requests` array. Per-statement errors are caught and reported with their 1-indexed position within the batch (e.g. `"Turso batch execute error on statement 2 of 3: ..."`), verified via a local logic test against a synthetic response (no network needed for this check).
+
+Updated all three write loops in `fetch_library_data.R` (libraries, services, schedules) to build a `statements` list via `purrr::pmap()` and call `turso_execute_batch()` once, replacing the per-row `for` loops.
+
+**Verified against the real production Turso database** (there is no separate staging DB — running the real pipeline was the only way to get genuine end-to-end confidence, confirmed with the user before proceeding since this writes to shared infrastructure): `UPDATE_TYPE=both Rscript fetch_library_data.R` completed in **5m44s**, writing 719 libraries, 11,383 service records, and 1,519 schedule records — all three counts independently re-verified against Turso afterward with `SELECT COUNT(*)` queries, matching exactly. No errors, SQLite backup also completed correctly. (No isolated "before" timing exists for direct before/after comparison, since running the old per-row version against production twice wasn't worth the extra write load — but eliminating ~13,600 individual HTTP round-trips down to ~68 batched POSTs, at 200 statements each, is the structural win regardless of the exact wall-clock delta on any given day, which is also affected by network conditions and the Kirjastot.fi API's own response time for the schedule-fetching phase.)
+
+Left `R/migrate_services.R` and `R/backfill_historical_data.R` untouched even though they have the same per-row `turso_execute()` loop pattern — out of scope for this plan (one-off migration/backfill scripts, not part of the recurring daily/weekly pipeline), flagged here as a candidate for the same treatment if those scripts are ever run again at scale.
+
 ---
 
 ## PLAN 6 — Remove the orphaned `app/renv.lock`
@@ -611,7 +620,7 @@ Recommended sequence given dependencies:
 2. **Plan 3** (tests) — write the cascade regression test against the Plan 1 fix while it's fresh. ✅ Done (31/31 passing; service-label-resync test deferred to shinytest2, see Plan 3's Outcome).
 3. **Plan 2** (sidebar CSS) — independent, small, needs in-browser verification. ✅ Done (CSS cleanup applied; overlap itself not reproducible in testing, needs user confirmation).
 4. **Plan 4** (Turso client consolidation) — do before Plan 5, since Plan 5 benefits from the shared request-building helper this consolidation can produce. ✅ Done (verified: correct numeric typing, 31/31 tests pass, credentials resolve from both CWD contexts; also fixed an internally inconsistent renv.lock left over from Plan 3).
-5. **Plan 5** (batch writes) — depends conceptually on Plan 4 being in place first (shared helpers), though not strictly blocking.
+5. **Plan 5** (batch writes) — depends conceptually on Plan 4 being in place first (shared helpers), though not strictly blocking. ✅ Done (verified against production Turso: 719 libraries + 11,383 services + 1,519 schedules written and confirmed, 31/31 tests pass).
 6. **Plan 6** (delete orphaned lockfile) — trivial, no dependencies.
 7. **Plan 9** (externalize override tables) — independent.
 8. **Plan 10** (small cleanups) — do last among code changes since 10a/10b touch the same functions Plans 4/5 also modify; avoids merge friction.

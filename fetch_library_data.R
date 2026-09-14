@@ -348,31 +348,32 @@ if (update_type %in% c("libraries", "both")) {
     turso_execute("DELETE FROM libraries")
 
     # Insert each library (library_services now in separate table)
-    for (i in 1:nrow(libraries)) {
-      lib <- libraries[i, ]
-      turso_execute(
-        "INSERT INTO libraries (id, library_branch_name, lat, lon, city_name,
-                               library_url, library_phone, library_email,
-                               library_address)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        list(
-          lib$id, lib$library_branch_name, lib$lat, lib$lon, lib$city_name,
-          lib$library_url, lib$library_phone, lib$library_email,
-          lib$library_address
+    library_statements <- purrr::pmap(libraries, function(id, library_branch_name, lat, lon,
+                                                           city_name, library_url, library_phone,
+                                                           library_email, library_address, ...) {
+      list(
+        sql = "INSERT INTO libraries (id, library_branch_name, lat, lon, city_name,
+                                      library_url, library_phone, library_email,
+                                      library_address)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        params = list(
+          id, library_branch_name, lat, lon, city_name,
+          library_url, library_phone, library_email, library_address
         )
       )
-    }
+    })
+    turso_execute_batch(library_statements)
     cat(sprintf("✓ Wrote %d libraries to Turso\n", nrow(libraries)))
 
     # Write services to library_services table
     cat("Writing library services to Turso...\n")
-    for (i in 1:nrow(library_services)) {
-      svc <- library_services[i, ]
-      turso_execute(
-        "INSERT INTO library_services (library_id, service_name) VALUES (?, ?)",
-        list(svc$library_id, svc$service_name)
+    service_statements <- purrr::pmap(library_services, function(library_id, service_name, ...) {
+      list(
+        sql = "INSERT INTO library_services (library_id, service_name) VALUES (?, ?)",
+        params = list(library_id, service_name)
       )
-    }
+    })
+    turso_execute_batch(service_statements)
     cat(sprintf("✓ Wrote %d service records to Turso\n", nrow(library_services)))
 
     TRUE
@@ -432,18 +433,16 @@ if (update_type %in% c("schedules", "both")) {
   turso_success <- tryCatch({
     cat("Writing schedules to Turso...\n")
 
-    for (i in 1:nrow(schedules)) {
-      sched <- schedules[i, ]
-      # Use INSERT OR IGNORE to skip duplicates (UNIQUE constraint handles this)
-      turso_execute(
-        "INSERT OR IGNORE INTO schedules (library_id, date, from_time, to_time, status_label)
-         VALUES (?, ?, ?, ?, ?)",
-        list(
-          sched$library_id, sched$date, sched$from_time,
-          sched$to_time, sched$status_label
-        )
+    # Use INSERT OR IGNORE to skip duplicates (UNIQUE constraint handles this)
+    schedule_statements <- purrr::pmap(schedules, function(library_id, date, from_time,
+                                                            to_time, status_label, ...) {
+      list(
+        sql = "INSERT OR IGNORE INTO schedules (library_id, date, from_time, to_time, status_label)
+               VALUES (?, ?, ?, ?, ?)",
+        params = list(library_id, date, from_time, to_time, status_label)
       )
-    }
+    })
+    turso_execute_batch(schedule_statements)
     cat(sprintf("✓ Wrote %d schedule records to Turso\n", nrow(schedules)))
     TRUE
   }, error = function(e) {
