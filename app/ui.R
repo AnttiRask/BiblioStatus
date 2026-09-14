@@ -175,7 +175,8 @@ ui <- page_navbar(
               "Select Library:"),
             actionButton("clear_library", label = HTML("&times;"),
               class = "btn btn-link p-0 clear-select-btn",
-              title = "Clear library selection")
+              title = "Clear library selection",
+              `aria-label` = "Clear library selection")
           ),
           selectizeInput(inputId = "library_search", label = NULL, choices = NULL,
             options = list(placeholder = "All Libraries"))
@@ -186,7 +187,8 @@ ui <- page_navbar(
               "Select Service:"),
             actionButton("clear_service", label = HTML("&times;"),
               class = "btn btn-link p-0 clear-select-btn",
-              title = "Clear service selection")
+              title = "Clear service selection",
+              `aria-label` = "Clear service selection")
           ),
           selectInput(inputId = "service_filter", label = NULL, choices = NULL,
             selected = NULL)

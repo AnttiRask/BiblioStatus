@@ -379,6 +379,19 @@ color = ~ case_when(
 - Visually confirm markers are distinguishable without relying on color alone (e.g. temporarily simulate color-blindness via browser dev tools' vision-deficiency emulation).
 - Confirm "Find Nearest" still renders correctly with the corrected color mapping (no visual regression for the common Open/Self-service case).
 
+### Outcome (done)
+Implemented all four items as planned:
+
+**1.** Added `aria-label` matching each button's existing `title` text to both `clear_library` (`app/ui.R`) and `clear_service` (`app/ui.R`).
+
+**2.** Chose the border-style approach the plan recommended: `addCircleMarkers` (main map, `app/server.R`) now also sets vectorized `weight` (3 for Open/Self-service, 2 for closed states) and `dashArray` (`NA` for Open/Self-service, `"4, 3"` for closed states) alongside the existing `color` mapping — closed markers get a visibly thinner, dashed border regardless of color. Confirmed `addCircleMarkers` supports `dashArray` natively (checked via `args(addCircleMarkers)` in the container) before committing to this approach, rather than assuming.
+
+**3.** Added `role = "alert"` to the geolocation error `div` (`app/server.R`), alongside its existing `alert alert-danger` classes.
+
+**4.** Fixed `update_map_for_nearest`'s color mapping (`app/server.R`) to the full 4-branch version already used by the main map render, matching Plan 10's naming/formatting style (aligned `~` operators, `# fmt: skip`).
+
+**Verified**: `docker compose up --build` succeeds; app boots and serves HTTP 200 with no new errors. Full test suite still passes: `FAIL 0 | WARN 2 | SKIP 0 | PASS 31`. The new vectorized `weight`/`dashArray` case_when expressions were verified directly by constructing a `leaflet()` widget with all four `open_status` values (`Open`, `Self-service`, `Closed`, `Closed for the whole day`) and confirming it renders without error. Browser-based visual/screen-reader verification (Chrome extension, VoiceOver/NVDA) was not available in this session — same limitation noted in Plan 10's outcome — so the dashed-border visual treatment and screen-reader announcement behavior have not been eyeballed in a live browser; recommend a quick visual check before considering this plan fully closed.
+
 ---
 
 ## PLAN 8 — Harden Cloud Run secrets
@@ -651,6 +664,6 @@ Recommended sequence given dependencies:
 6. **Plan 6** (delete orphaned lockfile) — trivial, no dependencies. ✅ Done (verified: build still succeeds, 31/31 tests pass, no references remain).
 7. **Plan 9** (externalize override tables) — independent. ✅ Done (108 URL + 8 coordinate overrides extracted with zero transcription error, verified against live API, 31/31 tests pass).
 8. **Plan 10** (small cleanups) — do last among code changes since 10a/10b touch the same functions Plans 4/5 also modify; avoids merge friction. ✅ Done (31/31 tests pass, app boots clean; popup helper verified directly; visual browser check not performed — Chrome extension unavailable this session).
-9. **Plan 7** (accessibility) — independent, can slot in anywhere.
+9. **Plan 7** (accessibility) — independent, can slot in anywhere. ✅ Done (aria-labels added, dashed-border non-color status cue added, geolocation alert role="alert" added, nearest-map color mapping fixed to full 4-branch version; 31/31 tests pass, app boots clean; live visual/screen-reader check not performed — Chrome extension unavailable this session).
 10. **Plan 8** (secrets hardening) — independent, involves GCP infrastructure changes outside the codebase; needs explicit sign-off before running `gcloud` commands against production.
 11. **Plan 11** (head script race) — found during Plan 1's live verification; needs further investigation (see Status above) before it can be scheduled with the others.

@@ -381,6 +381,18 @@ server <- function(input, output, session) {
               open_status == "Closed for the whole day"          ~ chosen_colors$ClosedDay,
               TRUE                                               ~ chosen_colors$Unknown
             ),
+            # Non-color status cue (WCAG 1.4.1): closed markers get a dashed,
+            # thinner border so status isn't conveyed by color alone.
+            # fmt: skip
+            weight = ~ case_when(
+              open_status %in% c("Open", "Self-service") ~ 3,
+              TRUE                                        ~ 2
+            ),
+            # fmt: skip
+            dashArray = ~ case_when(
+              open_status %in% c("Open", "Self-service") ~ NA_character_,
+              TRUE                                        ~ "4, 3"
+            ),
             radius = if (isTRUE(input$is_mobile)) MOBILE_MARKER_RADIUS else DESKTOP_MARKER_RADIUS,
             popup = ~ build_library_popup(
               library_url, library_branch_name, library_address,
@@ -551,9 +563,11 @@ server <- function(input, output, session) {
         lat = ~lat,
         layerId = ~id,
         color = ~ case_when(
-          open_status == "Open" ~ chosen_colors$Open,
-          open_status == "Self-service" ~ chosen_colors$Self,
-          TRUE ~ chosen_colors$Unknown
+          open_status == "Open"                              ~ chosen_colors$Open,
+          open_status == "Self-service"                      ~ chosen_colors$Self,
+          open_status %in% c("Closed", "Temporarily closed") ~ chosen_colors$ClosedNow,
+          open_status == "Closed for the whole day"          ~ chosen_colors$ClosedDay,
+          TRUE                                               ~ chosen_colors$Unknown
         ),
         radius = if (isTRUE(input$is_mobile)) MOBILE_NEAREST_MARKER_RADIUS else DESKTOP_NEAREST_MARKER_RADIUS,
         popup = ~ build_library_popup(
@@ -573,7 +587,8 @@ server <- function(input, output, session) {
   # Error display UI
   output$geolocation_error_ui <- renderUI({
     req(input$geolocation_error)
-    div(class = "alert alert-danger", style = "margin: 10px 0; padding: 10px;",
+    div(class = "alert alert-danger", role = "alert",
+      style = "margin: 10px 0; padding: 10px;",
       icon("exclamation-triangle"), " ", input$geolocation_error)
   })
 
