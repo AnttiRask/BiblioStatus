@@ -309,6 +309,11 @@ There is nothing to "sync" — `app/renv.lock` should simply be deleted, since i
 - `git grep app/renv.lock` returns nothing after the change.
 - Local `renv::restore()` at the project root still works as before (this plan doesn't touch the root lockfile at all).
 
+### Outcome (done)
+Deleted `app/renv.lock` via `git rm`. Re-confirmed before deleting: no `otel` usage anywhere in tracked `.R` files, no `app/.Rprofile` or `app/renv/` directory, no documentation references.
+
+**Verified**: `docker compose up --build` still succeeds (fast — cache hit through the `renv::restore()` layer, only the final `COPY . .` layer changed, confirming this file was never part of the build path); app boots and serves HTTP 200; full test suite still passes (31/31); `renv::status()` at the root shows the same pre-existing, unrelated state as before (the `otel` transitive dependency note and R-version mismatch note) — nothing new or worse. `git grep app/renv.lock` returns only the plan documents' own prose describing the removed file, no code or config references.
+
 ---
 
 ## PLAN 7 — Accessibility pass
@@ -621,7 +626,7 @@ Recommended sequence given dependencies:
 3. **Plan 2** (sidebar CSS) — independent, small, needs in-browser verification. ✅ Done (CSS cleanup applied; overlap itself not reproducible in testing, needs user confirmation).
 4. **Plan 4** (Turso client consolidation) — do before Plan 5, since Plan 5 benefits from the shared request-building helper this consolidation can produce. ✅ Done (verified: correct numeric typing, 31/31 tests pass, credentials resolve from both CWD contexts; also fixed an internally inconsistent renv.lock left over from Plan 3).
 5. **Plan 5** (batch writes) — depends conceptually on Plan 4 being in place first (shared helpers), though not strictly blocking. ✅ Done (verified against production Turso: 719 libraries + 11,383 services + 1,519 schedules written and confirmed, 31/31 tests pass).
-6. **Plan 6** (delete orphaned lockfile) — trivial, no dependencies.
+6. **Plan 6** (delete orphaned lockfile) — trivial, no dependencies. ✅ Done (verified: build still succeeds, 31/31 tests pass, no references remain).
 7. **Plan 9** (externalize override tables) — independent.
 8. **Plan 10** (small cleanups) — do last among code changes since 10a/10b touch the same functions Plans 4/5 also modify; avoids merge friction.
 9. **Plan 7** (accessibility) — independent, can slot in anywhere.
