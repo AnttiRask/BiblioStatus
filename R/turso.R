@@ -17,12 +17,14 @@ load_turso_credentials <- function() {
   url <- Sys.getenv("TURSO_DATABASE_URL")
   token <- Sys.getenv("TURSO_AUTH_TOKEN")
 
-  # If not in environment, try loading from secret.R
+  # If not in environment, try loading from secret.R. Resolved via here() so
+  # this works regardless of the caller's working directory (repo root for
+  # standalone scripts, app/ for the Shiny app itself).
   if (url == "" || token == "") {
-    secret_file <- if (file.exists("secret.R")) {
-      "secret.R"
-    } else if (file.exists("app/secret.R")) {
-      "app/secret.R"
+    secret_file <- if (file.exists(here::here("secret.R"))) {
+      here::here("secret.R")
+    } else if (file.exists(here::here("app", "secret.R"))) {
+      here::here("app", "secret.R")
     } else {
       NULL
     }

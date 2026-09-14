@@ -1,5 +1,5 @@
 # Load Turso helper functions
-source("www/turso.R")
+source(here("R", "turso.R"))
 
 # Load Turso credentials
 TURSO_DATABASE_URL <- Sys.getenv("TURSO_DATABASE_URL")

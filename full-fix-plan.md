@@ -211,6 +211,17 @@ Make `R/turso.R` the single source of truth; have the app source it instead of m
 - Confirm `fetch_library_data.R`, `R/migrate_services.R`, `R/backfill_historical_data.R` still work unchanged (they already source `R/turso.R` directly, so this should be a no-op for them — run each once against a test/staging Turso DB if available, or at minimum confirm no syntax/reference errors via `Rscript -e "source('R/turso.R')"`).
 - Confirm local dev without env vars set, only `secret.R`/`app/secret.R` present, still resolves credentials correctly from within the Shiny app.
 
+### Outcome (done)
+Implemented exactly as planned: `app/www/functions.R:2` now sources `here("R", "turso.R")` instead of `www/turso.R`; `app/www/turso.R` deleted; `load_turso_credentials()` in `R/turso.R` updated to resolve `secret.R` via `here::here("secret.R")` / `here::here("app", "secret.R")` instead of bare relative paths — confirmed by direct testing that the old relative-path check would have broken (`file.exists("app/secret.R")` resolves to the wrong path when CWD is already `app/`), even though it happened to work by accident before since a root-level `secret.R` also exists.
+
+**Verified in a rebuilt Docker container**:
+- App boots cleanly, loads all 719 libraries with `lat`/`lon` correctly typed as `numeric` and `id` as `integer` (confirming the consolidated client's `type.convert()` step is now applied, unlike the old `app/www/turso.R` copy which left everything as character).
+- Full test suite still passes: `FAIL 0 | WARN 2 | SKIP 0 | PASS 31`.
+- `R/turso.R` still sources cleanly from the repo root with all 5 expected functions present (`convert_to_https`, `load_turso_credentials`, `parse_turso_query_result`, `turso_execute`, `turso_query`), confirming `fetch_library_data.R`/`R/migrate_services.R`/`R/backfill_historical_data.R` are unaffected.
+- Credential resolution confirmed working both from the repo root and from `app/` as CWD (matching the real Shiny app's actual invocation, where renv is already active in the R process before Shiny changes into `app/`).
+
+**Unplanned but necessary fix along the way**: rebuilding the Docker image from a clean cache exposed that Plan 3's `renv.lock` merge had left an internally inconsistent lockfile — it recorded `testthat` (added in Plan 3) but pinned `rlang` at `1.1.5`, while `testthat`'s own CRAN `DESCRIPTION` requires `rlang >= 1.1.6`, so a from-scratch `renv::restore()` failed outright (`namespace 'rlang' 1.1.5 is being loaded, but >= 1.1.6 is required`). This had gone unnoticed in Plan 3 because that container reused an already-partially-installed library where the newer `rlang` was present despite the lockfile disagreeing. Fixed by downloading the exact CRAN tarballs for `cli` 3.6.6, `evaluate` 1.0.5, `jsonlite` 2.0.0, and `rlang` 1.3.0 (the versions `renv` itself had already resolved as necessary during Plan 3's install log, just never captured back into the lockfile) and bumping only their `Version` fields via an exact-match text substitution — a 4-line diff, re-verified as valid JSON before rebuilding. This also means the two `docker compose build` runs during this plan took ~33 minutes each (full from-scratch package compilation on a resource-shared host) since the lockfile change invalidated Docker's layer cache both times.
+
 ---
 
 ## PLAN 5 — Batch the N+1 Turso writes
@@ -599,7 +610,7 @@ Recommended sequence given dependencies:
 1. **Plan 1** (bug fixes) — independent, highest user-visible value. ✅ Done.
 2. **Plan 3** (tests) — write the cascade regression test against the Plan 1 fix while it's fresh. ✅ Done (31/31 passing; service-label-resync test deferred to shinytest2, see Plan 3's Outcome).
 3. **Plan 2** (sidebar CSS) — independent, small, needs in-browser verification. ✅ Done (CSS cleanup applied; overlap itself not reproducible in testing, needs user confirmation).
-4. **Plan 4** (Turso client consolidation) — do before Plan 5, since Plan 5 benefits from the shared request-building helper this consolidation can produce.
+4. **Plan 4** (Turso client consolidation) — do before Plan 5, since Plan 5 benefits from the shared request-building helper this consolidation can produce. ✅ Done (verified: correct numeric typing, 31/31 tests pass, credentials resolve from both CWD contexts; also fixed an internally inconsistent renv.lock left over from Plan 3).
 5. **Plan 5** (batch writes) — depends conceptually on Plan 4 being in place first (shared helpers), though not strictly blocking.
 6. **Plan 6** (delete orphaned lockfile) — trivial, no dependencies.
 7. **Plan 9** (externalize override tables) — independent.
