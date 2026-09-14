@@ -63,5 +63,6 @@ jobs:
             --allow-unauthenticated \
             --memory 1Gi \
             --timeout 300 \
+            --remove-env-vars TURSO_DATABASE_URL,TURSO_AUTH_TOKEN,CARTO_API_KEY \
             --set-secrets TURSO_DATABASE_URL=turso-database-url:latest,TURSO_AUTH_TOKEN=turso-auth-token:latest,CARTO_API_KEY=carto-api-key:latest \
             --project ${{ secrets.GCP_PROJECT_ID }}
