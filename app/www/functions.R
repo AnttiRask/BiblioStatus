@@ -21,66 +21,71 @@ db_path <- if (file.exists(here("libraries.sqlite"))) {
   here("app", "libraries.sqlite")
 }
 
+# Run a Turso query, falling back to the SQLite backup if it errors.
+with_turso_fallback <- function(turso_query_fn, sqlite_query_fn, context) {
+  tryCatch({
+    turso_query_fn()
+  }, error = function(e) {
+    warning(sprintf("Turso failed (%s), using SQLite: %s", context, e$message))
+    sqlite_query_fn()
+  })
+}
+
 # Function to fetch libraries (Turso primary, SQLite fallback)
 fetch_libraries <- function() {
-  # Try Turso first
-  tryCatch({
-    return(turso_query("SELECT * FROM libraries"))
-  }, error = function(e) {
-    warning("Turso failed, using SQLite: ", e$message)
-  })
-
-  # Fallback to SQLite
-  con <- dbConnect(SQLite(), dbname = db_path, read_only = TRUE)
-  data <- dbReadTable(con, "libraries")
-  dbDisconnect(con)
-  return(data)
+  with_turso_fallback(
+    turso_query_fn = function() turso_query("SELECT * FROM libraries"),
+    sqlite_query_fn = function() {
+      con <- dbConnect(SQLite(), dbname = db_path, read_only = TRUE)
+      on.exit(dbDisconnect(con))
+      dbReadTable(con, "libraries")
+    },
+    context = "libraries"
+  )
 }
 
 # Function to fetch schedules (Turso primary, SQLite fallback)
 fetch_schedules <- function() {
   today <- format(Sys.Date(), "%Y-%m-%d")
 
-  # Try Turso first - get today's schedules
-  tryCatch({
-    return(turso_query(
-      "SELECT library_id, date, from_time as from, to_time as to, status_label
-       FROM schedules WHERE date = ?",
-      list(today)
-    ))
-  }, error = function(e) {
-    warning("Turso failed, using SQLite: ", e$message)
-  })
-
-  # Fallback to SQLite (also filter by date for consistency)
-  con <- dbConnect(SQLite(), dbname = db_path, read_only = TRUE)
-  data <- dbGetQuery(con,
-    'SELECT library_id, date, "from", "to", status_label
-     FROM schedules WHERE date = ?',
-    params = list(today)
+  with_turso_fallback(
+    turso_query_fn = function() {
+      turso_query(
+        "SELECT library_id, date, from_time as from, to_time as to, status_label
+         FROM schedules WHERE date = ?",
+        list(today)
+      )
+    },
+    sqlite_query_fn = function() {
+      con <- dbConnect(SQLite(), dbname = db_path, read_only = TRUE)
+      on.exit(dbDisconnect(con))
+      dbGetQuery(con,
+        'SELECT library_id, date, "from", "to", status_label
+         FROM schedules WHERE date = ?',
+        params = list(today)
+      )
+    },
+    context = "schedules"
   )
-  dbDisconnect(con)
-  return(data)
 }
 
 # Function to fetch library services (Turso primary, SQLite fallback)
 fetch_library_services <- function() {
-  # Try Turso first
-  tryCatch({
-    return(turso_query("SELECT library_id, service_name FROM library_services ORDER BY library_id, service_name"))
-  }, error = function(e) {
-    warning("Turso failed for services, using SQLite: ", e$message)
-  })
-
-  # Fallback to SQLite
-  con <- dbConnect(SQLite(), dbname = db_path, read_only = TRUE)
-  data <- dbGetQuery(con, "
-    SELECT library_id, service_name
-    FROM library_services
-    ORDER BY library_id, service_name
-  ")
-  dbDisconnect(con)
-  return(data)
+  with_turso_fallback(
+    turso_query_fn = function() {
+      turso_query("SELECT library_id, service_name FROM library_services ORDER BY library_id, service_name")
+    },
+    sqlite_query_fn = function() {
+      con <- dbConnect(SQLite(), dbname = db_path, read_only = TRUE)
+      on.exit(dbDisconnect(con))
+      dbGetQuery(con, "
+        SELECT library_id, service_name
+        FROM library_services
+        ORDER BY library_id, service_name
+      ")
+    },
+    context = "services"
+  )
 }
 
 # Calculate distance between two points using Haversine formula (km)
@@ -113,6 +118,34 @@ calculate_distances_to_libraries <- function(user_lat, user_lon, library_data) {
       ),
       distance_display = sprintf("%.1f km", distance_km)
     )
+}
+
+# Build the HTML for a library's map popup. Vector-safe (used inside a `~`
+# formula over a data frame in addCircleMarkers). Pass opening_hours for the
+# main map popup, or distance_display for the "nearest libraries" popup.
+build_library_popup <- function(library_url, library_branch_name, library_address,
+                                 open_status, lat, lon,
+                                 opening_hours = NULL, distance_display = NULL) {
+  name_html <- if_else(
+    !is.na(library_url),
+    paste0("<b><a href='", library_url, "' target='_blank'>", library_branch_name, "</a></b>"),
+    paste0("<b>", library_branch_name, "</b>")
+  )
+
+  directions <- sprintf(
+    "📍 <a href='https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f' target='_blank' style='color: #C1272D; font-weight: bold;'>Get Directions</a>",
+    lat, lon
+  )
+
+  extra <- if (!is.null(opening_hours)) {
+    paste0("<br>", if_else(!is.na(opening_hours), paste("<b>Hours: </b>", opening_hours), "<b>Hours: </b>NA"))
+  } else if (!is.null(distance_display)) {
+    paste0("<br><b>Distance: </b>", distance_display)
+  } else {
+    ""
+  }
+
+  paste0(name_html, "<br>", library_address, "<br><b>Status: </b>", open_status, extra, "<br>", directions)
 }
 
 # Format all schedule periods for a library

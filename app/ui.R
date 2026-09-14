@@ -58,6 +58,14 @@ ui <- page_navbar(
     # Detect if device is mobile, and store it in input$is_mobile
     tags$script(HTML(
       "
+        // Geolocation timing (ms). Startup uses coarse/cached location for a fast
+        // first paint; Find Nearest waits longer for a precise, fresh fix.
+        const STARTUP_GEO_TIMEOUT_MS = 8000;
+        const STARTUP_GEO_MAX_AGE_MS = 600000;
+        const STARTUP_GEO_FALLBACK_MS = 9000;
+        const FIND_NEAREST_GEO_TIMEOUT_MS = 10000;
+        const FIND_NEAREST_GEO_MAX_AGE_MS = 300000;
+
         Shiny.addCustomMessageHandler('checkMobile', function(message) {
           var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
           Shiny.setInputValue('is_mobile', isMobile, {priority: 'event'});
@@ -93,16 +101,16 @@ ui <- page_navbar(
               function(error) {
                 Shiny.setInputValue('startup_geolocation_failed', true, {priority: 'event'});
               },
-              { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 }
+              { enableHighAccuracy: false, timeout: STARTUP_GEO_TIMEOUT_MS, maximumAge: STARTUP_GEO_MAX_AGE_MS }
             );
           } else {
             Shiny.setInputValue('startup_geolocation_failed', true, {priority: 'event'});
           }
 
-          // Fallback: after 9 seconds, if startup location still not received, use Helsinki
+          // Fallback: if startup location still not received, use Helsinki
           setTimeout(function() {
             Shiny.setInputValue('startup_geolocation_timeout', true, {priority: 'event'});
-          }, 9000);
+          }, STARTUP_GEO_FALLBACK_MS);
         });
 
         // Geolocation handler for finding nearest library (Find Nearest button)
@@ -131,7 +139,7 @@ ui <- page_navbar(
               Shiny.setInputValue('geolocation_error', errorMsg, {priority: 'event'});
               Shiny.setInputValue('geolocation_loading', false, {priority: 'event'});
             },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+            { enableHighAccuracy: true, timeout: FIND_NEAREST_GEO_TIMEOUT_MS, maximumAge: FIND_NEAREST_GEO_MAX_AGE_MS }
           );
         });
       "

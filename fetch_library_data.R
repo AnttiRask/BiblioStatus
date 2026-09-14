@@ -272,7 +272,7 @@ if (update_type %in% c("libraries", "both")) {
               nrow(libraries), nrow(library_services)))
 
   if (!turso_success) {
-    warning("Turso write failed - SQLite backup maintained")
+    stop("Turso write failed - SQLite backup was written, but production database was NOT updated. Investigate before the next scheduled run.")
   }
 }
 
@@ -341,7 +341,7 @@ if (update_type %in% c("schedules", "both")) {
   cat("✓ Wrote schedules to SQLite\n")
 
   if (!turso_success) {
-    warning("Turso write failed - SQLite backup maintained")
+    stop("Turso write failed - SQLite backup was written, but production database was NOT updated. Investigate before the next scheduled run.")
   }
 }
 

@@ -17,6 +17,21 @@ source("modules/service_stats.R")
 # source(here("app/www/variables.R"))
 # source(here("app/modules/service_stats.R"))
 
+# Marker sizing, zoom, and result-count tuning (mobile gets larger touch targets)
+MOBILE_MARKER_RADIUS <- 10
+DESKTOP_MARKER_RADIUS <- 8
+MOBILE_NEAREST_MARKER_RADIUS <- 12
+DESKTOP_NEAREST_MARKER_RADIUS <- 10
+USER_LOCATION_MARKER_RADIUS <- 10
+MOBILE_POPUP_MAX_WIDTH <- 250
+MOBILE_POPUP_MIN_WIDTH <- 200
+DESKTOP_POPUP_MAX_WIDTH <- 300
+DESKTOP_POPUP_MIN_WIDTH <- 100
+DEFAULT_ZOOM_LEVEL <- 11
+SINGLE_LIBRARY_ZOOM_THRESHOLD <- 2
+MOBILE_NEAREST_COUNT <- 3
+DESKTOP_NEAREST_COUNT <- 5
+
 carto_attribution <- paste0(
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ',
   '&copy; <a href="https://carto.com/attributions">CARTO</a>'
@@ -366,36 +381,11 @@ server <- function(input, output, session) {
               open_status == "Closed for the whole day"          ~ chosen_colors$ClosedDay,
               TRUE                                               ~ chosen_colors$Unknown
             ),
-            radius = if (isTRUE(input$is_mobile)) 10 else 8,  # Larger markers on mobile
-            popup = ~ paste(
-              if_else(
-                !is.na(library_url),
-                paste0(
-                  "<b><a href='",
-                  library_url,
-                  "' target='_blank'>",
-                  library_branch_name,
-                  "</a></b>"
-                ),
-                paste0("<b>", library_branch_name, "</b>")
-              ),
-              "<br>",
-              library_address,
-              "<br>",
-              "<br>",
-              "<b>Status: </b>",
-              open_status,
-              "<br>",
-              if_else(
-                !is.na(opening_hours),
-                paste("<b>Hours: </b>", opening_hours),
-                "<b>Hours: </b>NA"
-              ),
-              "<br>",
-              sprintf(
-                "📍 <a href='https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f' target='_blank' style='color: #C1272D; font-weight: bold;'>Get Directions</a>",
-                lat, lon
-              )
+            radius = if (isTRUE(input$is_mobile)) MOBILE_MARKER_RADIUS else DESKTOP_MARKER_RADIUS,
+            popup = ~ build_library_popup(
+              library_url, library_branch_name, library_address,
+              open_status, lat, lon,
+              opening_hours = opening_hours
             ),
             label = if (!isTRUE(input$is_mobile)) {
               ~library_branch_name
@@ -410,8 +400,8 @@ server <- function(input, output, session) {
               )
             ),
             popupOptions = popupOptions(
-              maxWidth = if (isTRUE(input$is_mobile)) 250 else 300,
-              minWidth = if (isTRUE(input$is_mobile)) 200 else 100,
+              maxWidth = if (isTRUE(input$is_mobile)) MOBILE_POPUP_MAX_WIDTH else DESKTOP_POPUP_MAX_WIDTH,
+              minWidth = if (isTRUE(input$is_mobile)) MOBILE_POPUP_MIN_WIDTH else DESKTOP_POPUP_MIN_WIDTH,
               autoPan = TRUE,  # Auto-pan to show full popup
               keepInView = TRUE,  # Keep popup in view
               closeButton = TRUE
@@ -433,12 +423,12 @@ server <- function(input, output, session) {
           )
 
         # Zoom logic
-        if (data %>% distinct(id) %>% nrow() <= 2) {
+        if (data %>% distinct(id) %>% nrow() <= SINGLE_LIBRARY_ZOOM_THRESHOLD) {
           map <- map %>%
             setView(
               lat = mean(data$lat, na.rm = TRUE),
               lng = mean(data$lon, na.rm = TRUE),
-              zoom = 11
+              zoom = DEFAULT_ZOOM_LEVEL
             )
         } else {
           map <- map %>%
@@ -510,7 +500,7 @@ server <- function(input, output, session) {
 
     nearest <- libs_with_distance %>%
       arrange(distance_km) %>%
-      head(if (isTRUE(input$is_mobile)) 3 else 5)
+      head(if (isTRUE(input$is_mobile)) MOBILE_NEAREST_COUNT else DESKTOP_NEAREST_COUNT)
 
     nearest_libraries(nearest)
 
@@ -547,7 +537,7 @@ server <- function(input, output, session) {
         lng = user_loc$lon,
         lat = user_loc$lat,
         layerId = "user_location",
-        radius = 10,
+        radius = USER_LOCATION_MARKER_RADIUS,
         color = "#FF0000",
         fillColor = "#FF0000",
         fillOpacity = 0.8,
@@ -565,22 +555,11 @@ server <- function(input, output, session) {
           open_status == "Self-service" ~ chosen_colors$Self,
           TRUE ~ chosen_colors$Unknown
         ),
-        radius = if (isTRUE(input$is_mobile)) 12 else 10,
-        popup = ~ paste(
-          if_else(
-            !is.na(library_url),
-            paste0("<b><a href='", library_url, "' target='_blank'>",
-                   library_branch_name, "</a></b>"),
-            paste0("<b>", library_branch_name, "</b>")
-          ),
-          "<br>", library_address,
-          "<br><b>Distance: </b>", distance_display,
-          "<br><b>Status: </b>", open_status,
-          "<br>",
-          sprintf(
-            "📍 <a href='https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f' target='_blank' style='color: #C1272D; font-weight: bold;'>Get Directions</a>",
-            lat, lon
-          )
+        radius = if (isTRUE(input$is_mobile)) MOBILE_NEAREST_MARKER_RADIUS else DESKTOP_NEAREST_MARKER_RADIUS,
+        popup = ~ build_library_popup(
+          library_url, library_branch_name, library_address,
+          open_status, lat, lon,
+          distance_display = distance_display
         )
       ) %>%
       fitBounds(
