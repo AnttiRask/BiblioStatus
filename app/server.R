@@ -179,10 +179,10 @@ server <- function(input, output, session) {
       selected = selected_lib$city_name[1])
   }, ignoreInit = TRUE)
 
-  # Cascading: city → update library choices only.
-  # City and service dropdowns are NOT updated by each other — that bidirectional
-  # dependency caused stale-read race conditions where one cascade re-injected an
-  # outdated value from the other input (e.g. old service coming back after × clear).
+  # Cascading: city → update library choices, and service choices+selection.
+  # City itself is NOT updated by the other two — that bidirectional dependency
+  # caused stale-read race conditions where one cascade re-injected an outdated
+  # value from another input (e.g. old service coming back after × clear).
   # City choices stay as "all cities" (set by the populate observer on data load).
   observeEvent(input$city_filter, {
     all_libs <- library_data()
@@ -191,12 +191,14 @@ server <- function(input, output, session) {
 
     current_service <- isolate(input$service_filter)
 
-    # Library choices = intersection of city + service filters
-    filtered_ids <- all_libs$id
-    if (!is.null(input$city_filter) && input$city_filter != "") {
-      city_ids <- all_libs %>% filter(city_name == input$city_filter) %>% pull(id)
-      filtered_ids <- intersect(filtered_ids, city_ids)
+    city_lib_ids <- if (!is.null(input$city_filter) && input$city_filter != "") {
+      all_libs %>% filter(city_name == input$city_filter) %>% pull(id)
+    } else {
+      all_libs$id
     }
+
+    # Library choices = intersection of city + service filters
+    filtered_ids <- city_lib_ids
     if (!is.null(current_service) && current_service != "") {
       svc_ids <- all_svcs %>% filter(service_name == current_service) %>% pull(library_id)
       filtered_ids <- intersect(filtered_ids, svc_ids)
@@ -210,15 +212,18 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, "library_search",
       choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
 
-    # Re-affirm the currently selected service so its displayed label doesn't drift,
-    # but only if that service still has results in the new city. Otherwise reset it.
-    if (!is.null(current_service) && current_service != "") {
-      service_still_valid <- current_service %in% (all_svcs %>%
-        filter(library_id %in% (all_libs %>% filter(city_name == input$city_filter) %>% pull(id))) %>%
-        pull(service_name))
-      updateSelectInput(session, "service_filter",
-        selected = if (service_still_valid) current_service else "")
-    }
+    # Service choices = only services offered by libraries in the selected city
+    # (matches the library dropdown's own city scoping, so a service that has
+    # zero results in this city can't even be picked). Re-affirm the current
+    # selection if it's still valid there, otherwise reset it to "All Services".
+    city_svc_choices <- stringr::str_sort(
+      unique(all_svcs %>% filter(library_id %in% city_lib_ids) %>% pull(service_name)),
+      locale = "fi"
+    )
+    service_still_valid <- !is.null(current_service) && current_service %in% city_svc_choices
+    updateSelectInput(session, "service_filter",
+      choices = c("All Services" = "", city_svc_choices),
+      selected = if (service_still_valid) current_service else "")
 
     # Reset state when city changes
     nearest_libraries(NULL)
