@@ -297,6 +297,12 @@ server <- function(input, output, session) {
   observeEvent(input$clear_service, {
     updateSelectInput(session, "service_filter", selected = "")
     pending_service("")
+    # Also clear the library filter: its narrowed choice list (and any
+    # selection within it) was a side effect of the service filter, not an
+    # independent choice, so there's no valid library selection left to keep.
+    updateSelectizeInput(session, "library_search", selected = "")
+    pending_library("")
+    committed_library("")
     selected_library(NULL)
     committed_service("")
   })

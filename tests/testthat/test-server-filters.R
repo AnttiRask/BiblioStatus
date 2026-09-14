@@ -116,6 +116,34 @@ test_that("Show on Map after clearing the library filter commits the clear, not 
   })
 })
 
+# Reported bug: select a service that only leaves one library choice, select
+# that library (not just leave it as the only option - actually select it),
+# "Show on Map", then clear the SERVICE only. The library filter was never
+# an independent choice - it only existed because the service narrowed the
+# dropdown to one entry - so clearing the service must clear the library too.
+# Before the fix, clear_service only touched service_filter/pending_service,
+# leaving the library filter (and the map) stuck on the single library.
+test_that("clearing the service filter also clears an implied library selection", {
+  testServer(server, {
+    eval(seed_fixture_data_code)
+
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(service_filter = "Printing")
+    session$setInputs(library_search = "1")
+    session$setInputs(apply_filters = 1)
+    expect_equal(committed_service(), "Printing")
+    expect_equal(committed_library(), "1")
+
+    session$setInputs(clear_service = 1)
+    expect_equal(committed_service(), "")
+    expect_equal(committed_library(), "")
+
+    session$setInputs(apply_filters = 2)
+    expect_equal(committed_service(), "")
+    expect_equal(committed_library(), "")
+  })
+})
+
 # NOTE: the service-label-resync behavior (city_filter observer calling
 # updateSelectInput(session, "service_filter", ...) to reset or re-affirm the
 # displayed value) is NOT covered here. shiny::testServer() does not simulate
