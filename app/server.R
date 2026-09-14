@@ -52,6 +52,16 @@ server <- function(input, output, session) {
   committed_city    <- reactiveVal("")
   committed_service <- reactiveVal("")
   committed_library <- reactiveVal("")
+  # Server-side mirror of the service/library dropdown selections, used by
+  # "Show on Map" instead of reading input$service_filter/input$library_search
+  # directly. Needed because updateSelectInput()/updateSelectizeInput() (used
+  # by the × clear buttons) only take effect in the browser and echo back to
+  # input$* asynchronously over the websocket — reading input$* immediately
+  # after a clear can still see the pre-clear value if "Show on Map" is
+  # clicked before that round-trip completes. These reactiveVals are instead
+  # written synchronously by every path that changes the selection.
+  pending_service <- reactiveVal("")
+  pending_library <- reactiveVal("")
 
   # Data fetching and processing
   refresh_data <- function() {
@@ -211,6 +221,7 @@ server <- function(input, output, session) {
 
     updateSelectizeInput(session, "library_search",
       choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
+    pending_library("")
 
     # Service choices = only services offered by libraries in the selected city
     # (matches the library dropdown's own city scoping, so a service that has
@@ -221,9 +232,11 @@ server <- function(input, output, session) {
       locale = "fi"
     )
     service_still_valid <- !is.null(current_service) && current_service %in% city_svc_choices
+    new_service <- if (service_still_valid) current_service else ""
     updateSelectInput(session, "service_filter",
       choices = c("All Services" = "", city_svc_choices),
-      selected = if (service_still_valid) current_service else "")
+      selected = new_service)
+    pending_service(new_service)
 
     # Reset state when city changes
     nearest_libraries(NULL)
@@ -235,6 +248,8 @@ server <- function(input, output, session) {
   # Service choices stay as "all services" (set by the populate observer on data load).
   # ignoreNULL = FALSE: must fire when service is cleared to "" (isTruthy("") = FALSE).
   observeEvent(input$service_filter, {
+    pending_service(input$service_filter)
+
     all_libs <- library_data()
     all_svcs <- library_services_data()
     req(all_libs, all_svcs)
@@ -261,29 +276,42 @@ server <- function(input, output, session) {
       choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
   }, ignoreInit = TRUE, ignoreNULL = FALSE)
 
+  # Mirror library_search into pending_library on every real change (selecting
+  # a library, or the cascades above resetting it to "" on city/service change).
+  observeEvent(input$library_search, {
+    pending_library(input$library_search)
+  }, ignoreInit = TRUE, ignoreNULL = FALSE)
+
   # Individual clear buttons — each clears one filter; cascades handle downstream updates.
-  # Also write through to committed_* so the map updates immediately, without requiring
-  # "Show on Map" to be pressed again.
+  # Also write through to committed_* AND pending_* so the map updates immediately
+  # (without requiring "Show on Map") and so a subsequent "Show on Map" click commits
+  # the clear even if the browser round-trip for input$service_filter/library_search
+  # (triggered by updateSelectInput/updateSelectizeInput below) hasn't landed yet.
   observeEvent(input$clear_library, {
     updateSelectizeInput(session, "library_search", selected = "")
+    pending_library("")
     selected_library(NULL)
     committed_library("")
   })
 
   observeEvent(input$clear_service, {
     updateSelectInput(session, "service_filter", selected = "")
+    pending_service("")
     selected_library(NULL)
     committed_service("")
   })
 
   # "Show on Map" button: commit current dropdown state and re-render the map.
+  # Uses pending_service()/pending_library() rather than input$service_filter/
+  # input$library_search directly — see the pending_* reactiveVal declarations
+  # above for why reading input$* here can see a stale, pre-clear value.
   # Also activates the library detail sidebar when a specific library is selected.
   observeEvent(input$apply_filters, {
     committed_city(input$city_filter)
-    committed_service(input$service_filter)
-    committed_library(input$library_search)
+    committed_service(pending_service())
+    committed_library(pending_library())
 
-    lib_id <- input$library_search
+    lib_id <- pending_library()
     if (!is.null(lib_id) && lib_id != "") {
       selected_lib <- library_data() %>% filter(id == as.numeric(lib_id))
       selected_library(if (nrow(selected_lib) > 0) selected_lib else NULL)
@@ -339,6 +367,7 @@ server <- function(input, output, session) {
       # Self-heal: if committed library id produces 0 rows, clear it.
       if (nrow(data) == 0 && !is.null(library_val) && library_val != "") {
         updateSelectizeInput(session, "library_search", selected = "")
+        pending_library("")
         committed_library("")
         return()
       }

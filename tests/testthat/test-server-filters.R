@@ -73,6 +73,49 @@ test_that("clearing the service filter updates committed_service immediately", {
   })
 })
 
+# Regression test for a bug reported after Plan 1/7/8/9/10: clicking the ×
+# clear button, then immediately clicking "Show on Map" before the browser's
+# updateSelectInput() round-trip echoes the cleared value back to
+# input$service_filter/input$library_search, committed the STALE
+# pre-clear value instead of "". testServer() never simulates that round-trip
+# at all (see the NOTE below), which makes it a perfect stand-in for "the
+# round-trip hasn't landed yet" - input$service_filter genuinely stays at its
+# old value here even after clear_service fires, exactly like the real race.
+# apply_filters must not use input$service_filter/input$library_search
+# directly for this reason; see pending_service/pending_library in server.R.
+test_that("Show on Map after clearing a filter commits the clear, not the stale input$ value", {
+  testServer(server, {
+    eval(seed_fixture_data_code)
+
+    session$setInputs(service_filter = "Printing")
+    session$setInputs(apply_filters = 1)
+    expect_equal(committed_service(), "Printing")
+
+    # Simulate clicking × then "Show on Map" before the browser round-trip:
+    # input$service_filter is deliberately left at "Printing".
+    session$setInputs(clear_service = 1)
+    session$setInputs(apply_filters = 2)
+    expect_equal(committed_service(), "")
+  })
+})
+
+test_that("Show on Map after clearing the library filter commits the clear, not the stale input$ value", {
+  testServer(server, {
+    eval(seed_fixture_data_code)
+
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(library_search = "1")
+    session$setInputs(apply_filters = 1)
+    expect_equal(committed_library(), "1")
+
+    # Simulate clicking × then "Show on Map" before the browser round-trip:
+    # input$library_search is deliberately left at "1".
+    session$setInputs(clear_library = 1)
+    session$setInputs(apply_filters = 2)
+    expect_equal(committed_library(), "")
+  })
+})
+
 # NOTE: the service-label-resync behavior (city_filter observer calling
 # updateSelectInput(session, "service_filter", ...) to reset or re-affirm the
 # displayed value) is NOT covered here. shiny::testServer() does not simulate
