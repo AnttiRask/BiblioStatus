@@ -51,8 +51,8 @@ fetch_schedules <- function() {
   with_turso_fallback(
     turso_query_fn = function() {
       turso_query(
-        "SELECT library_id, date, from_time as from, to_time as to, status_label
-         FROM schedules WHERE date = ?",
+        'SELECT library_id, date, from_time as "from", to_time as "to", status_label
+         FROM schedules WHERE date = ?',
         list(today)
       )
     },
