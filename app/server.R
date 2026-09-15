@@ -297,10 +297,28 @@ server <- function(input, output, session) {
   observeEvent(input$clear_service, {
     updateSelectInput(session, "service_filter", selected = "")
     pending_service("")
+
     # Also clear the library filter: its narrowed choice list (and any
     # selection within it) was a side effect of the service filter, not an
     # independent choice, so there's no valid library selection left to keep.
-    updateSelectizeInput(session, "library_search", selected = "")
+    # Rebuild the choice list too (not just the selection) - scoped to the
+    # current city only, since the service constraint is now gone - otherwise
+    # the dropdown's options stay stuck at the pre-clear, service-filtered set
+    # even though the map and the selected value both reset correctly.
+    all_libs <- library_data()
+    req(all_libs)
+    current_city <- isolate(input$city_filter)
+    city_lib_ids <- if (!is.null(current_city) && current_city != "") {
+      all_libs %>% filter(city_name == current_city) %>% pull(id)
+    } else {
+      all_libs$id
+    }
+    lib_choices <- all_libs %>%
+      filter(id %in% city_lib_ids) %>%
+      arrange(library_branch_name) %>%
+      { setNames(as.character(.$id), .$library_branch_name) }
+    updateSelectizeInput(session, "library_search",
+      choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
     pending_library("")
     committed_library("")
     selected_library(NULL)
