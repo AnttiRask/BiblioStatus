@@ -58,89 +58,106 @@ ui <- page_navbar(
     # Detect if device is mobile, and store it in input$is_mobile
     tags$script(HTML(
       "
-        // Geolocation timing (ms). Startup uses coarse/cached location for a fast
-        // first paint; Find Nearest waits longer for a precise, fresh fix.
-        const STARTUP_GEO_TIMEOUT_MS = 8000;
-        const STARTUP_GEO_MAX_AGE_MS = 600000;
-        const STARTUP_GEO_FALLBACK_MS = 9000;
-        const FIND_NEAREST_GEO_TIMEOUT_MS = 10000;
-        const FIND_NEAREST_GEO_MAX_AGE_MS = 300000;
+        // Everything below touches the Shiny global, which isn't defined yet
+        // this early in <head> - Shiny's own JS bundle loads later, near the
+        // end of <body>. Registering handlers or calling Shiny.setInputValue
+        // here throws 'Shiny.setInputValue is not a function', which silently
+        // aborts the rest of this script block (including the addCustomMessageHandler
+        // calls below), breaking Find Nearest and other input reporting entirely.
+        // Deferring the whole block to run once Shiny itself is ready avoids that.
+        function onShinyReady(callback) {
+          if (window.Shiny && typeof Shiny.setInputValue === 'function') {
+            callback();
+          } else {
+            document.addEventListener('shiny:connected', callback, { once: true });
+          }
+        }
 
-        Shiny.addCustomMessageHandler('checkMobile', function(message) {
-          var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-          Shiny.setInputValue('is_mobile', isMobile, {priority: 'event'});
-        });
+        onShinyReady(function() {
+          // Geolocation timing (ms). Startup uses coarse/cached location for a fast
+          // first paint; Find Nearest waits longer for a precise, fresh fix.
+          const STARTUP_GEO_TIMEOUT_MS = 8000;
+          const STARTUP_GEO_MAX_AGE_MS = 600000;
+          const STARTUP_GEO_FALLBACK_MS = 9000;
+          const FIND_NEAREST_GEO_TIMEOUT_MS = 10000;
+          const FIND_NEAREST_GEO_MAX_AGE_MS = 300000;
 
-        // Watch for bslib dark mode changes (data-bs-theme attribute on <html>)
-        var darkModeObserver = new MutationObserver(function(mutations) {
-          mutations.forEach(function(mutation) {
-            if (mutation.attributeName === 'data-bs-theme') {
-              var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-              Shiny.setInputValue('is_dark_mode', isDark, {priority: 'event'});
-            }
+          Shiny.addCustomMessageHandler('checkMobile', function(message) {
+            var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            Shiny.setInputValue('is_mobile', isMobile, {priority: 'event'});
           });
-        });
-        darkModeObserver.observe(document.documentElement, { attributes: true });
 
-        $(document).on('shiny:sessioninitialized', function() {
-          Shiny.setInputValue('is_mobile', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent), {priority: 'event'});
+          // Watch for bslib dark mode changes (data-bs-theme attribute on <html>)
+          var darkModeObserver = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+              if (mutation.attributeName === 'data-bs-theme') {
+                var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                Shiny.setInputValue('is_dark_mode', isDark, {priority: 'event'});
+              }
+            });
+          });
+          darkModeObserver.observe(document.documentElement, { attributes: true });
 
-          // Report initial dark mode state
-          var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-          Shiny.setInputValue('is_dark_mode', isDark, {priority: 'event'});
+          $(document).on('shiny:sessioninitialized', function() {
+            Shiny.setInputValue('is_mobile', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent), {priority: 'event'});
 
-          // Request geolocation on startup to determine nearest city
-          if (navigator.geolocation) {
+            // Report initial dark mode state
+            var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+            Shiny.setInputValue('is_dark_mode', isDark, {priority: 'event'});
+
+            // Request geolocation on startup to determine nearest city
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                function(position) {
+                  Shiny.setInputValue('startup_location', {
+                    lat: position.coords.latitude,
+                    lon: position.coords.longitude
+                  }, {priority: 'event'});
+                },
+                function(error) {
+                  Shiny.setInputValue('startup_geolocation_failed', true, {priority: 'event'});
+                },
+                { enableHighAccuracy: false, timeout: STARTUP_GEO_TIMEOUT_MS, maximumAge: STARTUP_GEO_MAX_AGE_MS }
+              );
+            } else {
+              Shiny.setInputValue('startup_geolocation_failed', true, {priority: 'event'});
+            }
+
+            // Fallback: if startup location still not received, use Helsinki
+            setTimeout(function() {
+              Shiny.setInputValue('startup_geolocation_timeout', true, {priority: 'event'});
+            }, STARTUP_GEO_FALLBACK_MS);
+          });
+
+          // Geolocation handler for finding nearest library (Find Nearest button)
+          Shiny.addCustomMessageHandler('requestGeolocation', function(message) {
+            if (!navigator.geolocation) {
+              Shiny.setInputValue('geolocation_error',
+                'Geolocation is not supported by your browser',
+                {priority: 'event'});
+              return;
+            }
+
+            Shiny.setInputValue('geolocation_loading', true, {priority: 'event'});
+
             navigator.geolocation.getCurrentPosition(
               function(position) {
-                Shiny.setInputValue('startup_location', {
+                Shiny.setInputValue('user_location', {
                   lat: position.coords.latitude,
                   lon: position.coords.longitude
                 }, {priority: 'event'});
+                Shiny.setInputValue('geolocation_loading', false, {priority: 'event'});
               },
               function(error) {
-                Shiny.setInputValue('startup_geolocation_failed', true, {priority: 'event'});
+                var errorMsg = error.code === 1 ?
+                  'Please enable location permissions to find nearby libraries' :
+                  'Unable to get your location. Please try again.';
+                Shiny.setInputValue('geolocation_error', errorMsg, {priority: 'event'});
+                Shiny.setInputValue('geolocation_loading', false, {priority: 'event'});
               },
-              { enableHighAccuracy: false, timeout: STARTUP_GEO_TIMEOUT_MS, maximumAge: STARTUP_GEO_MAX_AGE_MS }
+              { enableHighAccuracy: true, timeout: FIND_NEAREST_GEO_TIMEOUT_MS, maximumAge: FIND_NEAREST_GEO_MAX_AGE_MS }
             );
-          } else {
-            Shiny.setInputValue('startup_geolocation_failed', true, {priority: 'event'});
-          }
-
-          // Fallback: if startup location still not received, use Helsinki
-          setTimeout(function() {
-            Shiny.setInputValue('startup_geolocation_timeout', true, {priority: 'event'});
-          }, STARTUP_GEO_FALLBACK_MS);
-        });
-
-        // Geolocation handler for finding nearest library (Find Nearest button)
-        Shiny.addCustomMessageHandler('requestGeolocation', function(message) {
-          if (!navigator.geolocation) {
-            Shiny.setInputValue('geolocation_error',
-              'Geolocation is not supported by your browser',
-              {priority: 'event'});
-            return;
-          }
-
-          Shiny.setInputValue('geolocation_loading', true, {priority: 'event'});
-
-          navigator.geolocation.getCurrentPosition(
-            function(position) {
-              Shiny.setInputValue('user_location', {
-                lat: position.coords.latitude,
-                lon: position.coords.longitude
-              }, {priority: 'event'});
-              Shiny.setInputValue('geolocation_loading', false, {priority: 'event'});
-            },
-            function(error) {
-              var errorMsg = error.code === 1 ?
-                'Please enable location permissions to find nearby libraries' :
-                'Unable to get your location. Please try again.';
-              Shiny.setInputValue('geolocation_error', errorMsg, {priority: 'event'});
-              Shiny.setInputValue('geolocation_loading', false, {priority: 'event'});
-            },
-            { enableHighAccuracy: true, timeout: FIND_NEAREST_GEO_TIMEOUT_MS, maximumAge: FIND_NEAREST_GEO_MAX_AGE_MS }
-          );
+          });
         });
       "
     )),
