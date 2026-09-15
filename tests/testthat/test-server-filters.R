@@ -32,6 +32,16 @@ fixture_services <- data.frame(
   stringsAsFactors = FALSE
 )
 
+# Distinct per-library services (unlike fixture_services above, where both
+# Helsinki libraries offer the same one) - needed to test that selecting a
+# library narrows the service dropdown to just its own services, not the
+# whole city's aggregate.
+fixture_services_distinct <- data.frame(
+  library_id = c(1, 1, 2),
+  service_name = c("Printing", "Scanning", "Yoga"),
+  stringsAsFactors = FALSE
+)
+
 # The server's own startup observer (observeEvent(input$refresh, ...,
 # ignoreNULL = FALSE)) fires on session init and calls refresh_data(), which
 # hits the real Turso/SQLite fetch. Flush that first, then overwrite with
@@ -141,6 +151,64 @@ test_that("clearing the service filter also clears an implied library selection"
     session$setInputs(apply_filters = 2)
     expect_equal(committed_service(), "")
     expect_equal(committed_library(), "")
+  })
+})
+
+# Reported feature request: the service dropdown should show city-wide
+# services until a library is selected, then narrow to just that library's
+# own services. Uses fixture_services_distinct (library 1: Printing +
+# Scanning, library 2: Yoga only) so the two libraries' service sets differ.
+test_that("selecting a library resets an incompatible service selection", {
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(fixture_services_distinct)
+    startup_city_set(TRUE)
+
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(service_filter = "Yoga")
+    expect_equal(pending_service(), "Yoga")
+
+    # Library 1 doesn't offer Yoga (only library 2 does) - selecting it must
+    # reset the service selection rather than keep an invalid one selected.
+    session$setInputs(library_search = "1")
+    expect_equal(pending_service(), "")
+  })
+})
+
+test_that("selecting a library keeps a compatible service selection", {
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(fixture_services_distinct)
+    startup_city_set(TRUE)
+
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(service_filter = "Printing")
+    expect_equal(pending_service(), "Printing")
+
+    # Library 1 does offer Printing - selecting it must keep the selection.
+    session$setInputs(library_search = "1")
+    expect_equal(pending_service(), "Printing")
+  })
+})
+
+test_that("clearing the library widens the service selection back to city scope", {
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(fixture_services_distinct)
+    startup_city_set(TRUE)
+
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(library_search = "1")
+    session$setInputs(service_filter = "Printing")
+    expect_equal(pending_service(), "Printing")
+
+    session$setInputs(clear_library = 1)
+    # Printing is still valid at the city level (library 1 offers it), so it
+    # should be re-affirmed, not wiped, once the library constraint is gone.
+    expect_equal(pending_service(), "Printing")
   })
 })
 

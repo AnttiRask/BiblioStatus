@@ -63,6 +63,24 @@ server <- function(input, output, session) {
   pending_service <- reactiveVal("")
   pending_library <- reactiveVal("")
 
+  # Rebuild the service dropdown's choices to only services offered by the
+  # given set of library ids (a single selected library, or every library in
+  # a city), re-affirming the current selection if it's still valid among
+  # those choices or resetting it to "All Services" otherwise. Returns the
+  # new selection so callers can keep pending_service() in sync.
+  update_service_choices_for_libraries <- function(lib_ids, all_svcs, current_service) {
+    svc_choices <- stringr::str_sort(
+      unique(all_svcs %>% filter(library_id %in% lib_ids) %>% pull(service_name)),
+      locale = "fi"
+    )
+    still_valid <- !is.null(current_service) && current_service %in% svc_choices
+    new_service <- if (still_valid) current_service else ""
+    updateSelectInput(session, "service_filter",
+      choices = c("All Services" = "", svc_choices),
+      selected = new_service)
+    new_service
+  }
+
   # Data fetching and processing
   refresh_data <- function() {
     libraries <- fetch_libraries()
@@ -176,18 +194,39 @@ server <- function(input, output, session) {
     committed_city("Helsinki")  # triggers initial map render
   })
 
-  # Library selectize: selecting a library auto-updates the city dropdown.
-  # Map zoom happens when "Show on Map" is pressed.
+  # Library selectize: selecting a library auto-updates the city dropdown and
+  # narrows the service dropdown to just that library's own services (city
+  # cascade only narrows service to the whole city's aggregate). Clearing the
+  # library (selected == "") widens service back out to the current city's
+  # scope instead, since there's no more specific library to narrow it to.
   observeEvent(input$library_search, {
-    req(input$library_search != "")
+    all_libs <- library_data()
+    all_svcs <- library_services_data()
+    req(all_libs, all_svcs)
 
-    selected_lib <- library_data() %>%
-      filter(id == as.numeric(input$library_search))
+    if (input$library_search == "") {
+      current_city <- isolate(input$city_filter)
+      city_lib_ids <- if (!is.null(current_city) && current_city != "") {
+        all_libs %>% filter(city_name == current_city) %>% pull(id)
+      } else {
+        all_libs$id
+      }
+      new_service <- update_service_choices_for_libraries(
+        city_lib_ids, all_svcs, isolate(input$service_filter))
+      pending_service(new_service)
+      return()
+    }
+
+    selected_lib <- all_libs %>% filter(id == as.numeric(input$library_search))
     req(nrow(selected_lib) > 0)
 
     updateSelectInput(session, "city_filter",
       selected = selected_lib$city_name[1])
-  }, ignoreInit = TRUE)
+
+    new_service <- update_service_choices_for_libraries(
+      selected_lib$id, all_svcs, isolate(input$service_filter))
+    pending_service(new_service)
+  }, ignoreInit = TRUE, ignoreNULL = FALSE)
 
   # Cascading: city → update library choices, and service choices+selection.
   # City itself is NOT updated by the other two — that bidirectional dependency
@@ -219,24 +258,33 @@ server <- function(input, output, session) {
       arrange(library_branch_name) %>%
       { setNames(as.character(.$id), .$library_branch_name) }
 
+    # This city change may be the side effect of picking a specific library
+    # (library_search's own observer sets city_filter to that library's city).
+    # If pending_library() still refers to a library that's valid in this new
+    # city, keep it selected and keep the library-scoped service choices
+    # library_search's observer already set - don't reset either back out to
+    # "no library" / city-wide service, which would immediately undo that pick.
+    still_picked_lib_id <- pending_library()
+    library_pick_still_valid <- !is.null(still_picked_lib_id) &&
+      still_picked_lib_id != "" && as.numeric(still_picked_lib_id) %in% city_lib_ids
+
     updateSelectizeInput(session, "library_search",
-      choices = c("All Libraries" = "", lib_choices), server = TRUE, selected = "")
-    pending_library("")
+      choices = c("All Libraries" = "", lib_choices), server = TRUE,
+      selected = if (library_pick_still_valid) still_picked_lib_id else "")
+    if (!library_pick_still_valid) {
+      pending_library("")
+    }
 
     # Service choices = only services offered by libraries in the selected city
     # (matches the library dropdown's own city scoping, so a service that has
     # zero results in this city can't even be picked). Re-affirm the current
     # selection if it's still valid there, otherwise reset it to "All Services".
-    city_svc_choices <- stringr::str_sort(
-      unique(all_svcs %>% filter(library_id %in% city_lib_ids) %>% pull(service_name)),
-      locale = "fi"
-    )
-    service_still_valid <- !is.null(current_service) && current_service %in% city_svc_choices
-    new_service <- if (service_still_valid) current_service else ""
-    updateSelectInput(session, "service_filter",
-      choices = c("All Services" = "", city_svc_choices),
-      selected = new_service)
-    pending_service(new_service)
+    # Skipped when a library pick is still valid above - that already scoped
+    # service choices to just that library, which is narrower/more correct.
+    if (!library_pick_still_valid) {
+      new_service <- update_service_choices_for_libraries(city_lib_ids, all_svcs, current_service)
+      pending_service(new_service)
+    }
 
     # Reset state when city changes
     nearest_libraries(NULL)
@@ -290,6 +338,23 @@ server <- function(input, output, session) {
   observeEvent(input$clear_library, {
     updateSelectizeInput(session, "library_search", selected = "")
     pending_library("")
+
+    # Widen the service dropdown back out to the current city's scope: it may
+    # have been narrowed to just this library's own services, and there's no
+    # more specific library left to scope it to.
+    all_libs <- library_data()
+    all_svcs <- library_services_data()
+    req(all_libs, all_svcs)
+    current_city <- isolate(input$city_filter)
+    city_lib_ids <- if (!is.null(current_city) && current_city != "") {
+      all_libs %>% filter(city_name == current_city) %>% pull(id)
+    } else {
+      all_libs$id
+    }
+    new_service <- update_service_choices_for_libraries(
+      city_lib_ids, all_svcs, isolate(input$service_filter))
+    pending_service(new_service)
+
     selected_library(NULL)
     committed_library("")
   })
