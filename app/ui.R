@@ -65,12 +65,23 @@ ui <- page_navbar(
         // aborts the rest of this script block (including the addCustomMessageHandler
         // calls below), breaking Find Nearest and other input reporting entirely.
         // Deferring the whole block to run once Shiny itself is ready avoids that.
+        // Can't rely on a 'shiny:connected' event listener here: Shiny fires
+        // it via jQuery's $(document).trigger(...), which native
+        // addEventListener never receives, and jQuery itself ($) isn't
+        // guaranteed loaded yet either at this point in <head> - so instead
+        // just poll for window.Shiny.setInputValue directly, which needs no
+        // other library to be ready first.
         function onShinyReady(callback) {
           if (window.Shiny && typeof Shiny.setInputValue === 'function') {
             callback();
-          } else {
-            document.addEventListener('shiny:connected', callback, { once: true });
+            return;
           }
+          var intervalId = setInterval(function() {
+            if (window.Shiny && typeof Shiny.setInputValue === 'function') {
+              clearInterval(intervalId);
+              callback();
+            }
+          }, 50);
         }
 
         onShinyReady(function() {
