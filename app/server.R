@@ -38,6 +38,10 @@ carto_attribution <- paste0(
 )
 
 server <- function(input, output, session) {
+  # Reconnect (not full page reload) if the websocket drops, e.g. after
+  # network blips or Cloud Run recycling the connection.
+  session$allowReconnect(TRUE)
+
   # State: reactive containers
   library_data <- reactiveVal(NULL)
   selected_library <- reactiveVal(NULL)

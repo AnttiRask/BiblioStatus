@@ -79,7 +79,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --region "$REGION" \
   --allow-unauthenticated \
   --memory 1Gi \
-  --timeout 300 \
+  --timeout 3600 \
   --project "$PROJECT_ID"
 
 SERVICE_URL="$(gcloud run services describe "$SERVICE_NAME" \
