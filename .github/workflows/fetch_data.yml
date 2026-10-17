@@ -15,6 +15,9 @@ on:
           - libraries
           - both
 
+permissions:
+  contents: write
+
 jobs:
   fetch_data:
     runs-on: ubuntu-latest

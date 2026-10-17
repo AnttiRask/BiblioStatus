@@ -5,6 +5,9 @@ on:
     - cron: "0 3 * * *"  # Runs daily at 3 am UTC (after data fetch)
   workflow_dispatch:  # Allows manual triggering
 
+permissions:
+  contents: read
+
 jobs:
   check_urls:
     runs-on: ubuntu-latest
@@ -47,7 +50,7 @@ jobs:
 
       - name: Send email if broken URLs found
         if: failure() || contains(steps.check_urls.outputs.exit_code, '1')
-        uses: dawidd6/action-send-mail@v3
+        uses: dawidd6/action-send-mail@4226df7daafa6fc901a43789c49bf7ab309066e7 # v3 (third-party, pinned to a commit; handles the mail password)
         with:
           server_address: smtp.gmail.com
           server_port: 587
