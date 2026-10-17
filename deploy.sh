@@ -82,7 +82,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --timeout 3600 \
   --service-account "bibliostatus-runtime@${PROJECT_ID}.iam.gserviceaccount.com" \
   --max-instances 3 \
-  --concurrency 20 \
+  --concurrency 80 \
   --session-affinity \
   --project "$PROJECT_ID"
 
