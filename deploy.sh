@@ -80,6 +80,10 @@ gcloud run deploy "$SERVICE_NAME" \
   --allow-unauthenticated \
   --memory 1Gi \
   --timeout 3600 \
+  --service-account "bibliostatus-runtime@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --max-instances 3 \
+  --concurrency 20 \
+  --session-affinity \
   --project "$PROJECT_ID"
 
 SERVICE_URL="$(gcloud run services describe "$SERVICE_NAME" \

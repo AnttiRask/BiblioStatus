@@ -7,6 +7,9 @@ on:
       - completed
   workflow_dispatch:  # Allows manual deployment
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -63,6 +66,10 @@ jobs:
             --allow-unauthenticated \
             --memory 1Gi \
             --timeout 3600 \
+            --service-account bibliostatus-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --max-instances 3 \
+            --concurrency 20 \
+            --session-affinity \
             --remove-env-vars TURSO_DATABASE_URL,TURSO_AUTH_TOKEN \
             --set-secrets TURSO_DATABASE_URL=turso-database-url:latest,TURSO_AUTH_TOKEN=turso-auth-token:latest \
             --project ${{ secrets.GCP_PROJECT_ID }}
