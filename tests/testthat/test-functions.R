@@ -63,3 +63,51 @@ test_that("format_schedule_periods filters to only the requested library_id", {
   result <- format_schedule_periods(2, schedules, "10:00")
   expect_equal(lengths(regmatches(result, gregexpr("<li>", result))), 1)
 })
+
+test_that("map_tile_urls gives a base and a labels layer per theme, in Esri's z/y/x order", {
+  light <- map_tile_urls(FALSE)
+  dark <- map_tile_urls(TRUE)
+  expect_named(light, c("base", "labels"))
+  expect_true(endsWith(light$base, "World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"))
+  expect_true(endsWith(light$labels, "World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"))
+  expect_match(dark$base, "World_Dark_Gray_Base/", fixed = TRUE)
+  expect_match(dark$labels, "World_Dark_Gray_Reference/", fixed = TRUE)
+  # no API key in any URL, and everything comes from the one host
+  expect_false(any(grepl("key=", c(unlist(light), unlist(dark)))))
+  expect_true(all(startsWith(c(unlist(light), unlist(dark)), map_tiles_host)))
+})
+
+test_that("add_basemap adds a base layer with the attribution and a labels layer without", {
+  calls <- leaflet::leaflet()$x$calls
+  expect_length(calls, 0)
+
+  tiles <- Filter(
+    function(x) x$method == "addTiles",
+    add_basemap(leaflet::leaflet(), FALSE)$x$calls
+  )
+  expect_length(tiles, 2)
+  base <- tiles[[1]]$args
+  labels <- tiles[[2]]$args
+
+  expect_equal(base[[2]], "basemap")
+  expect_equal(labels[[2]], "labels")
+  # The regression: the attribution was lost when passed through tileOptions()
+  expect_equal(base[[4]]$attribution, map_attribution)
+  expect_match(base[[4]]$attribution, "Esri", fixed = TRUE)
+  expect_match(base[[4]]$attribution, "OpenStreetMap", fixed = TRUE)
+  expect_null(labels[[4]]$attribution)
+  # requests are capped at the last real zoom, closer views are scaled up
+  expect_equal(base[[4]]$maxNativeZoom, map_tile_max_native_zoom)
+  expect_equal(labels[[4]]$maxNativeZoom, map_tile_max_native_zoom)
+  expect_equal(base[[4]]$maxZoom, map_max_zoom)
+  expect_gte(map_max_zoom, map_tile_max_native_zoom)
+})
+
+test_that("add_basemap switches both layers for dark mode", {
+  tiles <- Filter(
+    function(x) x$method == "addTiles",
+    add_basemap(leaflet::leaflet(), TRUE)$x$calls
+  )
+  expect_match(tiles[[1]]$args[[1]], "World_Dark_Gray_Base", fixed = TRUE)
+  expect_match(tiles[[2]]$args[[1]], "World_Dark_Gray_Reference", fixed = TRUE)
+})

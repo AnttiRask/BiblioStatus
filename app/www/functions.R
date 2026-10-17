@@ -8,12 +8,6 @@ if (TURSO_DATABASE_URL == "" && file.exists("secret.R")) {
   source("secret.R")
 }
 
-# Load Carto API key (required by CartoDB basemap tiles)
-CARTO_API_KEY <- Sys.getenv("CARTO_API_KEY")
-if (CARTO_API_KEY == "" && file.exists("secret.R")) {
-  source("secret.R")
-}
-
 # SQLite fallback path (auto-detect for shinyapps.io vs Docker/local)
 db_path <- if (file.exists(here("libraries.sqlite"))) {
   here("libraries.sqlite")
@@ -177,4 +171,37 @@ format_schedule_periods <- function(library_id, all_schedules, now_time) {
     paste(collapse = "\n")
 
   paste0("<ul style='margin: 0; padding-left: 20px;'>\n", period_items, "\n</ul>")
+}
+
+# Basemap tile URL templates for a theme: a base layer and a labels layer.
+# Esri tile URLs are ordered {z}/{y}/{x} (Carto's were {z}/{x}/{y}).
+map_tile_urls <- function(dark = FALSE) {
+  theme <- if (dark) "Dark" else "Light"
+  url <- function(layer) {
+    sprintf(
+      "%s/ArcGIS/rest/services/Canvas/World_%s_Gray_%s/MapServer/tile/{z}/{y}/{x}",
+      map_tiles_host, theme, layer
+    )
+  }
+  list(base = url("Base"), labels = url("Reference"))
+}
+
+# Adds the basemap to a leaflet map: the base layer (which carries the
+# attribution) and a labels layer on top. Note: attribution must be addTiles()'s
+# own `attribution` argument. addTiles() overwrites options$attribution with it,
+# so an attribution passed through tileOptions() is silently dropped.
+add_basemap <- function(map, dark = FALSE) {
+  urls <- map_tile_urls(dark)
+  # Real tiles stop at zoom 16; request nothing above that and scale up
+  opts <- leaflet::tileOptions(
+    maxZoom = map_max_zoom, maxNativeZoom = map_tile_max_native_zoom
+  )
+  map <- leaflet::addTiles(
+    map,
+    urlTemplate = urls$base,
+    attribution = map_attribution,
+    layerId = "basemap",
+    options = opts
+  )
+  leaflet::addTiles(map, urlTemplate = urls$labels, layerId = "labels", options = opts)
 }

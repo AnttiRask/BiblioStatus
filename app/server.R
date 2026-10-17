@@ -32,11 +32,6 @@ SINGLE_LIBRARY_ZOOM_THRESHOLD <- 2
 MOBILE_NEAREST_COUNT <- 3
 DESKTOP_NEAREST_COUNT <- 5
 
-carto_attribution <- paste0(
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors ',
-  '&copy; <a href="https://carto.com/attributions">CARTO</a>'
-)
-
 server <- function(input, output, session) {
   # Reconnect (not full page reload) if the websocket drops, e.g. after
   # network blips or Cloud Run recycling the connection.
@@ -466,12 +461,6 @@ server <- function(input, output, session) {
       }
       req(nrow(data) > 0)
 
-      tile_variant <- if (isTRUE(input$dark_mode)) "dark_all" else "light_all"
-      tile_url <- paste0(
-        "https://{s}.basemaps.cartocdn.com/", tile_variant,
-        "/{z}/{x}/{y}{r}.png?key=", CARTO_API_KEY
-      )
-
       output$map <- renderLeaflet({
         chosen_colors <- if (isTRUE(input$dark_mode)) dark_colors else light_colors
 
@@ -491,11 +480,7 @@ server <- function(input, output, session) {
         }
 
         map <- leaflet(data, options = leaflet_options) %>%
-          addTiles(
-            urlTemplate = tile_url,
-            group = "basemap",
-            options = tileOptions(subdomains = "abcd", attribution = carto_attribution)
-          ) %>%
+          add_basemap(dark = isTRUE(input$dark_mode)) %>%
           addCircleMarkers(
             lng = ~lon,
             lat = ~lat,
@@ -575,7 +560,8 @@ server <- function(input, output, session) {
               lng1 = min(data$lon, na.rm = TRUE),
               lat1 = min(data$lat, na.rm = TRUE),
               lng2 = max(data$lon, na.rm = TRUE),
-              lat2 = max(data$lat, na.rm = TRUE)
+              lat2 = max(data$lat, na.rm = TRUE),
+              options = list(maxZoom = map_tile_max_native_zoom)
             )
         }
 
@@ -657,12 +643,6 @@ server <- function(input, output, session) {
   update_map_for_nearest <- function(nearest_libs, user_loc) {
     req(nrow(nearest_libs) > 0)
 
-    tile_provider <- if (isTRUE(input$dark_mode)) {
-      providers$CartoDB.DarkMatter
-    } else {
-      providers$CartoDB.Positron
-    }
-
     chosen_colors <- if (isTRUE(input$dark_mode)) dark_colors else light_colors
 
     # Calculate map bounds
@@ -707,7 +687,8 @@ server <- function(input, output, session) {
         lng1 = min(all_lons) - 0.01,
         lat1 = min(all_lats) - 0.01,
         lng2 = max(all_lons) + 0.01,
-        lat2 = max(all_lats) + 0.01
+        lat2 = max(all_lats) + 0.01,
+        options = list(maxZoom = map_tile_max_native_zoom)
       )
   }
 
