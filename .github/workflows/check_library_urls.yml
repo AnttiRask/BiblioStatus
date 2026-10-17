@@ -22,7 +22,7 @@ jobs:
           sudo apt-get install -y libcurl4-openssl-dev libssl-dev
 
       - name: Cache R packages
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path: ~/.cache/R/renv
           key: ${{ runner.os }}-renv-${{ hashFiles('renv.lock') }}
