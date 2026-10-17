@@ -223,3 +223,43 @@ test_that("clearing the library widens the service selection back to city scope"
 # during Plan 1's implementation (see full-fix-plan.md, Plan 1's "Outcome").
 # A real regression test for it would need shinytest2, which drives an actual
 # browser, rather than testServer().
+
+# Regression: bslib::input_dark_mode() reports "dark"/"light" (a string), but the
+# map code tested isTRUE(input$dark_mode), which is never TRUE for a string, so
+# the map's tiles and marker colours never went dark (introduced when
+# `if (input$dark_mode)` was wrapped in isTRUE() to stop it erroring).
+test_that("is_dark follows bslib's string value and also accepts a logical", {
+  testServer(server, {
+    eval(seed_fixture_data_code)
+
+    expect_false(is_dark())                   # nothing reported yet
+    session$setInputs(dark_mode = "dark")
+    expect_true(is_dark())
+    session$setInputs(dark_mode = "light")
+    expect_false(is_dark())
+    session$setInputs(dark_mode = TRUE)       # older bslib
+    expect_true(is_dark())
+    session$setInputs(dark_mode = FALSE)
+    expect_false(is_dark())
+  })
+})
+
+test_that("the rendered map uses dark tiles and the dark marker palette in dark mode", {
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    session$setInputs(dark_mode = "light", is_mobile = FALSE)
+    session$flushReact()
+    light_map <- as.character(output$map)
+    expect_match(light_map, "World_Light_Gray_Base", fixed = TRUE)
+    expect_false(grepl("World_Dark_Gray", light_map, fixed = TRUE))
+    expect_match(light_map, light_colors$Open, fixed = TRUE)
+
+    session$setInputs(dark_mode = "dark")
+    session$flushReact()
+    dark_map <- as.character(output$map)
+    expect_match(dark_map, "World_Dark_Gray_Base", fixed = TRUE)
+    expect_match(dark_map, "World_Dark_Gray_Reference", fixed = TRUE)
+    expect_false(grepl("World_Light_Gray", dark_map, fixed = TRUE))
+    expect_match(dark_map, dark_colors$Open, fixed = TRUE)
+  })
+})

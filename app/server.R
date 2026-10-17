@@ -33,6 +33,11 @@ MOBILE_NEAREST_COUNT <- 3
 DESKTOP_NEAREST_COUNT <- 5
 
 server <- function(input, output, session) {
+  # bslib::input_dark_mode() reports the string "dark" or "light", so testing it
+  # with isTRUE() was never TRUE and the map (tiles and marker colours) never
+  # went dark. Accept the string, and a logical for older bslib.
+  is_dark <- reactive(identical(input$dark_mode, "dark") || isTRUE(input$dark_mode))
+
   # Reconnect (not full page reload) if the websocket drops, e.g. after
   # network blips or Cloud Run recycling the connection.
   session$allowReconnect(TRUE)
@@ -416,7 +421,7 @@ server <- function(input, output, session) {
       committed_city()
       committed_service()
       committed_library()
-      input$dark_mode
+      is_dark()
       library_data()
     },
     {
@@ -462,7 +467,7 @@ server <- function(input, output, session) {
       req(nrow(data) > 0)
 
       output$map <- renderLeaflet({
-        chosen_colors <- if (isTRUE(input$dark_mode)) dark_colors else light_colors
+        chosen_colors <- if (is_dark()) dark_colors else light_colors
 
         # Mobile-optimized leaflet options
         leaflet_options <- if (isTRUE(input$is_mobile)) {
@@ -480,7 +485,7 @@ server <- function(input, output, session) {
         }
 
         map <- leaflet(data, options = leaflet_options) %>%
-          add_basemap(dark = isTRUE(input$dark_mode)) %>%
+          add_basemap(dark = is_dark()) %>%
           addCircleMarkers(
             lng = ~lon,
             lat = ~lat,
@@ -643,7 +648,7 @@ server <- function(input, output, session) {
   update_map_for_nearest <- function(nearest_libs, user_loc) {
     req(nrow(nearest_libs) > 0)
 
-    chosen_colors <- if (isTRUE(input$dark_mode)) dark_colors else light_colors
+    chosen_colors <- if (is_dark()) dark_colors else light_colors
 
     # Calculate map bounds
     all_lats <- c(user_loc$lat, nearest_libs$lat)
