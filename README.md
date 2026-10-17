@@ -134,6 +134,10 @@ shiny::runApp("app/")
 - [stringr](https://stringr.tidyverse.org/) - String manipulation
 - [tidyr](https://tidyr.tidyverse.org/) - Data tidying
 
+## 🗺️ Map Tiles
+
+The basemap is Esri's World Light / Dark Gray canvas with a labels layer. It needs no API key, and the attribution ("Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors, and the GIS user community") is shown on the map. The tiles are real only up to zoom 16, so tile requests are capped there and scaled up for closer views. (The app used Carto tiles with an API key until 2026-10-17.)
+
 ## 📄 License
 
 - [MIT](https://opensource.org/license/mit)
