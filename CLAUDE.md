@@ -69,7 +69,7 @@ Required for Turso database access:
 
 Alternatively, create `secret.R` or `app/secret.R` with these variables defined.
 
-There is no map-tile key: the basemap is Esri's keyless World Light/Dark Gray canvas. (`CARTO_API_KEY` was removed on 2026-10-17: the Carto trial ended, its dashboard became unreachable, and a key that is visible in tile URLs and can be neither restricted nor rotated is a liability. The `carto-api-key` Secret Manager secret and the `CARTO_API_KEY` GitHub secret are no longer used by this app and can be deleted.)
+There is no map-tile key: the basemap is Esri's keyless World Light/Dark Gray canvas. (`CARTO_API_KEY` was removed on 2026-10-17: the Carto trial ended, its dashboard became unreachable, and a key that is visible in tile URLs and can be neither restricted nor rotated is a liability. The `carto-api-key` Secret Manager secret was disabled and the `CARTO_API_KEY` GitHub secret deleted on 2026-10-17; no app uses either.)
 
 ## GitHub Actions Workflows
 
