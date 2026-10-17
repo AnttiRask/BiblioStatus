@@ -5,7 +5,9 @@
 # Environment files (contain secrets)
 .env
 .Renviron
-secret.R
+**/secret.R
+**/.Renviron
+**/.env
 
 # R artifacts
 .Rhistory
