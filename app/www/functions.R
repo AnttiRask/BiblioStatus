@@ -122,12 +122,13 @@ build_library_popup <- function(library_url, library_branch_name, library_addres
                                  opening_hours = NULL, distance_display = NULL) {
   name_html <- if_else(
     !is.na(library_url),
-    paste0("<b><a href='", library_url, "' target='_blank'>", library_branch_name, "</a></b>"),
-    paste0("<b>", library_branch_name, "</b>")
+    paste0("<b><a href='", htmltools::htmlEscape(library_url, attribute = TRUE), "' target='_blank' rel='noopener noreferrer'>",
+           htmltools::htmlEscape(library_branch_name), "</a></b>"),
+    paste0("<b>", htmltools::htmlEscape(library_branch_name), "</b>")
   )
 
   directions <- sprintf(
-    "📍 <a href='https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f' target='_blank' style='color: #C1272D; font-weight: bold;'>Get Directions</a>",
+    "📍 <a href='https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f' target='_blank' rel='noopener noreferrer' style='color: #C1272D; font-weight: bold;'>Get Directions</a>",
     lat, lon
   )
 
@@ -139,7 +140,7 @@ build_library_popup <- function(library_url, library_branch_name, library_addres
     ""
   }
 
-  paste0(name_html, "<br>", library_address, "<br><b>Status: </b>", open_status, extra, "<br>", directions)
+  paste0(name_html, "<br>", htmltools::htmlEscape(library_address), "<br><b>Status: </b>", open_status, extra, "<br>", directions)
 }
 
 # Format all schedule periods for a library

@@ -111,3 +111,17 @@ test_that("add_basemap switches both layers for dark mode", {
   expect_match(tiles[[1]]$args[[1]], "World_Dark_Gray_Base", fixed = TRUE)
   expect_match(tiles[[2]]$args[[1]], "World_Dark_Gray_Reference", fixed = TRUE)
 })
+
+test_that("build_library_popup escapes text and URLs from the data", {
+  html <- build_library_popup(
+    library_url = "https://x.example/?a=1&b='><script>alert(1)</script>",
+    library_branch_name = "<img src=x onerror=alert(1)>",
+    library_address = "Katu 1 <b>",
+    open_status = "Open", lat = 60.17, lon = 24.94,
+    opening_hours = "8-20"
+  )
+  expect_false(grepl("<script>|<img|<b>\\s*$", html))
+  expect_match(html, "&lt;img src=x onerror=alert\\(1\\)&gt;")
+  expect_match(html, "rel='noopener noreferrer'", fixed = TRUE)
+  expect_match(html, "Katu 1 &lt;b&gt;", fixed = TRUE)
+})
