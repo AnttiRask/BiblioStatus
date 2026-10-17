@@ -92,7 +92,7 @@ turso_execute("INSERT INTO libraries (...) VALUES (...)", list(...))
 `add_basemap(map, dark)` in `app/www/functions.R` adds the Esri base layer (with the attribution) plus a labels layer; `map_tile_urls()` builds the `{z}/{y}/{x}` URLs (Esri's order, not Carto's `{z}/{x}/{y}`). Gotchas:
 - **Attribution must be `addTiles()`'s own `attribution` argument.** `addTiles()` overwrites `options$attribution` with it, so one passed through `tileOptions()` is silently dropped (the map showed only "Leaflet" for a long time).
 - **Real tiles stop at zoom 16.** From 17 on Esri serves a grey "Map data not yet available" tile, so tile requests are capped at 16 (`map_tile_max_native_zoom`) and both `fitBounds()` calls pass `maxZoom = 16`.
-- **Known issue, not fixed:** the map's dark mode never switches. `input$dark_mode` from `bslib::input_dark_mode()` is the string `"dark"`/`"light"`, but the code tests `isTRUE(input$dark_mode)` (tiles and marker colours), which is never TRUE for a string. `input$is_dark_mode` (set by JS) is a real logical. The Esri dark layer is ready (`add_basemap(dark = TRUE)`, unit-tested) for when the check is fixed.
+- **Dark mode (fixed 2026-10-17):** `bslib::input_dark_mode()` reports the string `"dark"`/`"light"`, and the map used to test `isTRUE(input$dark_mode)`, which is never TRUE for a string, so the map's tiles and marker colours never went dark (introduced in `0242f04`, when `if (input$dark_mode)` was wrapped in `isTRUE()` to stop it erroring). Use the `is_dark()` reactive in `server.R`. Regression tests are in `test-server-filters.R`.
 - Tile providers can answer HTTP 200 with a placeholder; check tile content, not the status code.
 
 ### Filter Cascade Design
