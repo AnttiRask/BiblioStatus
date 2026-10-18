@@ -263,3 +263,50 @@ test_that("the rendered map uses dark tiles and the dark marker palette in dark 
     expect_match(dark_map, dark_colors$Open, fixed = TRUE)
   })
 })
+
+# After a reconnect (session$allowReconnect("force")) the browser re-sends all
+# the dropdown values and the "Show on Map" click count as the new session's
+# FIRST values, in one go. testServer() does the same when the very first
+# setInputs() call carries them all (so no session$flushReact() before it,
+# unlike seed_fixture_data_code, which would use up the first flush).
+test_that("a reconnect restores the committed library, so the map and Show on Map agree with the dropdowns", {
+  testServer(server, {
+    session$setInputs(
+      city_filter = "Tampere", library_search = "3", service_filter = "Printing",
+      apply_filters = 1
+    )
+
+    expect_equal(pending_library(), "3")
+    expect_equal(pending_service(), "Printing")
+    expect_equal(committed_city(), "Tampere")
+    expect_equal(committed_library(), "3")
+    expect_equal(committed_service(), "Printing")
+  })
+})
+
+test_that("a reconnect before Show on Map was ever pressed still restores the city the map shows", {
+  testServer(server, {
+    session$setInputs(city_filter = "Helsinki", library_search = "", service_filter = "")
+
+    expect_equal(committed_city(), "Helsinki")
+    expect_equal(committed_library(), "")
+    expect_equal(committed_service(), "")
+    expect_equal(pending_library(), "")
+  })
+})
+
+test_that("a normal page load (empty first values) is left alone, and later changes still work", {
+  testServer(server, {
+    eval(seed_fixture_data_code)
+
+    expect_equal(committed_city(), "")
+    expect_equal(pending_library(), "")
+    expect_equal(pending_service(), "")
+
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(library_search = "1")
+    session$setInputs(apply_filters = 1)
+    expect_equal(pending_library(), "1")
+    expect_equal(committed_library(), "1")
+  })
+})

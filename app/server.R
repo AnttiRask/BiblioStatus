@@ -72,6 +72,25 @@ server <- function(input, output, session) {
   pending_service <- reactiveVal("")
   pending_library <- reactiveVal("")
 
+  # After a reconnect (see allowReconnect above) the browser re-sends the
+  # dropdown values as this new session's first values. The observers below skip
+  # first values (ignoreInit) and the startup inputs are one-shot, so the state
+  # above would start empty while the dropdowns still show the old selection:
+  # "Show on Map" would commit nothing and the map would show the whole country.
+  # Seed it from the dropdowns once, ahead of every other observer (priority).
+  # On a normal page load the first values are empty and this changes nothing.
+  observeEvent(
+    list(input$city_filter, input$service_filter, input$library_search),
+    {
+      as_text <- function(x) if (is.null(x)) "" else as.character(x)
+      pending_service(as_text(input$service_filter))
+      pending_library(as_text(input$library_search))
+      if (!nzchar(committed_city())) committed_city(as_text(input$city_filter))
+    },
+    once = TRUE,
+    priority = 10
+  )
+
   # Rebuild the service dropdown's choices to only services offered by the
   # given set of library ids (a single selected library, or every library in
   # a city), re-affirming the current selection if it's still valid among
