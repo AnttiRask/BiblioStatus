@@ -38,9 +38,14 @@ server <- function(input, output, session) {
   # went dark. Accept the string, and a logical for older bslib.
   is_dark <- reactive(identical(input$dark_mode, "dark") || isTRUE(input$dark_mode))
 
-  # Reconnect (not full page reload) if the websocket drops, e.g. after
-  # network blips or Cloud Run recycling the connection.
-  session$allowReconnect(TRUE)
+  # Reconnect quietly if the websocket drops, e.g. when Cloud Run closes it at
+  # the 3600 s timeout. TRUE would do nothing here: the client only reconnects
+  # if the host (Shiny Server, Posit Connect) allows it too; "force" makes it
+  # reconnect anyway. The server can't resume the old session, so a new one
+  # starts and the browser re-sends its inputs (the filters, the selection,
+  # the clicks), and the observers below rebuild the state from them. Keep
+  # them idempotent: no paid API call or write behind an input.
+  session$allowReconnect("force")
 
   # State: reactive containers
   library_data <- reactiveVal(NULL)
