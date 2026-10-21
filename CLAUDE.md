@@ -75,7 +75,8 @@ There is no map-tile key: the basemap is Esri's keyless World Light/Dark Gray ca
 ## GitHub Actions Workflows
 
 - **fetch_data.yml** - Daily schedules (2 AM UTC), weekly full refresh (Sunday)
-- **deploy_shiny_app.yml** - Auto-deploys to Cloud Run after data fetch
+- **tests.yml** - Runs the testthat suite on the locked packages (push, pull request, manual); the deploy calls it first
+- **deploy_shiny_app.yml** - Deploys to Cloud Run when tests pass, on pushes that change the app or build files (not the nightly database commit), weekly (Monday 04:00 UTC, refreshes the SQLite fallback in the image) and on demand; labels the revision with the commit and smoke tests it. Turso is the primary data source, so the nightly data fetch no longer redeploys. The SQLite fallback holds one day of schedules, so an old image shows no opening hours during a Turso outage
 - **check_library_urls.yml** - Daily URL validation (3 AM UTC)
 
 ## Code Patterns

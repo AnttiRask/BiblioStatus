@@ -1,10 +1,26 @@
 name: Deploy to Cloud Run
 
+# Deploys on pushes that change the app or how it is built (not the nightly
+# database commit, docs or tests), once a week, and on demand. Turso is the
+# primary data source; the SQLite file in the image is only the fallback when
+# Turso is down. It holds a single day of schedules, so the weekly run keeps the
+# fallback's library list fresh (an older image shows libraries but no
+# opening status in an outage).
 on:
-  workflow_run:
-    workflows: ["Fetch Library Data"]
-    types:
-      - completed
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "!app/libraries.sqlite"
+      - "R/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "renv.lock"
+      - ".Rprofile"
+      - "renv/activate.R"
+      - "renv/settings.json"
+  schedule:
+    - cron: "0 4 * * 1"  # Mondays 04:00 UTC, after Sunday's full data refresh
   workflow_dispatch:  # Allows manual deployment
 
 # Never run two deploys at once (each is a full image build); a newer trigger
@@ -19,9 +35,6 @@ permissions:
 jobs:
   # The tests must pass before anything is built or deployed
   test:
-    # Skip when the data fetch that triggered this run failed: there is nothing
-    # new to ship
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     uses: ./.github/workflows/tests.yml
 
   deploy:
