@@ -7,12 +7,26 @@ on:
       - completed
   workflow_dispatch:  # Allows manual deployment
 
+# Never run two deploys at once (each is a full image build); a newer trigger
+# waits for the running one
+concurrency:
+  group: deploy-cloud-run
+  cancel-in-progress: false
+
 permissions:
   contents: read
   id-token: write  # keyless Google Cloud login (Workload Identity Federation)
 
 jobs:
+  # The tests must pass before anything is built or deployed
+  test:
+    # Skip when the data fetch that triggered this run failed: there is nothing
+    # new to ship
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    uses: ./.github/workflows/tests.yml
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
@@ -74,4 +88,32 @@ jobs:
             --session-affinity \
             --remove-env-vars TURSO_DATABASE_URL,TURSO_AUTH_TOKEN \
             --set-secrets TURSO_DATABASE_URL=turso-database-url:latest,TURSO_AUTH_TOKEN=turso-auth-token:latest \
+            --update-labels "git-sha=${GITHUB_SHA::12}" \
             --project ${{ secrets.GCP_PROJECT_ID }}
+
+      # Fails the run unless the service carries this commit's label and the
+      # page answers HTTP 200
+      - name: Smoke test the deployed service
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          DESCRIBE_FORMAT='value(status.url,metadata.labels.git-sha)'
+          read -r URL LABEL < <(gcloud run services describe bibliostatus-app \
+            --project "$PROJECT_ID" --region europe-north1 --format="$DESCRIBE_FORMAT")
+          echo "Service URL: $URL"
+          echo "Deployed commit label: $LABEL (this run: ${GITHUB_SHA::12})"
+          if [ "$LABEL" != "${GITHUB_SHA::12}" ]; then
+            echo "The service doesn't carry this commit's label"
+            exit 1
+          fi
+          for attempt in 1 2 3 4 5; do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "$URL/" || true)
+            echo "Attempt $attempt: HTTP $CODE"
+            if [ "$CODE" = "200" ]; then
+              echo "OK"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Service did not return HTTP 200"
+          exit 1
