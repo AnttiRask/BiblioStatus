@@ -1,0 +1,62 @@
+name: Tests
+
+# Runs the testthat suite on the packages in renv.lock. No credentials are passed
+# on purpose: the tests use fixture data and must not call Turso or any other
+# service. Runs on pull requests, on pushes that change code or tests (not the
+# nightly database commit), on demand, and (planned) as the first job of the
+# deploy workflow.
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "!app/libraries.sqlite"
+      - "R/**"
+      - "tests/**"
+      - "renv.lock"
+      - ".github/workflows/tests.yml"
+  workflow_dispatch:
+  workflow_call:
+
+# A newer push to the same ref makes the older run pointless
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The R version and every package version come from renv.lock, so the
+      # tests run on what the production image runs (see the Dockerfile)
+      - name: Set up R
+        uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+        with:
+          r-version: renv
+          use-public-rspm: true
+
+      # Runtime libraries for the spatial packages (leaflet/terra/sf) that the
+      # app loads
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libcurl4-openssl-dev libssl-dev libxml2-dev libpng-dev \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev libsqlite3-dev
+
+      - name: Restore packages from renv.lock
+        uses: r-lib/actions/setup-renv@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+
+      # tests/testthat.R sources the app files from app/ the way Shiny does,
+      # then runs the suite. testthat::test_dir() alone skips that setup.
+      - name: Run tests
+        run: Rscript tests/testthat.R

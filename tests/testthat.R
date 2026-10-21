@@ -14,4 +14,5 @@ source("www/functions.R")
 source("www/variables.R")
 source("server.R")
 
-test_dir(file.path(project_root, "tests", "testthat"))
+# stop_on_failure makes Rscript exit non-zero, so CI goes red on a failing test
+test_dir(file.path(project_root, "tests", "testthat"), stop_on_failure = TRUE)
