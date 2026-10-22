@@ -19,9 +19,13 @@ on:
   workflow_dispatch:
   workflow_call:
 
-# A newer push to the same ref makes the older run pointless
+# A newer push to the same ref makes the older run pointless. github.workflow
+# is the name of the workflow that started the run, so when the deploy workflow
+# calls this one its tests get their own group. Without it, a push to main
+# started this workflow and the deploy at the same moment, they shared one group
+# and cancelled each other (the deploy was skipped).
 concurrency:
-  group: tests-${{ github.ref }}
+  group: ${{ github.workflow }}-tests-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
