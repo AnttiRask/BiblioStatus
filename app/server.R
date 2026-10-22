@@ -33,36 +33,34 @@ server <- function(input, output, session) {
   library_services_data <- reactiveVal(NULL)
   startup_city_set  <- reactiveVal(FALSE)    # Tracks whether initial city has been set
   startup_city      <- reactiveVal("Helsinki") # City determined on startup (geolocation / fallback)
-  # Committed filter state — what the map currently shows.
-  # Set by the "Show on Map" button or by startup; not updated by cascade observers.
+  # What the three dropdowns hold: list(city, service, library), "" = all. The
+  # rules for changing it are in www/filter_logic.R; server/filters.R connects
+  # them to the inputs. Everything that needs the current selection reads this
+  # and not input$*, which can lag behind what the server has just sent.
+  selection <- reactiveVal(empty_selection())
+  # Committed filter state: what the map currently shows. Set by the "Show on
+  # Map" button, the x buttons and the startup city; not by changing a dropdown.
   committed_city    <- reactiveVal("")
   committed_service <- reactiveVal("")
   committed_library <- reactiveVal("")
-  # Server-side mirror of the service/library dropdown selections, used by
-  # "Show on Map" instead of reading input$service_filter/input$library_search
-  # directly. Needed because updateSelectInput()/updateSelectizeInput() (used
-  # by the × clear buttons) only take effect in the browser and echo back to
-  # input$* asynchronously over the websocket — reading input$* immediately
-  # after a clear can still see the pre-clear value if "Show on Map" is
-  # clicked before that round-trip completes. These reactiveVals are instead
-  # written synchronously by every path that changes the selection.
-  pending_service <- reactiveVal("")
-  pending_library <- reactiveVal("")
 
   # After a reconnect (see allowReconnect above) the browser re-sends the
-  # dropdown values as this new session's first values. The observers below skip
-  # first values (ignoreInit) and the startup inputs are one-shot, so the state
-  # above would start empty while the dropdowns still show the old selection:
-  # "Show on Map" would commit nothing and the map would show the whole country.
-  # Seed it from the dropdowns once, ahead of every other observer (priority).
-  # On a normal page load the first values are empty and this changes nothing.
+  # dropdown values as this new session's first values. The dropdown observers
+  # skip first values (ignoreInit) and the startup inputs are one-shot, so the
+  # state above would start empty while the dropdowns still show the old
+  # selection: "Show on Map" would commit nothing and the map would show the
+  # whole country. Seed it from the dropdowns once, ahead of every other
+  # observer (priority). On a normal page load the first values are empty and
+  # this changes nothing.
   observeEvent(
     list(input$city_filter, input$service_filter, input$library_search),
     {
-      as_text <- function(x) if (is.null(x)) "" else as.character(x)
-      pending_service(as_text(input$service_filter))
-      pending_library(as_text(input$library_search))
-      if (!nzchar(committed_city())) committed_city(as_text(input$city_filter))
+      selection(normalize_selection(list(
+        city = input$city_filter,
+        service = input$service_filter,
+        library = input$library_search
+      )))
+      if (!nzchar(committed_city())) committed_city(selection()$city)
     },
     once = TRUE,
     priority = 10
