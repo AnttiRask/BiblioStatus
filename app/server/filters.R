@@ -128,10 +128,21 @@ observeEvent(input$city_filter, {
     all_libs$id
   }
 
+  # The service that will still be selected after this city change: the current
+  # one if the new city offers it, otherwise none (it is reset to "All Services"
+  # further down). The library list must use this one: filtering by a service
+  # the new city doesn't have left the library dropdown empty.
+  services_in_city <- all_svcs %>% filter(library_id %in% city_lib_ids) %>% pull(service_name)
+  effective_service <- if (!is.null(current_service) && current_service %in% services_in_city) {
+    current_service
+  } else {
+    ""
+  }
+
   # Library choices = intersection of city + service filters
   filtered_ids <- city_lib_ids
-  if (!is.null(current_service) && current_service != "") {
-    svc_ids <- all_svcs %>% filter(service_name == current_service) %>% pull(library_id)
+  if (effective_service != "") {
+    svc_ids <- all_svcs %>% filter(service_name == effective_service) %>% pull(library_id)
     filtered_ids <- intersect(filtered_ids, svc_ids)
   }
 
