@@ -32,6 +32,9 @@ txt <- list(
   services_heading     = "Services (in Finnish):",
   no_services          = "No services listed",
 
+  notice_library_not_in_city = "Library cleared: it is not in %s",
+  notice_library_no_service  = "Library cleared: it does not offer %s",
+
   legend_title         = "Status",
   legend_open          = "Open",
   legend_self          = "Self-service",
