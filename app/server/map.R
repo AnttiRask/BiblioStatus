@@ -1,6 +1,6 @@
 # Map: marker rendering, marker clicks, Find Nearest.
 # Evaluated inside server() (see server_parts in server.R), so it shares the
-# session's reactive state, input, output and session. State: committed_*, library_data, nearest_libraries, user_location, selected_library.
+# session's reactive state, input, output and session. State: selection, committed_*, library_data, nearest_libraries, user_location, selected_library.
 
 # Render map when committed filter state, dark mode, or underlying data changes.
 # Committed state is only updated by the "Show on Map" button or startup — so
@@ -48,8 +48,8 @@ observeEvent(
 
     # Self-heal: if committed library id produces 0 rows, clear it.
     if (nrow(data) == 0 && !is.null(library_val) && library_val != "") {
-      updateSelectizeInput(session, "library_search", selected = "")
-      pending_library("")
+      selection(modifyList(selection(), list(library = "")))
+      push_dropdowns()
       committed_library("")
       return()
     }

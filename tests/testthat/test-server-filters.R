@@ -92,7 +92,7 @@ test_that("clearing the service filter updates committed_service immediately", {
 # round-trip hasn't landed yet" - input$service_filter genuinely stays at its
 # old value here even after clear_service fires, exactly like the real race.
 # apply_filters must not use input$service_filter/input$library_search
-# directly for this reason; see pending_service/pending_library in server.R.
+# directly for this reason; see selection() in server.R.
 test_that("Show on Map after clearing a filter commits the clear, not the stale input$ value", {
   testServer(server, {
     eval(seed_fixture_data_code)
@@ -126,14 +126,11 @@ test_that("Show on Map after clearing the library filter commits the clear, not 
   })
 })
 
-# Reported bug: select a service that only leaves one library choice, select
-# that library (not just leave it as the only option - actually select it),
-# "Show on Map", then clear the SERVICE only. The library filter was never
-# an independent choice - it only existed because the service narrowed the
-# dropdown to one entry - so clearing the service must clear the library too.
-# Before the fix, clear_service only touched service_filter/pending_service,
-# leaving the library filter (and the map) stuck on the single library.
-test_that("clearing the service filter also clears an implied library selection", {
+# Under the old rules a library only existed because the service had narrowed
+# the dropdown to it, so clearing the service cleared the library too. Now the
+# library is an independent choice (it can be picked with no service), so
+# clearing the service leaves it alone and the map keeps showing it.
+test_that("clearing the service filter leaves the library selection alone", {
   testServer(server, {
     eval(seed_fixture_data_code)
 
@@ -146,19 +143,20 @@ test_that("clearing the service filter also clears an implied library selection"
 
     session$setInputs(clear_service = 1)
     expect_equal(committed_service(), "")
-    expect_equal(committed_library(), "")
+    expect_equal(committed_library(), "1")
+    expect_equal(selection()$library, "1")
 
     session$setInputs(apply_filters = 2)
     expect_equal(committed_service(), "")
-    expect_equal(committed_library(), "")
+    expect_equal(committed_library(), "1")
   })
 })
 
-# Reported feature request: the service dropdown should show city-wide
-# services until a library is selected, then narrow to just that library's
-# own services. Uses fixture_services_distinct (library 1: Printing +
-# Scanning, library 2: Yoga only) so the two libraries' service sets differ.
-test_that("selecting a library resets an incompatible service selection", {
+# A library never narrows the service list now (see www/filter_logic.R), and
+# the library list only offers libraries that match the city and the service.
+# Uses fixture_services_distinct (library 1: Printing + Scanning, library 2:
+# Yoga only) so the two libraries' service sets differ.
+test_that("a library the selected service doesn't match isn't offered, so picking it is refused", {
   testServer(server, {
     session$flushReact()
     library_data(fixture_libraries)
@@ -167,12 +165,11 @@ test_that("selecting a library resets an incompatible service selection", {
 
     session$setInputs(city_filter = "Helsinki")
     session$setInputs(service_filter = "Yoga")
-    expect_equal(pending_service(), "Yoga")
+    expect_equal(selection()$service, "Yoga")
 
-    # Library 1 doesn't offer Yoga (only library 2 does) - selecting it must
-    # reset the service selection rather than keep an invalid one selected.
+    # Library 1 doesn't offer Yoga (only library 2 does): the selection stays
     session$setInputs(library_search = "1")
-    expect_equal(pending_service(), "")
+    expect_equal(selection(), list(city = "Helsinki", service = "Yoga", library = ""))
   })
 })
 
@@ -185,30 +182,31 @@ test_that("selecting a library keeps a compatible service selection", {
 
     session$setInputs(city_filter = "Helsinki")
     session$setInputs(service_filter = "Printing")
-    expect_equal(pending_service(), "Printing")
+    expect_equal(selection()$service, "Printing")
 
-    # Library 1 does offer Printing - selecting it must keep the selection.
+    # Library 1 does offer Printing
     session$setInputs(library_search = "1")
-    expect_equal(pending_service(), "Printing")
+    expect_equal(selection(), list(city = "Helsinki", service = "Printing", library = "1"))
   })
 })
 
-test_that("clearing the library widens the service selection back to city scope", {
+test_that("picking a library sets its city, and clearing the library keeps the service", {
   testServer(server, {
     session$flushReact()
     library_data(fixture_libraries)
     library_services_data(fixture_services_distinct)
     startup_city_set(TRUE)
 
-    session$setInputs(city_filter = "Helsinki")
-    session$setInputs(library_search = "1")
-    session$setInputs(service_filter = "Printing")
-    expect_equal(pending_service(), "Printing")
+    session$setInputs(library_search = "3")
+    expect_equal(selection()$city, "Tampere")
 
+    session$setInputs(city_filter = "Helsinki")      # Gamma isn't in Helsinki: cleared
+    expect_equal(selection(), list(city = "Helsinki", service = "", library = ""))
+
+    session$setInputs(service_filter = "Printing")
+    session$setInputs(library_search = "1")
     session$setInputs(clear_library = 1)
-    # Printing is still valid at the city level (library 1 offers it), so it
-    # should be re-affirmed, not wiped, once the library constraint is gone.
-    expect_equal(pending_service(), "Printing")
+    expect_equal(selection(), list(city = "Helsinki", service = "Printing", library = ""))
   })
 })
 
@@ -276,8 +274,7 @@ test_that("a reconnect restores the committed library, so the map and Show on Ma
       apply_filters = 1
     )
 
-    expect_equal(pending_library(), "3")
-    expect_equal(pending_service(), "Printing")
+    expect_equal(selection(), list(city = "Tampere", service = "Printing", library = "3"))
     expect_equal(committed_city(), "Tampere")
     expect_equal(committed_library(), "3")
     expect_equal(committed_service(), "Printing")
@@ -291,7 +288,7 @@ test_that("a reconnect before Show on Map was ever pressed still restores the ci
     expect_equal(committed_city(), "Helsinki")
     expect_equal(committed_library(), "")
     expect_equal(committed_service(), "")
-    expect_equal(pending_library(), "")
+    expect_equal(selection(), list(city = "Helsinki", service = "", library = ""))
   })
 })
 
@@ -300,52 +297,176 @@ test_that("a normal page load (empty first values) is left alone, and later chan
     eval(seed_fixture_data_code)
 
     expect_equal(committed_city(), "")
-    expect_equal(pending_library(), "")
-    expect_equal(pending_service(), "")
+    expect_equal(selection(), list(city = "", service = "", library = ""))
 
     session$setInputs(city_filter = "Helsinki")
     session$setInputs(library_search = "1")
     session$setInputs(apply_filters = 1)
-    expect_equal(pending_library(), "1")
+    expect_equal(selection(), list(city = "Helsinki", service = "", library = "1"))
     expect_equal(committed_library(), "1")
   })
 })
 
-# Regression: with a service selected, changing to a city that doesn't offer it
-# used to send the library dropdown an EMPTY list (the library choices were
-# built with the old service, which was only reset to "All Services" afterwards).
+# Regression (reported 2026-10-23): with a service selected, changing to a city
+# that doesn't offer it used to leave the library dropdown EMPTY. Under the new
+# rules that city isn't offered at all while the service is selected, so the
+# change is refused, the city dropdown is sent back to what we hold, and the
+# library list stays the one for the selection. updateSelectInput() and
 # updateSelectizeInput() can't be read back through testServer() (see the note
-# above), so this records the choices the observer sends.
-test_that("changing to a city without the selected service still lists that city's libraries", {
-  sent <- list()
+# above), so these tests record what the server sends to the browser.
+record_dropdown_updates <- function(env = parent.frame()) {
+  calls <- new.env()
+  calls$sent <- list()
   record <- function(session, inputId, ...) {
     args <- list(...)
-    if (inputId == "library_search" && !is.null(args$choices)) {
-      sent[[length(sent) + 1]] <<- unname(args$choices)
-    }
+    calls$sent[[length(calls$sent) + 1]] <- list(
+      id = inputId, choices = args$choices, selected = args$selected
+    )
     invisible(NULL)
   }
   # the server looks these up from the global environment, so shadow them there
+  assign("updateSelectInput", record, envir = globalenv())
   assign("updateSelectizeInput", record, envir = globalenv())
-  withr::defer(rm("updateSelectizeInput", envir = globalenv()))
+  assign("showNotification", function(ui, ...) {
+    calls$notice <- ui
+    invisible(NULL)
+  }, envir = globalenv())
+  withr::defer({
+    rm(list = c("updateSelectInput", "updateSelectizeInput", "showNotification"), envir = globalenv())
+  }, envir = env)
+  calls
+}
+last_sent <- function(calls, id) {
+  matching <- Filter(function(x) x$id == id, calls$sent)
+  if (length(matching)) matching[[length(matching)]] else NULL
+}
 
-  services <- data.frame(
-    library_id = c(1, 2, 3),
-    service_name = c("Printing", "Yoga", "Scanning"),
-    stringsAsFactors = FALSE
-  )
+services_by_city <- data.frame(
+  library_id = c(1, 2, 3),
+  service_name = c("Printing", "Yoga", "Scanning"),
+  stringsAsFactors = FALSE
+)
+
+test_that("a city the selected service isn't offered in is refused and the dropdown is sent back", {
+  calls <- record_dropdown_updates()
 
   testServer(server, {
     session$flushReact()
     library_data(fixture_libraries)
-    library_services_data(services)
+    library_services_data(services_by_city)
     startup_city_set(TRUE)
 
     session$setInputs(city_filter = "Helsinki")
     session$setInputs(service_filter = "Printing")
-    sent <<- list()
+    # with Printing selected only Helsinki is offered as a city
+    expect_equal(unname(last_sent(calls, "city_filter")$choices), c("", "Helsinki"))
+    calls$sent <- list()
 
     session$setInputs(city_filter = "Tampere")   # Tampere has no "Printing"
-    expect_equal(sent[[length(sent)]], c("", "3"))  # "All Libraries" and Gamma
+    expect_equal(selection(), list(city = "Helsinki", service = "Printing", library = ""))
+    expect_equal(last_sent(calls, "city_filter")$selected, "Helsinki")
+    expect_equal(last_sent(calls, "city_filter")$choices[["Helsinki (1)"]], "Helsinki")
+  })
+})
+
+test_that("changing the city sends that city's libraries, and the service list for it", {
+  calls <- record_dropdown_updates()
+
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(services_by_city)
+    startup_city_set(TRUE)
+
+    session$setInputs(city_filter = "Tampere")
+    expect_equal(unname(last_sent(calls, "library_search")$choices), c("", "3"))
+    expect_equal(unname(last_sent(calls, "service_filter")$choices), c("", "Scanning"))
+  })
+})
+
+test_that("picking a city that doesn't contain the picked library clears it and says so", {
+  calls <- record_dropdown_updates()
+
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(services_by_city)
+    startup_city_set(TRUE)
+
+    session$setInputs(library_search = "1")          # Alpha, Helsinki
+    expect_equal(selection()$city, "Helsinki")
+    session$setInputs(city_filter = "Tampere")
+    expect_equal(selection(), list(city = "Tampere", service = "", library = ""))
+    expect_equal(calls$notice, "Library cleared: it is not in Tampere")
+    expect_equal(last_sent(calls, "library_search")$selected, "")
+  })
+})
+
+test_that("the browser echoing a value the server just sent changes nothing", {
+  calls <- record_dropdown_updates()
+
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(services_by_city)
+    startup_city_set(TRUE)
+
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(library_search = "1")
+    before <- selection()
+    calls$sent <- list()
+
+    # the echoes of our own updateSelectInput()/updateSelectizeInput() calls
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(library_search = "1")
+    expect_equal(selection(), before)
+    expect_length(calls$sent, 0)
+  })
+})
+
+# Reported 2026-10-23: after clicking the x on the service dropdown the dropdown
+# kept showing the cleared service. The x doesn't change the dropdown in the
+# browser, so the server has to send the cleared value (it had assumed the
+# browser already held it, as it does when the user picks from the dropdown).
+test_that("the x buttons send the cleared value to the dropdown", {
+  calls <- record_dropdown_updates()
+
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(services_by_city)
+    startup_city_set(TRUE)
+
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(service_filter = "Printing")   # picked in the dropdown: the browser has it
+    session$setInputs(library_search = "1")
+    calls$sent <- list()
+
+    session$setInputs(clear_service = 1)              # the dropdown itself is not touched
+    expect_equal(selection()$service, "")
+    expect_equal(last_sent(calls, "service_filter")$selected, "")
+
+    session$setInputs(clear_library = 1)
+    expect_equal(selection()$library, "")
+    expect_equal(last_sent(calls, "library_search")$selected, "")
+  })
+})
+
+test_that("clearing a dropdown by hand doesn't send the value back to it", {
+  calls <- record_dropdown_updates()
+
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(services_by_city)
+    startup_city_set(TRUE)
+
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(service_filter = "Printing")
+    calls$sent <- list()
+
+    session$setInputs(service_filter = "")            # cleared inside the dropdown
+    expect_equal(selection()$service, "")
+    expect_null(last_sent(calls, "service_filter")$selected)   # nothing sent to it
   })
 })
