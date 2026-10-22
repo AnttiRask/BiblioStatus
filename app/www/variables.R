@@ -30,3 +30,38 @@ map_attribution <- paste0(
   '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ',
   "contributors, and the GIS user community"
 )
+
+# Marker sizing, zoom, and result-count tuning (mobile gets larger touch targets)
+MOBILE_MARKER_RADIUS <- 10
+DESKTOP_MARKER_RADIUS <- 8
+MOBILE_NEAREST_MARKER_RADIUS <- 12
+DESKTOP_NEAREST_MARKER_RADIUS <- 10
+USER_LOCATION_MARKER_RADIUS <- 10
+MOBILE_POPUP_MAX_WIDTH <- 250
+MOBILE_POPUP_MIN_WIDTH <- 200
+DESKTOP_POPUP_MAX_WIDTH <- 300
+DESKTOP_POPUP_MIN_WIDTH <- 100
+DEFAULT_ZOOM_LEVEL <- 11
+SINGLE_LIBRARY_ZOOM_THRESHOLD <- 2
+MOBILE_NEAREST_COUNT <- 3
+DESKTOP_NEAREST_COUNT <- 5
+
+# Cross-links in the footer of every youcanbeapirate app; the current app
+# leaves itself out
+footer_apps <- list(
+  list(id = "bibliostatus", name = "BiblioStatus",       url = "https://bibliostatus.youcanbeapirate.com"),
+  list(id = "fillaristatus", name = "FillariStatus",     url = "https://fillaristatus.youcanbeapirate.com"),
+  list(id = "gallery",      name = "Gallery of the Day", url = "https://galleryoftheday.youcanbeapirate.com"),
+  list(id = "trackteller",  name = "TrackTeller",        url = "https://trackteller.youcanbeapirate.com"),
+  list(id = "tuneteller",   name = "TuneTeller",         url = "https://tuneteller.youcanbeapirate.com")
+)
+
+# Geolocation timing for app.js (ms). Startup uses a coarse/cached location for a
+# fast first paint; Find Nearest waits longer for a precise, fresh fix.
+geo_config <- list(
+  startupTimeoutMs     = 8000,
+  startupMaxAgeMs      = 600000,
+  startupFallbackMs    = 9000,   # give up on the startup location and use Helsinki
+  findNearestTimeoutMs = 10000,
+  findNearestMaxAgeMs  = 300000
+)

@@ -206,3 +206,11 @@ add_basemap <- function(map, dark = FALSE) {
   )
   leaflet::addTiles(map, urlTemplate = urls$labels, layerId = "labels", options = opts)
 }
+
+# URL of a file in www/ with its modification time appended, so browsers fetch
+# a changed file instead of a cached one. Evaluated once when the app starts.
+asset <- function(file) {
+  path <- file.path("www", file)
+  if (!file.exists(path)) return(file)
+  paste0(file, "?v=", as.integer(file.mtime(path)))
+}

@@ -45,8 +45,11 @@ UPDATE_TYPE=both Rscript fetch_library_data.R
 2. **Shiny App** (`app/`) reads from Turso, falls back to SQLite if unavailable
 
 ### Key Files
-- `app/server.R` - Main server logic with reactive state management, map rendering, filter cascading
+- `app/global.R` - Loaded once by Shiny (and by `tests/testthat.R`): packages, then `www/variables.R`, `www/strings.R`, `www/functions.R` and the service statistics module
+- `app/server.R` - Session state (reactiveVals, reconnect seeding) and `server_parts`: the files below, parsed once when `server.R` loads and evaluated inside every session's `server()` call, in the order the observers must be created. Tests run `server` with `testServer()` (and change the working directory), so the parts must share the server function's environment and must not be found by a relative path at session time
+- `app/server/data.R` (loading), `filters.R` (dropdown cascades, startup city, clear buttons, "Show on Map"), `map.R` (markers, Find Nearest), `panels.R` (sidebar details)
 - `app/ui.R` - UI layout with map, sidebar filters, and Service Statistics tab
+- `app/www/variables.R` - Colours, map tuning constants, footer app list, geolocation timings; `strings.R` - user-facing text of `ui.R`/`server.R` (`txt$...`); `app.js` - client-side script (config comes from `geo_config` through `window.BIBLIO_CONFIG`); `asset()` in `functions.R` cache-busts it
 - `app/www/functions.R` - Database queries (Turso + SQLite fallback), distance calculations
 - `app/modules/service_stats.R` - Service statistics Shiny module
 - `R/turso.R` - Turso HTTP API wrapper (httr2-based)
