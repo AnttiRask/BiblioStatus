@@ -10,8 +10,7 @@ project_root <- here()
 setwd(file.path(project_root, "app"))
 on.exit(setwd(project_root), add = TRUE)
 
-source("www/functions.R")
-source("www/variables.R")
+source("global.R")
 source("server.R")
 
 # stop_on_failure makes Rscript exit non-zero, so CI goes red on a failing test

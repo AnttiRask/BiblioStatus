@@ -1,11 +1,4 @@
-# Load required libraries
-library(bslib)
-library(leaflet)
-library(shiny)
-library(shinyjs)
-
-# Load module UI functions
-source("modules/service_stats.R", local = TRUE)
+# UI. Packages, helpers and settings come from global.R.
 
 # Shared footer component for cross-linking between apps
 create_app_footer <- function(current_app = "") {
@@ -17,14 +10,10 @@ create_app_footer <- function(current_app = "") {
                 class = "footer-apps mb-3",
                 div(
                     class = "d-flex justify-content-center gap-3 flex-wrap",
-                    if(current_app != "bibliostatus")
-                        a(href = "https://bibliostatus.youcanbeapirate.com", "BiblioStatus"),
-                    if(current_app != "gallery")
-                        a(href = "https://galleryoftheday.youcanbeapirate.com", "Gallery of the Day"),
-                    if(current_app != "trackteller")
-                        a(href = "https://trackteller.youcanbeapirate.com", "TrackTeller"),
-                    if(current_app != "tuneteller")
-                        a(href = "https://tuneteller.youcanbeapirate.com", "TuneTeller")
+                    lapply(
+                        Filter(function(app) app$id != current_app, footer_apps),
+                        function(app) a(href = app$url, app$name)
+                    )
                 )
             ),
             div(
@@ -53,125 +42,14 @@ ui <- page_navbar(
   ),
 
   header = tags$head(
-    tags$title("BiblioStatus"),
+    tags$title(txt$app_title),
     tags$link(rel = "icon", type = "image/png", href = "favicon.png"),
-    # Detect if device is mobile, and store it in input$is_mobile
-    tags$script(HTML(
-      "
-        // Everything below touches the Shiny global, which isn't defined yet
-        // this early in <head> - Shiny's own JS bundle loads later, near the
-        // end of <body>. Registering handlers or calling Shiny.setInputValue
-        // here throws 'Shiny.setInputValue is not a function', which silently
-        // aborts the rest of this script block (including the addCustomMessageHandler
-        // calls below), breaking Find Nearest and other input reporting entirely.
-        // Deferring the whole block to run once Shiny itself is ready avoids that.
-        // Can't rely on a 'shiny:connected' event listener here: Shiny fires
-        // it via jQuery's $(document).trigger(...), which native
-        // addEventListener never receives, and jQuery itself ($) isn't
-        // guaranteed loaded yet either at this point in <head> - so instead
-        // just poll for window.Shiny.setInputValue directly, which needs no
-        // other library to be ready first.
-        function onShinyReady(callback) {
-          if (window.Shiny && typeof Shiny.setInputValue === 'function') {
-            callback();
-            return;
-          }
-          var intervalId = setInterval(function() {
-            if (window.Shiny && typeof Shiny.setInputValue === 'function') {
-              clearInterval(intervalId);
-              callback();
-            }
-          }, 50);
-        }
-
-        onShinyReady(function() {
-          // Geolocation timing (ms). Startup uses coarse/cached location for a fast
-          // first paint; Find Nearest waits longer for a precise, fresh fix.
-          const STARTUP_GEO_TIMEOUT_MS = 8000;
-          const STARTUP_GEO_MAX_AGE_MS = 600000;
-          const STARTUP_GEO_FALLBACK_MS = 9000;
-          const FIND_NEAREST_GEO_TIMEOUT_MS = 10000;
-          const FIND_NEAREST_GEO_MAX_AGE_MS = 300000;
-
-          Shiny.addCustomMessageHandler('checkMobile', function(message) {
-            var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-            Shiny.setInputValue('is_mobile', isMobile, {priority: 'event'});
-          });
-
-          // Watch for bslib dark mode changes (data-bs-theme attribute on <html>)
-          var darkModeObserver = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-              if (mutation.attributeName === 'data-bs-theme') {
-                var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-                Shiny.setInputValue('is_dark_mode', isDark, {priority: 'event'});
-              }
-            });
-          });
-          darkModeObserver.observe(document.documentElement, { attributes: true });
-
-          $(document).on('shiny:sessioninitialized', function() {
-            Shiny.setInputValue('is_mobile', /iPhone|iPad|iPod|Android/i.test(navigator.userAgent), {priority: 'event'});
-
-            // Report initial dark mode state
-            var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-            Shiny.setInputValue('is_dark_mode', isDark, {priority: 'event'});
-
-            // Request geolocation on startup to determine nearest city
-            if (navigator.geolocation) {
-              navigator.geolocation.getCurrentPosition(
-                function(position) {
-                  Shiny.setInputValue('startup_location', {
-                    lat: position.coords.latitude,
-                    lon: position.coords.longitude
-                  }, {priority: 'event'});
-                },
-                function(error) {
-                  Shiny.setInputValue('startup_geolocation_failed', true, {priority: 'event'});
-                },
-                { enableHighAccuracy: false, timeout: STARTUP_GEO_TIMEOUT_MS, maximumAge: STARTUP_GEO_MAX_AGE_MS }
-              );
-            } else {
-              Shiny.setInputValue('startup_geolocation_failed', true, {priority: 'event'});
-            }
-
-            // Fallback: if startup location still not received, use Helsinki
-            setTimeout(function() {
-              Shiny.setInputValue('startup_geolocation_timeout', true, {priority: 'event'});
-            }, STARTUP_GEO_FALLBACK_MS);
-          });
-
-          // Geolocation handler for finding nearest library (Find Nearest button)
-          Shiny.addCustomMessageHandler('requestGeolocation', function(message) {
-            if (!navigator.geolocation) {
-              Shiny.setInputValue('geolocation_error',
-                'Geolocation is not supported by your browser',
-                {priority: 'event'});
-              return;
-            }
-
-            Shiny.setInputValue('geolocation_loading', true, {priority: 'event'});
-
-            navigator.geolocation.getCurrentPosition(
-              function(position) {
-                Shiny.setInputValue('user_location', {
-                  lat: position.coords.latitude,
-                  lon: position.coords.longitude
-                }, {priority: 'event'});
-                Shiny.setInputValue('geolocation_loading', false, {priority: 'event'});
-              },
-              function(error) {
-                var errorMsg = error.code === 1 ?
-                  'Please enable location permissions to find nearby libraries' :
-                  'Unable to get your location. Please try again.';
-                Shiny.setInputValue('geolocation_error', errorMsg, {priority: 'event'});
-                Shiny.setInputValue('geolocation_loading', false, {priority: 'event'});
-              },
-              { enableHighAccuracy: true, timeout: FIND_NEAREST_GEO_TIMEOUT_MS, maximumAge: FIND_NEAREST_GEO_MAX_AGE_MS }
-            );
-          });
-        });
-      "
-    )),
+    # Client-side settings (geolocation timings) for app.js, then the script
+    tags$script(HTML(sprintf(
+      "window.BIBLIO_CONFIG = %s;",
+      jsonlite::toJSON(geo_config, auto_unbox = TRUE)
+    ))),
+    tags$script(src = asset("app.js")),
     # Enable JavaScript interactivity
     useShinyjs(),
     # Custom CSS
@@ -179,14 +57,14 @@ ui <- page_navbar(
   ),
 
   # App title
-  title = "BiblioStatus",
+  title = txt$app_title,
   id = "main_navbar",
   # Library Map fills viewport; Service Statistics scrolls naturally
   fillable = c("library_map" = TRUE, "service_stats" = FALSE),
 
   # Main map view tab
   nav_panel(
-    title = "Library Map",
+    title = txt$tab_map,
     value = "library_map",
 
     layout_sidebar(
@@ -194,49 +72,49 @@ ui <- page_navbar(
         width = 400,
         selectInput(
           inputId = "city_filter",
-          label = "Select City/Municipality:",
+          label = txt$city_label,
           choices = NULL
         ),
         div(
           div(class = "d-flex justify-content-between align-items-baseline mb-1",
             tags$label(`for` = "library_search", class = "control-label mb-0",
-              "Select Library:"),
+              txt$library_label),
             actionButton("clear_library", label = HTML("&times;"),
               class = "btn btn-link p-0 clear-select-btn",
-              title = "Clear library selection",
-              `aria-label` = "Clear library selection")
+              title = txt$clear_library,
+              `aria-label` = txt$clear_library)
           ),
           selectizeInput(inputId = "library_search", label = NULL, choices = NULL,
-            options = list(placeholder = "All Libraries"))
+            options = list(placeholder = txt$library_placeholder))
         ),
         div(
           div(class = "d-flex justify-content-between align-items-baseline mb-1",
             tags$label(`for` = "service_filter", class = "control-label mb-0",
-              "Select Service:"),
+              txt$service_label),
             actionButton("clear_service", label = HTML("&times;"),
               class = "btn btn-link p-0 clear-select-btn",
-              title = "Clear service selection",
-              `aria-label` = "Clear service selection")
+              title = txt$clear_service,
+              `aria-label` = txt$clear_service)
           ),
           selectInput(inputId = "service_filter", label = NULL, choices = NULL,
             selected = NULL)
         ),
         actionButton(
           inputId = "apply_filters",
-          label = "Show on Map",
+          label = txt$show_on_map,
           icon = icon("map"),
           class = "btn-primary w-100 mb-2"
         ),
         actionButton(
           inputId = "find_nearest",
-          label = "Find Nearest Open Library",
+          label = txt$find_nearest,
           icon = icon("location-dot"),
           class = "btn-primary w-100"
         ),
         conditionalPanel(
           condition = "input.geolocation_loading",
           div(class = "text-center", style = "color: #C1272D; margin: 10px 0;",
-            icon("spinner", class = "fa-spin"), " Getting your location...")
+            icon("spinner", class = "fa-spin"), txt$getting_location)
         ),
         uiOutput("geolocation_error_ui"),
         uiOutput("nearest_libraries_ui"),
@@ -247,12 +125,12 @@ ui <- page_navbar(
 
       # Main content
       h4(
-        "Which Finnish Libraries Are Open Right Now?",
+        txt$heading,
         style = "margin: 12px 16px 4px; font-weight: 600;"
       ),
       div(
         id = "loading-spinner",
-        "Loading data, please wait...",
+        txt$loading,
         class = "loading-text",
         style = paste(
           "position: absolute;",
@@ -268,7 +146,7 @@ ui <- page_navbar(
 
   # Service Statistics tab
   nav_panel(
-    title = "Service Statistics",
+    title = txt$tab_stats,
     value = "service_stats",
 
     div(
