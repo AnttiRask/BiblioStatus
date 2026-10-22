@@ -4,13 +4,15 @@
 >
 > **For Claude Code:** read this whole file first. Phase 1 is the dropdown redesign and is the part the user cares most about. Every change is checked with the user before it is committed, pushed or deployed. Phase 4 touches cloud resources and GitHub settings: each step needs approval. Pushes that change the build files redeploy the app, so batch them. Never print secrets.
 
-*Written 2026-10-22. Based on reading the three sibling plans and the current `app/server.R`, `app/ui.R`, `app/www/functions.R`, `app/run.R`, `Dockerfile`, the three workflows and `tests/testthat/`. Nothing here has been run or changed yet. Items marked (verify) are suspicions from reading the code, not confirmed behaviour.*
+*Written 2026-10-22; status updated 2026-10-23 (Phase 4 done, see section 4 and the table below). Based on reading the three sibling plans and the current `app/server.R`, `app/ui.R`, `app/www/functions.R`, `app/run.R`, `Dockerfile`, the three workflows and `tests/testthat/`. Nothing here has been run or changed yet. Items marked (verify) are suspicions from reading the code, not confirmed behaviour.*
 
 ---
 
 ## 0. Where things stand
 
-**Repo state (checked 2026-10-22):** local `main` is at `28b5ea7`, `origin/main` at `2058e7a`. Local is **3 commits behind, 0 ahead**. The three missing commits are the nightly "Update database" commits (2026-10-19, -20, -21), which only change `app/libraries.sqlite`. Pull before editing (`git pull --rebase`); the bot commits every night. The working tree also has `full-fix-plan.md` deleted (it was moved to `fixes/full-fix-plan.md`, untracked) and the four plan files untracked; decide whether to commit them (see 5.4).
+**Repo state:** on 2026-10-22 local `main` was 3 commits behind GitHub (nightly "Update database" commits only); it was pulled with `git pull --rebase --autostash` (the pending `full-fix-plan.md` deletion blocks a plain rebase). Pull before editing; the bot commits every night. `full-fix-plan.md` is still deleted in the working tree (moved to untracked `fixes/full-fix-plan.md`) and the sibling plan files are untracked; decide whether to commit them (see 5.4).
+
+**Progress (2026-10-23):** Phase 4 (CI/CD and infrastructure) is **done** apart from one check the user does in the Cloud console (the budget alert, which gcloud could not read). Phase 2 is next, then Phase 1 and Phase 3. In the table below, rows marked *done* were gaps when this plan was written.
 
 **What the siblings did that BiblioStatus has not:**
 
@@ -21,13 +23,13 @@
 | Never-throwing data layer with explicit states (ok / stale / error / empty) | yes | yes | yes | partly: Turso→SQLite fallback, but an empty or failed read just gives a blank or all-grey map |
 | Shared server-side cache across sessions | yes (60 s) | yes (5 min) | n/a | no: every session runs three Turso queries on load |
 | `/health` + uptime alert | no | yes | no | no |
-| Tests in CI, gating the deploy | yes (in workflow) | `tests.yml` | `tests.yml` | **no**: 562 lines of tests exist but no workflow runs them |
-| Deploy smoke test (checks `git-sha` label) | yes | yes | yes | no |
-| Actions pinned to SHAs, minimal `permissions` | yes | yes | yes | no (`@v4`, `cache@v3`; `fetch_data.yml` has `contents: write` for the whole job) |
+| Tests in CI, gating the deploy | yes (in workflow) | `tests.yml` | `tests.yml` | *done 2026-10-22*: `tests.yml` (123 expectations, R 4.5.2 from the lock), the deploy needs it |
+| Deploy smoke test (checks `git-sha` label) | yes | yes | yes | *done*: label + `GET /` = 200 (`/health` check waits for Phase 3.5) |
+| Actions pinned to SHAs, minimal `permissions` | yes | yes | yes | *done*: all pinned; `id-token` only on the deploy job; `fetch_data.yml` keeps `contents: write` (single job that commits the database) |
 | Keyless deploy, dedicated runtime account, no `roles/editor` | yes | yes | yes | yes (done 2026-10-18) |
 | Security headers | yes | yes | yes | yes (`app/www/security.R`) |
 | Reconnect (`allowReconnect("force")`) | yes | considered | no | yes, plus the seeding hack |
-| Artifact Registry cleanup + budget alert | yes | yes | yes | (verify) |
+| Artifact Registry cleanup + budget alert | yes | yes | yes | cleanup policy *done 2026-10-22* (the repo held 344 images / 138.8 GB with none); budget alert unverified |
 
 BiblioStatus is ahead of the others in one thing only: it has the most complicated reactive logic, and that is where its remaining problems are.
 
@@ -121,15 +123,19 @@ Do this **before** Phase 1(b) if the diff is easier that way; it is purely movin
 
 ---
 
-## 4. Phase 4 — CI/CD and infrastructure (each step needs approval)
+## 4. Phase 4 — CI/CD and infrastructure (DONE 2026-10-22)
 
-1. **`tests.yml`**: run `tests/testthat.R` on push and pull request, on the packages in `renv.lock` (R version from the lockfile, `setup-renv`; Gallery and TuneTeller have working versions to copy). Today nothing runs the 562 lines of tests, so a push that breaks them still deploys.
-2. **Gate the deploy on the tests and add a smoke test.** `deploy_shiny_app.yml`: `needs: tests`, add `--update-labels git-sha=${{ github.sha }}`, and a final step that fails unless the service's `git-sha` label equals the commit, `GET /` is 200 and `GET /health` is `ok`. Add `concurrency:` (the workflow has none, and the siblings' notes warn about starting two builds at once).
-3. **Decouple the data refresh from the deploy (decision needed).** Today the deploy runs after *every* nightly fetch, i.e. a full image build every day, because the SQLite fallback is baked into the image. Options: (a) keep, for a fresh fallback; (b) deploy only on `app/**` and build-file changes, as Fillari does, and let the fallback age (Turso is the primary source, and Phase 3.1 shows when the fallback is used); (c) weekly. Recommendation: (b) plus (c)'s Sunday refresh via the existing "both" run. The memory note says Cloud Build has no layer cache and builds took 30–35 minutes; the current `Dockerfile` already restores from Posit's Linux binaries, so **re-measure a build before assuming it is still slow**.
-4. **Pin actions to commit SHAs** in all three workflows, give each job the minimum `permissions` (the data job needs `contents: write` only for its commit step), upgrade `actions/cache@v3`, keep `dependabot.yml`. Merge Dependabot bumps one at a time and prove each by a deploy (TuneTeller §6).
-5. **Complete, current `renv.lock`:** regenerate it inside `rocker/r-ver:4.5.2` (the image), check every `Requirements` entry is present, and add `shinytest2`/`chromote` only if used. Keep the compact-format requirement in mind for the data workflow (Gallery's note), and restore it in CI before merging.
-6. **Housekeeping checks (read-only first):** Artifact Registry cleanup policy (keep the 5 newest), a budget alert for this project (the shared EUR 30/month one covers the billing account), `--max-instances 3` (set), concurrency 80 (**do not lower it**: lowering it to 20 once caused 404s for Shiny assets), `--timeout 3600 --session-affinity` (set), uptime check from 3.5.
-7. **Leftovers:** the old `SHINY_APPS_*` GitHub secrets (memory TODO) and `GCP_SA_KEY` if it still exists. Ask before deleting each.
+What was done, with the commits and runs that prove it:
+
+1. **`tests.yml`** (`4ab7774`): runs `tests/testthat.R` on push (code and test paths, not the nightly database commit), pull request, manual and as a reusable workflow; R version and packages from `renv.lock`. `tests/testthat.R` now exits non-zero on a failing test (it did not before, so CI would have stayed green). First run: `FAIL 0 | WARN 39 | PASS 123`. The 39 warnings are the expected Turso-to-SQLite fallback warnings (no credentials in CI); they would hide a real warning, so Phase 1 should make the tests quiet. *Not yet shown:* a failing test turning the run red.
+2. **Deploy gate and smoke test** (`75cabac`): `deploy` needs `test`; `concurrency` group; `--update-labels git-sha=<12 chars>`; smoke test fails unless the label matches and `GET /` returns 200. Proved by manual deploys (run `39685540568` and later). `/health` is not part of it yet (Phase 3.5).
+3. **Deploy timing** (`67cc10b`): decided with the user: deploy on code and build-file pushes (`app/**` except `app/libraries.sqlite`, `R/**`, `Dockerfile`, `.dockerignore`, `renv.lock`, `.Rprofile`, `renv/activate.R`, `renv/settings.json`), weekly (Monday 04:00 UTC) and manually; no longer after every nightly fetch. Trade-off recorded in `CLAUDE.md`: the SQLite fallback holds a single day of schedules, so an old image shows no opening hours in a Turso outage (Phase 3.1 should say so on screen). **The build is about 7-9 minutes, not 30-35**: the `Dockerfile` already uses Posit binaries. *Not yet exercised:* the push trigger and the first Monday run (2026-10-26).
+4. **Pinned actions** (`e3ec3a8`): every `uses:` is a commit SHA; `id-token: write` only on the deploy job. Dependabot PRs: #6 `auth` v3.0.0 and #2 `setup-gcloud` v3.0.1 (each proved by a deploy: the log shows the new SHA, label matched, HTTP 200), #3 `cache` 6.1.0 (proved by a manual `fetch_data` run: cache restored, 1,488 schedule records written), #4 `checkout` 7.0.1 and #5 `send-mail` 3.12.0 merged. #1 (Docker `rocker/r-ver` 4.6.0) closed on purpose: the image's R must match `renv.lock` (4.5.2). *Not yet exercised:* the `send-mail` bump (next 03:00 UTC URL check).
+5. **`renv.lock`**: checked, not regenerated: 98 packages on R 4.5.2, every declared requirement present, all from a repository source. CI and Docker restore from it. Regenerate it inside `rocker/r-ver:4.5.2` only when a package is added (local R is 4.6.1 and cannot restore it).
+6. **Housekeeping**: service settings confirmed (concurrency 80, timeout 3600, session affinity, max 3 instances, `bibliostatus-runtime`). **The Artifact Registry had no cleanup policy**: 344 images, 138.8 GB. `infra/artifact-registry-cleanup.json` (keep the 5 newest versions, delete versions older than 14 days) was applied by the user on 2026-10-22 (dry run first, then real); read back as active. Google applies it about once a day: check the repository size has dropped (e.g. on 2026-10-24) and that the live revision is intact. **The budget alert could not be read** (the Billing Budgets API is not enabled for the project gcloud used; it was not enabled): check in Cloud console under Billing, Budgets & alerts. Uptime check: none yet (Phase 3.5).
+7. **Leftovers**: none. The GitHub secrets are `GCP_PROJECT_ID`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `EMAIL_USERNAME` and `EMAIL_PASSWORD`, all used; `SHINY_APPS_*`, `GCP_SA_KEY` and `CARTO_API_KEY` no longer exist.
+
+Lessons from this phase: production merges and workflow dispatches were blocked by the auto-mode classifier here, so the user ran them and pasted the output back; `git pull --rebase` needs `--autostash` while the `full-fix-plan.md` deletion is pending; `gh run watch` for a deploy takes longer than the 10-minute foreground limit, run it in the background.
 
 ---
 
@@ -137,11 +143,11 @@ Do this **before** Phase 1(b) if the diff is easier that way; it is purely movin
 
 ### 5.1 Order
 0. `git pull --rebase` (3 data commits behind), commit or move the plan files.
-1. Phase 4.1–4.2 first (tests in CI, deploy gate): cheap, and it protects everything after.
+1. ~~Phase 4~~ done (tests in CI, deploy gate, pins, cleanup policy).
 2. Phase 2 (structure), reviewed by running the app.
 3. Phase 1 in the order given in 1.3, user review after (b) and (c) because they change what the user sees.
 4. Phase 3, items 4 (time zone) and 3 (stale status) first: they are user-visible bugs.
-5. One deploy per phase, with the verification below. Phase 4.3 onward after the app changes are live.
+5. One deploy per phase, with the verification below. Work on a branch and open a pull request: `tests.yml` runs on pull requests, and merging to `main` triggers the single deploy (pushes to `main` that touch `app/**` deploy automatically).
 
 ### 5.2 Verification (as the user's rules require)
 - After each commit/push: `git status`, `git ls-remote origin refs/heads/main` equals `HEAD`, and read the workflow run result from GitHub; never suppress errors in scripts that call GitHub or cloud APIs.
