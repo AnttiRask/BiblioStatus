@@ -142,3 +142,16 @@ output$library_services <- renderUI({
     )
   }
 })
+
+# One line under the filters: how many libraries the map shows and for what
+output$filter_summary <- renderText({
+  libs <- libraries_on_map()
+  sel <- selection()
+  count <- nrow(libs)
+  library_name <- if (nzchar(sel$library)) library_data()$library_branch_name[id_text(library_data()$id) == sel$library] else ""
+  parts <- c(
+    sprintf(if (count == 1) txt$summary_one else txt$summary_many, count),
+    sel$city, sel$service, library_name
+  )
+  paste(parts[nzchar(parts)], collapse = " \u00b7 ")
+})

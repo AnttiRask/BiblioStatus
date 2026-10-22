@@ -19,7 +19,9 @@ txt <- list(
   all_services         = "All Services",
   clear_library        = "Clear library selection",
   clear_service        = "Clear service selection",
-  show_on_map          = "Show on Map",
+  reset_filters        = "Reset filters",
+  summary_one          = "%d library",
+  summary_many         = "%d libraries",
   find_nearest         = "Find Nearest Open Library",
   getting_location     = " Getting your location...",
 

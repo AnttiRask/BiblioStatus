@@ -1,7 +1,7 @@
 # Filter dropdowns: startup city, user changes, clear buttons, "Show on Map".
 # Evaluated inside server() (see server_parts in server.R), so it shares the
 # session's reactive state, input, output and session.
-# State: selection, committed_*, startup_city*.
+# State: selection, startup_city*.
 #
 # The rules (which choices each dropdown offers, what a change does to the other
 # dropdowns, the notices) are in www/filter_logic.R, which has no Shiny in it and
@@ -12,8 +12,7 @@
 #     the dropdowns by push_dropdowns(), which sends only what changed.
 #   * When the browser echoes a value we just sent, apply_filter_change() sees
 #     nothing changed and nothing happens, so there is no cascade and no race.
-#   * The map still follows committed_*, which are set by "Show on Map", by the
-#     startup city and by the x buttons.
+#   * The map follows selection() directly (see map.R): there is no "Show on Map".
 
 dropdown_ids <- c(city = "city_filter", service = "service_filter", library = "library_search")
 
@@ -95,7 +94,7 @@ observe({
 })
 
 # The startup city (nearest library's city, or Helsinki) becomes the city
-# selection and the first committed city. The data may not have arrived yet when
+# selection, which also draws the first map. The data may not have arrived yet when
 # the fallback fires; the populate observer above then shows the selection.
 set_city_from_startup <- function(city) {
   startup_city_set(TRUE)
@@ -110,7 +109,6 @@ set_city_from_startup <- function(city) {
     selection(modifyList(selection(), list(city = city)))
   }
   push_dropdowns()
-  committed_city(city)  # triggers the initial map render
 }
 
 # Startup geolocation: set city to nearest library's city
@@ -152,32 +150,27 @@ observeEvent(input$service_filter, handle_user_change("service", input$service_f
 observeEvent(input$library_search, handle_user_change("library", input$library_search),
   ignoreInit = TRUE, ignoreNULL = FALSE)
 
-# The x buttons clear one filter through the same path as clearing by hand, and
-# also commit the clear so the map updates without "Show on Map".
-observeEvent(input$clear_library, {
-  handle_user_change("library", "", from_dropdown = FALSE)
-  selected_library(NULL)
-  committed_library("")
+# The x buttons clear one filter through the same path as clearing by hand
+# (the dropdown itself isn't touched, so the cleared value is sent to it).
+observeEvent(input$clear_library, handle_user_change("library", "", from_dropdown = FALSE))
+observeEvent(input$clear_service, handle_user_change("service", "", from_dropdown = FALSE))
+
+# "Reset filters": back to the state after startup, the startup city and nothing else
+observeEvent(input$reset_filters, {
+  selection(list(city = startup_city(), service = "", library = ""))
+  nearest_libraries(NULL)
+  user_location(NULL)
+  push_dropdowns()
 })
 
-observeEvent(input$clear_service, {
-  handle_user_change("service", "", from_dropdown = FALSE)
-  committed_service("")
-})
-
-# "Show on Map" button: commit the selection and re-render the map. Reads
-# selection(), not input$*, which can still hold the value from before a
-# change that the browser hasn't echoed back yet.
-# Also activates the library detail sidebar when a specific library is selected.
-observeEvent(input$apply_filters, {
-  sel <- selection()
-  committed_city(sel$city)
-  committed_service(sel$service)
-  committed_library(sel$library)
-
-  if (nzchar(sel$library)) {
-    selected_lib <- library_data() %>% filter(id_text(id) == sel$library)
-    selected_library(if (nrow(selected_lib) > 0) selected_lib else NULL)
+# The library detail panel follows the library selection (a marker click can
+# still show another library's details without changing the selection)
+observeEvent(list(selection()$library, library_data()), {
+  lib_id <- selection()$library
+  libs <- library_data()
+  if (nzchar(lib_id) && !is.null(libs)) {
+    row <- libs %>% filter(id_text(id) == lib_id)
+    selected_library(if (nrow(row) > 0) row else NULL)
   } else {
     selected_library(NULL)
   }
