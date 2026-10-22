@@ -310,3 +310,42 @@ test_that("a normal page load (empty first values) is left alone, and later chan
     expect_equal(committed_library(), "1")
   })
 })
+
+# Regression: with a service selected, changing to a city that doesn't offer it
+# used to send the library dropdown an EMPTY list (the library choices were
+# built with the old service, which was only reset to "All Services" afterwards).
+# updateSelectizeInput() can't be read back through testServer() (see the note
+# above), so this records the choices the observer sends.
+test_that("changing to a city without the selected service still lists that city's libraries", {
+  sent <- list()
+  record <- function(session, inputId, ...) {
+    args <- list(...)
+    if (inputId == "library_search" && !is.null(args$choices)) {
+      sent[[length(sent) + 1]] <<- unname(args$choices)
+    }
+    invisible(NULL)
+  }
+  # the server looks these up from the global environment, so shadow them there
+  assign("updateSelectizeInput", record, envir = globalenv())
+  withr::defer(rm("updateSelectizeInput", envir = globalenv()))
+
+  services <- data.frame(
+    library_id = c(1, 2, 3),
+    service_name = c("Printing", "Yoga", "Scanning"),
+    stringsAsFactors = FALSE
+  )
+
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(services)
+    startup_city_set(TRUE)
+
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(service_filter = "Printing")
+    sent <<- list()
+
+    session$setInputs(city_filter = "Tampere")   # Tampere has no "Printing"
+    expect_equal(sent[[length(sent)]], c("", "3"))  # "All Libraries" and Gamma
+  })
+})
