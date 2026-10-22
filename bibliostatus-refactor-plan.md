@@ -96,18 +96,20 @@ filter_libraries(libs, services, sel)    # -> the libraries to draw
 
 ---
 
-## 2. Phase 2 — structure (mechanical, behaviour unchanged)
+## 2. Phase 2 — structure (DONE 2026-10-22, PR #7, `8396ad8`, deployed)
 
-Do this **before** Phase 1(b) if the diff is easier that way; it is purely moving code.
+Mechanical, no behaviour change. Result:
 
-- `app/global.R`: libraries and `source()` calls (today `server.R` and `ui.R` each load their own, and `server.R` has a commented "local version" switch).
-- `app/www/variables.R`: move the 14 constants out of `server.R` (marker radii, popup widths, zoom, nearest counts) and the geolocation timings out of the JS.
-- `app/www/strings.R`: all user-facing text (titles, labels, placeholders, notifications, the footer disclaimer). English only for now, structured so Finnish and Swedish can be added (the TODO in memory).
-- `app/www/app.js`: the inline script in `ui.R` becomes a file. That is also where Plan 11 (head-script race) ended up: it already polls for `Shiny.setInputValue`; a file loaded after Shiny removes the polling.
-- Footer list in `variables.R` (as the siblings do); **add FillariStatus** (the three siblings all link it, BiblioStatus does not).
-- Split `server.R` (868 lines) into focused files: `data.R` (fetch + cache + statuses), `filters.R` (Phase 1), `map.R` (base map, markers, nearest), `panels.R` (the library detail panel and nearest list). `service_stats` stays a module.
-- Cache-busting `asset()` helper for CSS/JS (Fillari §12: browsers cache `styles.css`).
-- Delete or rename dead code found on the way: the `refresh` observer with `ignoreNULL = FALSE` and no `refresh` input in the UI (it is an "on load" trigger written as a button handler), the `checkMobile` message handler if nothing sends it (Plan 11 asked to check this), `app/secret.R` (listed in the tree; verify it is git-ignored and not in the image: the `.dockerignore` already excludes `**/secret.R`).
+- `app/global.R` loads the packages, then `www/variables.R`, `strings.R`, `functions.R` and the stats module; `server.R` and `ui.R` load nothing themselves. `tests/testthat.R` sources `global.R` and `server.R`.
+- `www/variables.R` holds the 14 map constants, the footer app list (**FillariStatus added**) and `geo_config` (geolocation timings).
+- `www/strings.R` holds the text of `ui.R` and `server.R` as `txt$...`. **Not moved yet:** the text in `build_library_popup()` (`functions.R`) and in `modules/service_stats.R`.
+- `www/app.js` replaces the inline script: timings come from `window.BIBLIO_CONFIG`, `asset()` cache-busts the file, the dead `checkMobile` handler is gone (nothing in the server sent it). Plan 11 (head-script race) stays handled by the `onShinyReady` polling already there.
+- `server.R` is about 70 lines (state, reconnect seeding). The rest is in `app/server/{data,filters,map,panels}.R`, **parsed once when `server.R` loads (`server_parts`) and evaluated inside every session's `server()`**, in the original observer order. A first version used `source("server/...", local = TRUE)` at session time and failed in the tests, because testthat changes the working directory; do not go back to relative paths at session time.
+- Not done from the original list: the `refresh` observer (`ignoreNULL = FALSE`, no `refresh` input) is still there, and `app/secret.R` was only confirmed git-ignored and excluded by `.dockerignore`.
+
+Checked: a line-by-line comparison of the old and new server code (only the 19 `txt$` substitutions differ), 123 tests in the production image and in CI, the served page (app.js, config, footer) locally and on the live site, and the deploy (label `8396ad89cdee`, HTTP 200). The user clicked through the running app locally.
+
+Environment lessons: on the user's machine the Docker bridge (`docker0`) drops traffic, so published ports (`-p`) and `docker compose up` do not work; `docker run --network host -e PORT=8082 ...` does. The browser pane also refused `localhost`. A CI run once hung 30 minutes on an apt mirror stall (now retried and capped at 10 minutes).
 
 ---
 
