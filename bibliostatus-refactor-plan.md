@@ -58,12 +58,12 @@ One mental model: **three filters that narrow the map, live.**
 
 - **Live apply.** The map follows the dropdowns as they change (debounced about 300 ms). "Show on Map" goes away. A line under the filters says what is showing: "12 libraries · Espoo · Sauna", and a **Reset filters** link returns to the post-startup state (startup city, nothing else).
   *Alternative if the user wants to keep the button:* keep it, but then **every** path, including ×, startup and reset, waits for it, and the button turns into "Apply (3 changes)" so the pending state is visible. Recommendation is live apply: the data set is small (about 720 libraries) and the redraw is cheap.
-- **Faceted choices, never silent resets.** Each dropdown lists only values that still give at least one library under the *other two* filters, with a count:
-  - City: `Espoo (14)`, only cities with a library matching the service (and library, if picked).
-  - Service: only services offered by libraries in the chosen city (and by the chosen library, if picked).
-  - Library: only libraries in the chosen city that offer the chosen service.
-  Because the lists are derived from the other filters, a current selection is always valid. The one exception is a change that makes another selection impossible (new city, picked library is elsewhere). Then the dependent selection is cleared **and a short notice says so** ("Library cleared: it is not in Espoo").
-- **Library implies city, one way only.** Picking a library sets the city to the library's city (the user expects the map to go there) and that is the only write between dropdowns. It happens through the one reducer below, so it cannot echo.
+- **Faceted choices, never silent resets.** (Refined while writing `filter_logic.R`, 2026-10-22: the first version of this rule let a picked library narrow the city list to one city, which made it impossible to change city and see the notice below.) The rules, all implemented as pure functions and tested:
+  - The **city list depends on the service only** and the **service list on the city only**: each shows what is available with the other one chosen, with the number of libraries (`Espoo (14)`). A picked library narrows neither list.
+  - The **library list depends on the city and the service**.
+  - Because of that, picking a city or a service never leaves the other one invalid. The one thing that can become impossible is a picked library: if the new city or service doesn't match it, the library is cleared **and a short notice says so** ("Library cleared: it is not in Espoo" / "it does not offer Sauna").
+  - Picking a library sets the city to the library's city (the only time one dropdown writes to another). It does not touch the service: the library list only offers libraries that already match it.
+  - Dropped on purpose: today a picked library narrows the service list to that library's own services. The detail panel already lists them, and the symmetric rule is easier to explain. Easy to add back if the user misses it.
 - **The × buttons do the same thing as clearing by hand** (set the filter to empty through the same path), so there is no special case.
 - **Find Nearest** respects the service filter (nearest *Sauna* library that is open) and says so; it does not touch the dropdowns, and "Reset filters" (or a × on a chip) returns to the filtered map.
 - **Shareable URL.** The filters live in the query string (`?city=Espoo&service=Sauna&library=123`) via `updateQueryString()`; on load the app reads it. This replaces the reconnect seeding hack: a reconnected session starts from the same URL, and a library link can be sent to someone.
@@ -92,22 +92,24 @@ filter_libraries(libs, services, sel)    # -> the libraries to draw
 4. One `shinytest2` test (real browser) for what `testServer()` cannot see: pick a service, pick a city, see the dropdown labels and the map count agree; reload with the URL and see the same state. `shinytest2` needs `chromote`; add it to `renv.lock` inside the target image (see 4.3), and run it in `tests.yml` only if it is stable on the runner, otherwise as a manual check.
 5. Real-browser check by hand before the deploy (the sibling plans all did this): each path in 1.2, mobile width, dark mode, a reconnect (`Shiny.shinyapp.$socket.close()`).
 
-**Order inside Phase 1** (small commits, each reviewed with the running app on :8082): (a) pure functions + tests, no behaviour change; (b) switch the dropdowns to the reducer and delete the workarounds; (c) live apply, counts and notices; (d) `leafletProxy` split; (e) URL state; (f) Find Nearest respects the service filter.
+**Order inside Phase 1** (small commits, each reviewed with the running app on :8082 (on this machine: `docker run --network host -e PORT=8082`)): (a) pure functions + tests, no behaviour change (**done**, `app/www/filter_logic.R` and `tests/testthat/test-filter-logic.R`: `filter_libraries`, `filter_options`, `as_choices`, `apply_filter_change`; the tests include a random walk of 120 changes asserting that every offered choice gives a non-empty map and every selection stays among the offered choices, and three deliberate breakages of the logic were each caught); (b) switch the dropdowns to the reducer and delete the workarounds; (c) live apply, counts and notices; (d) `leafletProxy` split; (e) URL state; (f) Find Nearest respects the service filter.
 
 ---
 
-## 2. Phase 2 — structure (mechanical, behaviour unchanged)
+## 2. Phase 2 — structure (DONE 2026-10-22, PR #7, `8396ad8`, deployed)
 
-Do this **before** Phase 1(b) if the diff is easier that way; it is purely moving code.
+Mechanical, no behaviour change. Result:
 
-- `app/global.R`: libraries and `source()` calls (today `server.R` and `ui.R` each load their own, and `server.R` has a commented "local version" switch).
-- `app/www/variables.R`: move the 14 constants out of `server.R` (marker radii, popup widths, zoom, nearest counts) and the geolocation timings out of the JS.
-- `app/www/strings.R`: all user-facing text (titles, labels, placeholders, notifications, the footer disclaimer). English only for now, structured so Finnish and Swedish can be added (the TODO in memory).
-- `app/www/app.js`: the inline script in `ui.R` becomes a file. That is also where Plan 11 (head-script race) ended up: it already polls for `Shiny.setInputValue`; a file loaded after Shiny removes the polling.
-- Footer list in `variables.R` (as the siblings do); **add FillariStatus** (the three siblings all link it, BiblioStatus does not).
-- Split `server.R` (868 lines) into focused files: `data.R` (fetch + cache + statuses), `filters.R` (Phase 1), `map.R` (base map, markers, nearest), `panels.R` (the library detail panel and nearest list). `service_stats` stays a module.
-- Cache-busting `asset()` helper for CSS/JS (Fillari §12: browsers cache `styles.css`).
-- Delete or rename dead code found on the way: the `refresh` observer with `ignoreNULL = FALSE` and no `refresh` input in the UI (it is an "on load" trigger written as a button handler), the `checkMobile` message handler if nothing sends it (Plan 11 asked to check this), `app/secret.R` (listed in the tree; verify it is git-ignored and not in the image: the `.dockerignore` already excludes `**/secret.R`).
+- `app/global.R` loads the packages, then `www/variables.R`, `strings.R`, `functions.R` and the stats module; `server.R` and `ui.R` load nothing themselves. `tests/testthat.R` sources `global.R` and `server.R`.
+- `www/variables.R` holds the 14 map constants, the footer app list (**FillariStatus added**) and `geo_config` (geolocation timings).
+- `www/strings.R` holds the text of `ui.R` and `server.R` as `txt$...`. **Not moved yet:** the text in `build_library_popup()` (`functions.R`) and in `modules/service_stats.R`.
+- `www/app.js` replaces the inline script: timings come from `window.BIBLIO_CONFIG`, `asset()` cache-busts the file, the dead `checkMobile` handler is gone (nothing in the server sent it). Plan 11 (head-script race) stays handled by the `onShinyReady` polling already there.
+- `server.R` is about 70 lines (state, reconnect seeding). The rest is in `app/server/{data,filters,map,panels}.R`, **parsed once when `server.R` loads (`server_parts`) and evaluated inside every session's `server()`**, in the original observer order. A first version used `source("server/...", local = TRUE)` at session time and failed in the tests, because testthat changes the working directory; do not go back to relative paths at session time.
+- Not done from the original list: the `refresh` observer (`ignoreNULL = FALSE`, no `refresh` input) is still there, and `app/secret.R` was only confirmed git-ignored and excluded by `.dockerignore`.
+
+Checked: a line-by-line comparison of the old and new server code (only the 19 `txt$` substitutions differ), 123 tests in the production image and in CI, the served page (app.js, config, footer) locally and on the live site, and the deploy (label `8396ad89cdee`, HTTP 200). The user clicked through the running app locally.
+
+Environment lessons: on the user's machine the Docker bridge (`docker0`) drops traffic, so published ports (`-p`) and `docker compose up` do not work; `docker run --network host -e PORT=8082 ...` does. The browser pane also refused `localhost`. A CI run once hung 30 minutes on an apt mirror stall (now retried and capped at 10 minutes).
 
 ---
 
