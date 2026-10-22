@@ -423,3 +423,50 @@ test_that("the browser echoing a value the server just sent changes nothing", {
     expect_length(calls$sent, 0)
   })
 })
+
+# Reported 2026-10-23: after clicking the x on the service dropdown the dropdown
+# kept showing the cleared service. The x doesn't change the dropdown in the
+# browser, so the server has to send the cleared value (it had assumed the
+# browser already held it, as it does when the user picks from the dropdown).
+test_that("the x buttons send the cleared value to the dropdown", {
+  calls <- record_dropdown_updates()
+
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(services_by_city)
+    startup_city_set(TRUE)
+
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(service_filter = "Printing")   # picked in the dropdown: the browser has it
+    session$setInputs(library_search = "1")
+    calls$sent <- list()
+
+    session$setInputs(clear_service = 1)              # the dropdown itself is not touched
+    expect_equal(selection()$service, "")
+    expect_equal(last_sent(calls, "service_filter")$selected, "")
+
+    session$setInputs(clear_library = 1)
+    expect_equal(selection()$library, "")
+    expect_equal(last_sent(calls, "library_search")$selected, "")
+  })
+})
+
+test_that("clearing a dropdown by hand doesn't send the value back to it", {
+  calls <- record_dropdown_updates()
+
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(services_by_city)
+    startup_city_set(TRUE)
+
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(service_filter = "Printing")
+    calls$sent <- list()
+
+    session$setInputs(service_filter = "")            # cleared inside the dropdown
+    expect_equal(selection()$service, "")
+    expect_null(last_sent(calls, "service_filter")$selected)   # nothing sent to it
+  })
+})

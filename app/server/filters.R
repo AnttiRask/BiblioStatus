@@ -51,7 +51,10 @@ push_dropdowns <- function(sel = selection()) {
 
 # The user picked `value` in one dropdown (`field` is "city", "service" or
 # "library"; "" means cleared). Returns TRUE if the selection changed.
-handle_user_change <- function(field, value) {
+# `from_dropdown` is FALSE when the change did not come from the dropdown itself
+# (the x buttons): the browser's dropdown still shows the old value then, so it
+# must be sent the new one.
+handle_user_change <- function(field, value, from_dropdown = TRUE) {
   libs <- library_data()
   svcs <- library_services_data()
   req(libs, svcs)
@@ -68,7 +71,9 @@ handle_user_change <- function(field, value) {
     return(invisible(FALSE))
   }
 
-  if (!is.null(sent_to_browser[[id]])) sent_to_browser[[id]]$selected <- value  # the browser has it
+  if (from_dropdown && !is.null(sent_to_browser[[id]])) {
+    sent_to_browser[[id]]$selected <- value  # the browser already shows it
+  }
   city_changed <- !identical(result$sel$city, selection()$city)
   selection(result$sel)
 
@@ -150,13 +155,13 @@ observeEvent(input$library_search, handle_user_change("library", input$library_s
 # The x buttons clear one filter through the same path as clearing by hand, and
 # also commit the clear so the map updates without "Show on Map".
 observeEvent(input$clear_library, {
-  handle_user_change("library", "")
+  handle_user_change("library", "", from_dropdown = FALSE)
   selected_library(NULL)
   committed_library("")
 })
 
 observeEvent(input$clear_service, {
-  handle_user_change("service", "")
+  handle_user_change("service", "", from_dropdown = FALSE)
   committed_service("")
 })
 
