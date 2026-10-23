@@ -401,7 +401,7 @@ services_by_city <- data.frame(
   stringsAsFactors = FALSE
 )
 
-test_that("a city the selected service isn't offered in is refused and the dropdown is sent back", {
+test_that("a city the selected service isn't offered in clears the service with a notice; the city list stays complete", {
   calls <- record_dropdown_updates()
 
   testServer(server, {
@@ -412,14 +412,15 @@ test_that("a city the selected service isn't offered in is refused and the dropd
 
     session$setInputs(city_filter = "Helsinki")
     session$setInputs(service_filter = "Printing")
-    # with Printing selected only Helsinki is offered as a city
-    expect_equal(unname(last_sent(calls, "city_filter")$choices), c("", "Helsinki"))
+    # picking a service doesn't narrow the city list
+    expect_equal(unname(last_sent(calls, "city_filter")$choices), c("", "Helsinki", "Tampere"))
     calls$sent <- list()
 
     session$setInputs(city_filter = "Tampere")   # Tampere has no "Printing"
-    expect_equal(selection(), list(city = "Helsinki", service = "Printing", library = ""))
-    expect_equal(last_sent(calls, "city_filter")$selected, "Helsinki")
-    expect_equal(last_sent(calls, "city_filter")$choices[["Helsinki (1)"]], "Helsinki")
+    expect_equal(selection(), list(city = "Tampere", service = "", library = ""))
+    expect_equal(calls$notice, "Service cleared: it is not offered in Tampere")
+    expect_equal(last_sent(calls, "service_filter")$selected, "")
+    expect_equal(eval(ids_on_map), 3)
   })
 })
 

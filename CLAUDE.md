@@ -102,8 +102,8 @@ turso_execute("INSERT INTO libraries (...) VALUES (...)", list(...))
 
 ### Filter dropdown rules
 Defined in `app/www/filter_logic.R` and used by `app/server/filters.R`; the plan and the reasoning are in `bibliostatus-refactor-plan.md` (section 1).
-- The city list depends on the service only, the service list on the city only, the library list on both; a picked library narrows neither of the other lists. Cities and services show how many libraries are behind them.
-- Picking a library sets its city. Picking a city or service that the picked library doesn't match clears the library and shows a notice. A value that isn't offered is refused and the dropdown is sent back to what the server holds.
+- The city list is always complete (a service or a library never narrows it). The service list depends on the city only, the library list on the city and the service. Cities and services show how many libraries are behind them (a city's count is all of its libraries).
+- Picking a library sets its city. Picking a city or service that the picked library doesn't match clears the library, and picking a city the selected service isn't offered in clears the service; each shows a notice. Note that many libraries have no service data at all (139 of 719, e.g. all of Tampere), so a service filter can legitimately give few cities' libraries. A value that isn't offered is refused and the dropdown is sent back to what the server holds.
 - Every change goes through `apply_filter_change()`; `push_dropdowns()` sends only the lists/selections that changed. The browser echoing a value the server just sent changes nothing (`changed = FALSE`), which is why there is no cascade and no race. Don't add observers that write one dropdown from another.
 - The map follows `selection()` directly, so the x buttons, the startup city and Reset need no extra bookkeeping. The first map is drawn once `startup_city_set()` is TRUE (it is part of the render trigger).
 - `testServer()` can't read back `updateSelectInput()` calls; the tests record them by shadowing the functions in the global environment (`record_dropdown_updates()` in `test-server-filters.R`).
