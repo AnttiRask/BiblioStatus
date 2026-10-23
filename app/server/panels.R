@@ -17,7 +17,7 @@ output$nearest_libraries_ui <- renderUI({
   req(nrow(nearest) > 0)
 
   tagList(
-    h4(txt$nearest_heading, style = "color: #C1272D;"),
+    h4(txt$nearest_heading, style = "color: var(--brand-accent);"),
     lapply(1:nrow(nearest), function(i) {
       lib <- nearest[i, ]
       maps_url <- sprintf(
@@ -25,12 +25,12 @@ output$nearest_libraries_ui <- renderUI({
         lib$lat, lib$lon
       )
       div(
-        style = "margin-bottom: 15px; padding: 10px; border-left: 3px solid #C1272D; background-color: rgba(193, 39, 45, 0.05);",
+        style = "margin-bottom: 15px; padding: 10px; border-left: 3px solid var(--brand-accent); background-color: rgba(193, 39, 45, 0.05);",
         tags$b(lib$library_branch_name),
         br(),
         tags$small(lib$city_name),
         br(),
-        tags$small(style = "color: #C1272D; font-weight: bold;",
+        tags$small(style = "color: var(--brand-accent); font-weight: bold;",
           lib$distance_display),
         br(),
         tags$a(
@@ -85,7 +85,7 @@ output$library_services <- renderUI({
           tags$a(
             href = paste0("tel:", selected$library_phone),
             icon("phone"), " ", selected$library_phone,
-            style = "display: block; margin-bottom: 8px; color: #C1272D; text-decoration: none;"
+            style = "display: block; margin-bottom: 8px; color: var(--brand-accent); text-decoration: none;"
           )
         )
       },
@@ -96,7 +96,7 @@ output$library_services <- renderUI({
           tags$a(
             href = paste0("mailto:", selected$library_email),
             icon("envelope"), " ", selected$library_email,
-            style = "display: block; margin-bottom: 8px; color: #C1272D; text-decoration: none;"
+            style = "display: block; margin-bottom: 8px; color: var(--brand-accent); text-decoration: none;"
           )
         )
       },

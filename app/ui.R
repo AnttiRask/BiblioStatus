@@ -30,16 +30,7 @@ create_app_footer <- function(current_app = "") {
 }
 
 ui <- page_navbar(
-  theme = bs_theme(
-    version = 5,
-    bg = "#191414",
-    fg = "#FFFFFF",
-    primary = "#C1272D",
-    base_font = font_link(
-      family = "Gotham",
-      href = "https://fonts.cdnfonts.com/css/gotham-6"
-    )
-  ),
+  theme = app_theme(),
 
   header = tags$head(
     tags$title(txt$app_title),
@@ -111,7 +102,7 @@ ui <- page_navbar(
         ),
         conditionalPanel(
           condition = "input.geolocation_loading",
-          div(class = "text-center", style = "color: #C1272D; margin: 10px 0;",
+          div(class = "text-center", style = "color: var(--brand-accent); margin: 10px 0;",
             icon("spinner", class = "fa-spin"), txt$getting_location)
         ),
         uiOutput("geolocation_error_ui"),
