@@ -11,6 +11,8 @@ txt <- list(
   tab_stats            = "Service Statistics",
 
   city_label           = "Select City/Municipality:",
+  finder_label         = "Search All Libraries:",
+  finder_placeholder   = "Type a library name...",
   library_label        = "Select Library:",
   library_placeholder  = "All Libraries",
   service_label        = "Select Service:",
@@ -39,6 +41,7 @@ txt <- list(
   notice_library_not_in_city = "Library cleared: it is not in %s",
   notice_library_no_service  = "Library cleared: it does not offer %s",
   notice_service_not_in_city = "Service cleared: it is not offered in %s",
+  notice_service_not_at_library = "Service cleared: %s does not offer %s",
   url_ignored                = "Part of the link's filters didn't match any libraries and was left out.",
 
   legend_title         = "Status",

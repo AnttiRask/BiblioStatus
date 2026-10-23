@@ -977,3 +977,79 @@ test_that("the library details show the time they were computed for", {
     expect_false(grepl("\u2190 now", as.character(output$library_services$html), fixed = TRUE))
   })
 })
+
+# ---- the search box ("Search all libraries") ----
+# It offers every library whatever the filters hold; picking one jumps to it (its
+# city and the library) through the same selection, and the box empties again.
+
+test_that("the search box is filled with every library once the data has arrived", {
+  calls <- record_dropdown_updates()
+  testServer(server, {
+    session$flushReact()
+    sent <- last_sent(calls, "library_finder")
+    expect_false(is.null(sent))
+    expect_equal(unname(sent$choices), c("", "1", "2", "3"))
+    expect_equal(names(sent$choices), c("", "Alpha Library (Helsinki)", "Beta Library (Helsinki)", "Gamma Library (Tampere)"))
+  })
+})
+
+test_that("picking a library in another city jumps to it, and the box empties", {
+  calls <- record_dropdown_updates()
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    session$setInputs(city_filter = "Helsinki")
+    expect_equal(eval(ids_on_map), c(1, 2))
+    calls$sent <- list()
+
+    session$setInputs(library_finder = "3")          # Gamma, in Tampere
+    expect_equal(selection(), list(city = "Tampere", service = "", library = "3"))
+    expect_equal(eval(ids_on_map), 3)
+    expect_equal(selected_library()$id, 3)
+    expect_equal(last_sent(calls, "library_finder")$selected, "")
+    expect_equal(last_sent(calls, "city_filter")$selected, "Tampere")
+    expect_equal(last_sent(calls, "library_search")$selected, "3")
+  })
+})
+
+test_that("the search box keeps a service the library offers, and clears one it doesn't, with a notice", {
+  calls <- record_dropdown_updates()
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    session$setInputs(service_filter = "Printing")          # Alpha and Beta have it, Gamma doesn't
+    calls$notice <- NULL
+
+    session$setInputs(library_finder = "2")
+    expect_equal(selection(), list(city = "Helsinki", service = "Printing", library = "2"))
+    expect_null(calls$notice)
+
+    session$setInputs(library_finder = "3")
+    expect_equal(selection(), list(city = "Tampere", service = "", library = "3"))
+    expect_equal(calls$notice, "Service cleared: Gamma Library does not offer Printing")
+    expect_equal(last_sent(calls, "service_filter")$selected, "")
+  })
+})
+
+test_that("an unknown library or an emptied box changes nothing", {
+  calls <- record_dropdown_updates()
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    session$setInputs(city_filter = "Helsinki")
+    before <- selection()
+    session$setInputs(library_finder = "999")
+    expect_equal(selection(), before)
+    session$setInputs(library_finder = "")
+    expect_equal(selection(), before)
+  })
+})
+
+test_that("the search box doesn't disturb the dropdowns: picking in the dropdowns still works afterwards", {
+  record_dropdown_updates()
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    session$setInputs(library_finder = "3")
+    session$setInputs(library_search = "")           # the x on the library dropdown
+    expect_equal(selection(), list(city = "Tampere", service = "", library = ""))
+    session$setInputs(city_filter = "Helsinki")
+    expect_equal(eval(ids_on_map), c(1, 2))
+  })
+})
