@@ -156,7 +156,7 @@ update_map_for_nearest <- function(nearest_libs, user_loc) {
       fillColor = "#FF0000",
       fillOpacity = 0.8,
       weight = 2,
-      popup = "<b>Your Location</b>"
+      popup = paste0("<b>", htmltools::htmlEscape(txt$your_location), "</b>")
     ) %>%
     # Nearest library markers
     addCircleMarkers(

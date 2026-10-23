@@ -80,7 +80,7 @@ onShinyReady(function() {
   Shiny.addCustomMessageHandler('requestGeolocation', function(message) {
     if (!navigator.geolocation) {
       Shiny.setInputValue('geolocation_error',
-        'Geolocation is not supported by your browser',
+        BIBLIO_CONFIG.messages.geolocationUnsupported,
         {priority: 'event'});
       return;
     }
@@ -97,8 +97,8 @@ onShinyReady(function() {
       },
       function(error) {
         var errorMsg = error.code === 1 ?
-          'Please enable location permissions to find nearby libraries' :
-          'Unable to get your location. Please try again.';
+          BIBLIO_CONFIG.messages.geolocationDenied :
+          BIBLIO_CONFIG.messages.geolocationFailed;
         Shiny.setInputValue('geolocation_error', errorMsg, {priority: 'event'});
         Shiny.setInputValue('geolocation_loading', false, {priority: 'event'});
       },

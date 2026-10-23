@@ -130,19 +130,21 @@ build_library_popup <- function(library_url, library_branch_name, library_addres
   )
 
   directions <- sprintf(
-    "📍 <a href='https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f' target='_blank' rel='noopener noreferrer' style='color: #C1272D; font-weight: bold;'>Get Directions</a>",
-    lat, lon
+    "📍 <a href='https://www.google.com/maps/dir/?api=1&destination=%.6f,%.6f' target='_blank' rel='noopener noreferrer' style='color: #C1272D; font-weight: bold;'>%s</a>",
+    lat, lon, htmltools::htmlEscape(txt$popup_directions)
   )
+  label <- function(text) paste0("<b>", htmltools::htmlEscape(text), " </b>")
 
   extra <- if (!is.null(opening_hours)) {
-    paste0("<br>", if_else(!is.na(opening_hours), paste("<b>Hours: </b>", opening_hours), "<b>Hours: </b>NA"))
+    paste0("<br>", if_else(!is.na(opening_hours), paste(label(txt$popup_hours), opening_hours),
+                           paste0(label(txt$popup_hours), htmltools::htmlEscape(txt$popup_hours_none))))
   } else if (!is.null(distance_display)) {
-    paste0("<br><b>Distance: </b>", distance_display)
+    paste0("<br>", label(txt$popup_distance), distance_display)
   } else {
     ""
   }
 
-  paste0(name_html, "<br>", htmltools::htmlEscape(library_address), "<br><b>Status: </b>", open_status, extra, "<br>", directions)
+  paste0(name_html, "<br>", htmltools::htmlEscape(library_address), "<br>", label(txt$popup_status), open_status, extra, "<br>", directions)
 }
 
 # Format all schedule periods for a library
@@ -155,12 +157,12 @@ format_schedule_periods <- function(library_id, all_schedules, now_time) {
       is_current = from <= now_time & to >= now_time,
       period_text = paste0(
         from, "-", to, " (", status_label, ")",
-        if_else(is_current, " ← now", "")
+        if_else(is_current, txt$schedule_now, "")
       )
     )
 
   if (nrow(periods) == 0) {
-    return("No schedule information available")
+    return(txt$no_schedule)
   }
 
   # Return as HTML list (current period bolded)
