@@ -85,6 +85,44 @@ as_choices <- function(options, all_label, counts = TRUE) {
   c(setNames("", all_label), setNames(options$value, labels))
 }
 
+# The choices of the "search all libraries" box: every library, "Name (City)",
+# in Finnish alphabetical order, with an empty first choice for the placeholder.
+# Unlike the library dropdown they don't depend on the other filters.
+finder_choices <- function(libs) {
+  libs <- libs |>
+    transmute(value = id_text(id), name = library_branch_name, city = city_name) |>
+    filter(!is.na(name))
+  libs <- libs[stringr::str_order(libs$name, locale = "fi"), ]
+  c(setNames("", ""), setNames(libs$value, sprintf("%s (%s)", libs$name, libs$city)))
+}
+
+# Jump to a library found with the search box: its city and the library itself.
+# A service that is selected stays if the library offers it and is cleared, with
+# a notice, if not. The same result shape as apply_filter_change(); `changed` is
+# FALSE for an unknown library or when it is already the selection.
+jump_to_library <- function(libs, services, sel, library_id, msgs = txt) {
+  sel <- normalize_selection(sel)
+  unchanged <- list(sel = sel, notice = NULL, changed = FALSE)
+  row <- libs |> filter(id_text(id) == library_id)
+  if (!nzchar(library_id) || nrow(row) == 0) return(unchanged)
+
+  new <- sel
+  new$library <- library_id
+  new$city <- row$city_name[[1]]
+
+  notice <- NULL
+  if (nzchar(sel$service)) {
+    offered <- services |> filter(library_id == row$id[[1]]) |> pull(service_name)
+    if (!sel$service %in% offered) {
+      notice <- sprintf(msgs$notice_service_not_at_library, row$library_branch_name[[1]], sel$service)
+      new$service <- ""
+    }
+  }
+
+  if (identical(new, sel)) return(unchanged)
+  list(sel = new, notice = notice, changed = TRUE)
+}
+
 # Apply one change made by the user (`changed` is "city", "service" or "library",
 # `value` is "" to clear it) and return
 #   sel     the new selection

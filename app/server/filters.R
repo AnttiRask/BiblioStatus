@@ -73,6 +73,13 @@ handle_user_change <- function(field, value, from_dropdown = TRUE) {
   if (from_dropdown && !is.null(sent_to_browser[[id]])) {
     sent_to_browser[[id]]$selected <- value  # the browser already shows it
   }
+  commit_selection_change(result)
+  invisible(TRUE)
+}
+
+# Make a changed result of apply_filter_change() / jump_to_library() the
+# selection, and bring everything that depends on it along
+commit_selection_change <- function(result) {
   city_changed <- !identical(result$sel$city, selection()$city)
   service_changed <- !identical(result$sel$service, selection()$service)
   selection(result$sel)
@@ -86,8 +93,26 @@ handle_user_change <- function(field, value, from_dropdown = TRUE) {
   if (city_changed) selected_library(NULL)
   push_dropdowns(result$sel)
   if (!is.null(result$notice)) showNotification(result$notice, type = "message", duration = 6)
-  invisible(TRUE)
 }
+
+# The search box offers every library, once the data has arrived
+observeEvent(library_data(), {
+  updateSelectizeInput(session, "library_finder", choices = finder_choices(library_data()), server = FALSE)
+}, once = TRUE)
+
+# Picking a result jumps to that library (its city, and the library), through the
+# same selection as the dropdowns, and the box empties again: it is a way to get
+# to a library, not a fourth filter with a state of its own
+observeEvent(input$library_finder, {
+  id <- input$library_finder
+  req(!is.null(id), nzchar(id))
+  libs <- library_data()
+  svcs <- library_services_data()
+  req(libs, svcs)
+  result <- jump_to_library(libs, svcs, selection(), id)
+  if (result$changed) commit_selection_change(result)
+  updateSelectizeInput(session, "library_finder", selected = "")
+}, ignoreInit = TRUE, ignoreNULL = FALSE)
 
 # Fill the dropdowns when the data arrives (and, after a reconnect, show the
 # selection that was seeded from the browser's values)

@@ -259,3 +259,55 @@ test_that("a link can't produce a selection with an empty map", {
     expect_gt(nrow(filter_libraries(fl, fs, r$sel)), 0)
   }
 })
+
+# ---- the search box: every library, and jumping to one ----
+
+test_that("finder_choices offers every library as 'Name (City)', sorted in Finnish order, with an empty first choice", {
+  ch <- finder_choices(fl)
+  expect_equal(unname(ch[1]), "")
+  expect_equal(names(ch)[1], "")
+  expect_equal(unname(ch[-1]), c("3", "4", "1", "2", "5", "100000"))   # Entresse, Metso, Oodi, Pasila, Ylä, Äänekoski
+  expect_equal(names(ch)[-1], c("Entresse (Espoo)", "Metso (Tampere)", "Oodi (Helsinki)", "Pasila (Helsinki)", "Ylä (Tampere)", "Äänekoski (Äänekoski)"))
+  expect_equal(ch[["Oodi (Helsinki)"]], "1")
+})
+
+test_that("finder_choices doesn't depend on any filter: it has all libraries and ignores libraries without a name", {
+  expect_length(finder_choices(fl), nrow(fl) + 1)
+  nameless <- rbind(fl, data.frame(id = 7, library_branch_name = NA, city_name = "Espoo"))
+  expect_length(finder_choices(nameless), nrow(fl) + 1)
+})
+
+test_that("jump_to_library sets the library and its city, wherever the selection was", {
+  r <- jump_to_library(fl, fs, sel(city = "Tampere"), "1")
+  expect_true(r$changed)
+  expect_equal(r$sel, sel(city = "Helsinki", library = "1"))
+  expect_null(r$notice)
+
+  r <- jump_to_library(fl, fs, sel(), "100000")
+  expect_equal(r$sel, sel(city = "Äänekoski", library = "100000"))
+})
+
+test_that("jump_to_library keeps a service the library offers, and clears one it doesn't, with a notice", {
+  r <- jump_to_library(fl, fs, sel(city = "Helsinki", service = "Sauna"), "1")     # Oodi has Sauna
+  expect_equal(r$sel, sel(city = "Helsinki", service = "Sauna", library = "1"))
+  expect_null(r$notice)
+
+  r <- jump_to_library(fl, fs, sel(city = "Helsinki", service = "Sauna"), "2")     # Pasila doesn't
+  expect_equal(r$sel, sel(city = "Helsinki", library = "2"))
+  expect_match(r$notice, "Pasila")
+  expect_match(r$notice, "Sauna")
+
+  r <- jump_to_library(fl, fs, sel(service = "Pelit"), "1")                        # from another city's service
+  expect_equal(r$sel, sel(city = "Helsinki", library = "1"))
+  expect_false(is.null(r$notice))
+})
+
+test_that("jump_to_library changes nothing for an unknown or empty library, or the one already selected", {
+  for (id in c("", "999", NA_character_)) {
+    r <- jump_to_library(fl, fs, sel(city = "Espoo"), id)
+    expect_false(r$changed)
+    expect_equal(r$sel, sel(city = "Espoo"))
+  }
+  r <- jump_to_library(fl, fs, sel(city = "Helsinki", library = "1"), "1")
+  expect_false(r$changed)
+})

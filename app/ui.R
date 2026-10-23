@@ -61,6 +61,12 @@ ui <- page_navbar(
     layout_sidebar(
       sidebar = sidebar(
         width = 400,
+        selectizeInput(
+          inputId = "library_finder",
+          label = txt$finder_label,
+          choices = NULL,
+          options = list(placeholder = txt$finder_placeholder)
+        ),
         selectInput(
           inputId = "city_filter",
           label = txt$city_label,
