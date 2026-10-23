@@ -59,3 +59,33 @@ test_that("parse_turso_query_result raises an error on a top-level pipeline erro
   error_result <- list(error = list(message = "invalid baton"))
   expect_error(parse_turso_query_result(error_result), "invalid baton")
 })
+
+# ---- reads give up and try once more ----
+# httr2's mocked responses skip retrying, so the test looks at the policy that
+# is set on the request (the retry itself was tried against a real local
+# server by hand).
+
+test_that("a read has a timeout and is tried once more after a transient error", {
+  req <- build_turso_read_request("https://example.turso.io", "token", list(requests = list()))
+  expect_equal(req$options$timeout_ms, turso_read_timeout * 1000)
+  expect_equal(req$policies$retry_max_tries, 2)
+  expect_true(req$policies$retry_on_failure)
+  expect_equal(req$policies$retry_backoff(1), turso_retry_wait)
+  expect_match(req$url, "/v2/pipeline$")
+})
+
+test_that("turso_query goes through that request", {
+  withr::local_envvar(TURSO_DATABASE_URL = "libsql://example.turso.io", TURSO_AUTH_TOKEN = "t")
+  seen <- NULL
+  httr2::with_mocked_responses(
+    function(req) {
+      seen <<- req
+      httr2::response_json(body = jsonlite::fromJSON(
+        testthat::test_path("fixtures/turso_pipeline_response.json"), simplifyVector = FALSE))
+    },
+    df <- turso_query("SELECT 1")
+  )
+  expect_equal(seen$options$timeout_ms, turso_read_timeout * 1000)
+  expect_equal(seen$policies$retry_max_tries, 2)
+  expect_equal(nrow(df), 3)
+})

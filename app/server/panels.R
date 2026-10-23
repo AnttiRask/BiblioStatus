@@ -149,14 +149,16 @@ output$library_services <- renderUI({
   }
 })
 
-# A note above the map when there is no schedule data for today at all (the
-# nightly update has not run yet): every library would otherwise look like it
-# just has an unknown status.
+# A note above the map when the data is not the live data (the nightly backup,
+# or older data while Turso is down), when it could not be loaded, or when
+# there is no schedule data for today at all (the nightly update has not run
+# yet): every library would otherwise look like it just has an unknown status.
 output$data_notice <- renderUI({
+  state <- data_state() %||% list(source = "turso")
   schedules <- all_library_schedules()
-  req(!is.null(schedules))
-  if (nrow(schedules) == 0) {
-    div(class = "alert alert-warning mx-3 my-2", role = "status", txt$no_schedules_notice)
+  notice <- data_notice_for(state, schedules_empty = !is.null(schedules) && nrow(schedules) == 0)
+  if (!is.null(notice)) {
+    div(class = paste("alert mx-3 my-2", notice$class), role = "status", notice$text)
   }
 })
 

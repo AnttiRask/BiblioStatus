@@ -47,5 +47,9 @@ txt <- list(
   legend_closed        = "Closed",
   legend_closed_day    = "Closed for the whole day",
   legend_unknown       = "No status data",
+  data_backup_notice   = "Live data is unavailable, so this is the nightly backup. Opening hours may be out of date.",
+  data_stale_notice    = "Live data is temporarily unavailable. Showing the data from %s.",
+  data_failed_notice   = "The library data could not be loaded. Please try again in a few minutes.",
+  data_partial_notice  = "Some of the data could not be loaded, so the opening hours or services may be missing.",
   no_schedules_notice  = "Opening hours for today are not available yet, so the libraries are shown without a status. They are updated every morning."
 )

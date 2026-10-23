@@ -48,6 +48,29 @@ fixture_services_distinct <- data.frame(
 # Must be called from inside testServer()'s eval context (not extracted into
 # a helper taking `environment()`, which does not give access to the
 # testServer-local reactiveVals via $).
+# The server loads its data when a session starts, so without these every test
+# in this file would read the real database (Turso where the credentials exist,
+# the SQLite backup in CI), and what the page says about the data source would
+# depend on where the tests run. Replace the fetch functions for the whole file;
+# tests that need other data replace them again and restore these.
+local({
+  names_replaced <- c("fetch_libraries", "fetch_schedules", "fetch_library_services")
+  was_global <- vapply(names_replaced, exists, logical(1), envir = globalenv(), inherits = FALSE)
+  originals <- mget(names_replaced, envir = globalenv(), inherits = TRUE)
+  assign("fetch_libraries", function() {
+    fixture_libraries[, c("id", "library_branch_name", "lat", "lon", "city_name",
+      "library_url", "library_phone", "library_email", "library_address")]
+  }, envir = globalenv())
+  assign("fetch_schedules", function() {
+    data.frame(library_id = numeric(), date = character(), from = character(),
+      to = character(), status_label = character(), stringsAsFactors = FALSE)
+  }, envir = globalenv())
+  assign("fetch_library_services", function() fixture_services, envir = globalenv())
+  withr::defer(for (name in names_replaced) {
+    if (was_global[[name]]) assign(name, originals[[name]], envir = globalenv()) else rm(list = name, envir = globalenv())
+  }, envir = testthat::teardown_env())
+})
+
 seed_fixture_data_code <- quote({
   session$flushReact()
   library_data(fixture_libraries)

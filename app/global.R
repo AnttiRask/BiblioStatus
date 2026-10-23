@@ -18,4 +18,8 @@ source("www/strings.R")
 source("www/functions.R")
 source("www/filter_logic.R")
 source("www/health.R")
+source("www/data_layer.R")
 source("modules/service_stats.R")
+
+# Warm the shared data cache so the first visitor doesn't wait for Turso
+if (!isTRUE(getOption("bibliostatus.skip_warm"))) try(get_app_data(), silent = TRUE)
