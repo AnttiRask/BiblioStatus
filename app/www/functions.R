@@ -14,12 +14,13 @@ db_path <- if (file.exists(here("libraries.sqlite"))) {
 }
 
 # Run a Turso query, falling back to the SQLite backup if it errors.
+# The result carries a "source" attribute ("turso" or "sqlite") for get_app_data().
 with_turso_fallback <- function(turso_query_fn, sqlite_query_fn, context) {
   tryCatch({
-    turso_query_fn()
+    structure(turso_query_fn(), source = "turso")
   }, error = function(e) {
     warning(sprintf("Turso failed (%s), using SQLite: %s", context, e$message))
-    sqlite_query_fn()
+    structure(sqlite_query_fn(), source = "sqlite")
   })
 }
 

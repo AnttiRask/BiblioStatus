@@ -4,6 +4,12 @@
 library(httr2)
 library(jsonlite)
 
+# A read gives up after this many seconds and is tried once more (a transient
+# 429/503 or a dropped connection) after turso_retry_wait seconds. Without a
+# timeout a hanging Turso would hang every page load.
+turso_read_timeout <- 8
+turso_retry_wait <- 1
+
 # Convert libsql:// URL to https:// for HTTP API
 convert_to_https <- function(url) {
   if (grepl("^libsql://", url)) {
@@ -25,6 +31,20 @@ load_turso_credentials <- function() {
   list(url = url, token = token)
 }
 
+# The request for a read: a timeout, and one more try after a transient error
+# (429/503) or a dropped connection. Split out so a test can check the policy
+# (httr2's mocked responses skip retrying).
+build_turso_read_request <- function(https_url, token, request_body) {
+  request(paste0(https_url, "/v2/pipeline")) %>%
+    req_headers(
+      Authorization = paste("Bearer", token),
+      `Content-Type` = "application/json"
+    ) %>%
+    req_body_json(request_body) %>%
+    req_timeout(turso_read_timeout) %>%
+    req_retry(max_tries = 2, retry_on_failure = TRUE, backoff = function(i) turso_retry_wait)
+}
+
 # Execute a SELECT query and return results as data frame
 turso_query <- function(sql, params = list()) {
   creds <- load_turso_credentials()
@@ -35,12 +55,7 @@ turso_query <- function(sql, params = list()) {
 
   # Make HTTP request to Turso pipeline endpoint
   response <- tryCatch({
-    request(paste0(https_url, "/v2/pipeline")) %>%
-      req_headers(
-        Authorization = paste("Bearer", creds$token),
-        `Content-Type` = "application/json"
-      ) %>%
-      req_body_json(request_body) %>%
+    build_turso_read_request(https_url, creds$token, request_body) %>%
       req_perform()
   }, error = function(e) {
     stop("Turso query failed: ", conditionMessage(e))

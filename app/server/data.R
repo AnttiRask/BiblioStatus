@@ -1,9 +1,10 @@
 # Data loading.
 # Evaluated inside server() (see server_parts in server.R), so it shares the
-# session's reactive state, input, output and session. State: library_data, library_services_data, all_library_schedules, library_base, schedule_rows, status_clock.
+# session's reactive state, input, output and session. State: library_data, library_services_data, all_library_schedules, data_state, library_base, schedule_rows, status_clock.
 
 # The data is loaded once per page; the statuses are recomputed every minute from
 # the loaded schedule rows and the clock (see compute_library_statuses()).
+data_state <- reactiveVal(NULL)      # where the data came from (get_app_data() without the data frames)
 library_base <- reactiveVal(NULL)    # the libraries, without a status
 schedule_rows <- reactiveVal(NULL)   # the schedule rows loaded: today and tomorrow
 status_clock <- reactiveVal(NULL)    # the "HH:MM" the statuses were last computed for
@@ -30,11 +31,20 @@ refresh_statuses <- function() {
   invisible()
 }
 
-# Data fetching and processing
+# Data fetching and processing. get_app_data() never throws and is shared by
+# all sessions (www/data_layer.R); data_state says where the data came from, for
+# the notice above the map.
 refresh_data <- function() {
-  library_base(fetch_libraries())
-  schedule_rows(fetch_schedules())
-  library_services_data(fetch_library_services())
+  data <- get_app_data()
+  data_state(data[c("source", "fetched_at", "stale", "error")])
+  if (data$source == "none") {
+    # Nothing to draw: say so instead of leaving the loading text up
+    hide("loading-spinner")
+    return(invisible())
+  }
+  library_base(data$libraries)
+  schedule_rows(data$schedules)
+  library_services_data(data$services)
   refresh_statuses()
 }
 
