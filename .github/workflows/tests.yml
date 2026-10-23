@@ -48,17 +48,17 @@ jobs:
           r-version: renv
           use-public-rspm: true
 
-      # Runtime libraries for the spatial packages (leaflet/terra/sf) that the
-      # app loads
-      # An apt mirror stall once held this step for the whole 30-minute job
-      # limit, so downloads retry and time out quickly and the step is capped
+      # Only what the tests load. The app doesn't use terra/raster (they sit in
+      # renv.lock, installed from binaries and never loaded), so the GDAL/GEOS/
+      # PROJ stack is not installed: that download (about 100 packages) is what
+      # stalled the runner twice. Downloads retry and time out quickly and the
+      # step is capped.
       - name: Install system dependencies
         timeout-minutes: 10
         run: |
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y --no-install-recommends \
-            libcurl4-openssl-dev libssl-dev libxml2-dev libpng-dev \
-            libgdal-dev libgeos-dev libproj-dev libudunits2-dev libsqlite3-dev
+            libcurl4-openssl-dev libssl-dev libxml2-dev libpng-dev
 
       - name: Restore packages from renv.lock
         uses: r-lib/actions/setup-renv@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
