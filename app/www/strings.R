@@ -26,7 +26,9 @@ txt <- list(
   getting_location     = " Getting your location...",
 
   nearest_heading      = "Nearest Open Libraries:",
+  nearest_heading_service = "Nearest open libraries offering %s:",
   no_open_nearby       = "No open libraries found nearby",
+  no_open_nearby_service = "No open libraries offering %s found nearby",
   get_directions       = " Get Directions",
   current_status       = "Current Status:",
   todays_schedule      = "Today's Schedule:",

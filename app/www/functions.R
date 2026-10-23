@@ -367,3 +367,25 @@ app_theme <- function() {
 # because testServer()'s session has a fixed fake one; tests replace this.
 url_search_of <- function(session) session$clientData$url_search
 
+# The open libraries nearest to a point, closest first, with their distance. With
+# a service, only libraries offering it count ("the nearest open library with a
+# sauna"). The city and library filters are deliberately not applied: what is
+# nearest depends on where the user is, not on the city shown on the map.
+# A zero-row data frame when nothing qualifies.
+nearest_open_libraries <- function(libs, services, lat, lon, n, service = "") {
+  open_libs <- libs |> dplyr::filter(open_status %in% c("Open", "Self-service"))
+
+  if (!is.null(service) && nzchar(service)) {
+    with_service <- services |>
+      dplyr::filter(service_name == service) |>
+      dplyr::pull(library_id)
+    open_libs <- open_libs |> dplyr::filter(id %in% with_service)
+  }
+
+  if (nrow(open_libs) == 0) return(data.frame())
+
+  calculate_distances_to_libraries(user_lat = lat, user_lon = lon, library_data = open_libs) |>
+    dplyr::arrange(distance_km) |>
+    utils::head(n)
+}
+

@@ -17,7 +17,11 @@ output$nearest_libraries_ui <- renderUI({
   req(nrow(nearest) > 0)
 
   tagList(
-    h4(txt$nearest_heading, style = "color: var(--brand-accent);"),
+    h4(
+      # says which service it was for; the list is cleared when the service changes
+      if (nzchar(selection()$service)) sprintf(txt$nearest_heading_service, selection()$service) else txt$nearest_heading,
+      style = "color: var(--brand-accent);"
+    ),
     lapply(1:nrow(nearest), function(i) {
       lib <- nearest[i, ]
       maps_url <- sprintf(
