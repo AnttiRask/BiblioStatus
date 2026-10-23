@@ -342,3 +342,24 @@ refresh_map <- function(map, data, dark = FALSE, mobile = FALSE, fit = TRUE) {
   map
 }
 
+# The page theme. Light is the default mode. bg/fg are deliberately not set: in
+# bslib they define the LIGHT mode, so setting them to the dark brand colours
+# (as this app once did) made the page dark in "light" mode and, inverted, light
+# in "dark" mode, the opposite of the map. Dark mode is added on top with the
+# brand dark background and a lighter red for links.
+app_theme <- function() {
+  bslib::bs_theme(
+    version = 5,
+    primary = brand_colours$red,
+    base_font = bslib::font_link(
+      family = "Gotham",
+      href = "https://fonts.cdnfonts.com/css/gotham-6"
+    )
+  ) |>
+    bslib::bs_add_variables(
+      "body-bg-dark"          = brand_colours$dark_bg,
+      "link-color-dark"       = brand_colours$red_on_dark,
+      "link-hover-color-dark" = brand_colours$red_on_dark
+    )
+}
+

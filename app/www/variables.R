@@ -65,3 +65,12 @@ geo_config <- list(
   findNearestTimeoutMs = 10000,
   findNearestMaxAgeMs  = 300000
 )
+
+# Brand colours. The red is for the light page; on the dark page it is too dim
+# (3.1:1 on the dark background), so text uses the lighter red there.
+brand_colours <- list(
+  red         = "#C1272D",
+  red_on_dark = "#F26B70",
+  dark_bg     = "#191414"
+)
+
