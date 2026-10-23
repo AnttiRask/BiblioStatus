@@ -174,7 +174,7 @@ observeEvent(input$reset_filters, {
 
 # The library detail panel follows the library selection (a marker click can
 # still show another library's details without changing the selection)
-observeEvent(list(selection()$library, library_data()), {
+show_selected_library <- function() {
   lib_id <- selection()$library
   libs <- library_data()
   if (nzchar(lib_id) && !is.null(libs)) {
@@ -183,4 +183,15 @@ observeEvent(list(selection()$library, library_data()), {
   } else {
     selected_library(NULL)
   }
-})
+}
+
+# Only when the selection changes. Not when library_data() changes: that happens
+# every time a status changes (see data.R) and would close the details of a
+# library opened by a marker click.
+observeEvent(selection()$library, show_selected_library())
+
+# And once when the data first arrives, for a library that a link or a reconnect
+# selected before there was any data
+observeEvent(library_data(), {
+  if (nzchar(selection()$library)) show_selected_library()
+}, once = TRUE)

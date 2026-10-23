@@ -60,8 +60,10 @@ output$library_services <- renderUI({
       selected$lat, selected$lon
     )
 
-    # Get current time for schedule formatting
-    now <- format(Sys.time(), tz = "Europe/Helsinki", "%H:%M")
+    # The time the statuses were last computed for (changes every minute, so the
+    # "now" mark in the day's schedule moves)
+    now <- status_clock()
+    req(now)
 
     # Format all schedule periods
     schedule_html <- if (!is.null(schedules)) {
