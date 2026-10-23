@@ -36,8 +36,7 @@ fetch_library_data.R        # Pulls data from Kirkanta API (v4) - daily schedule
 check_library_urls.R        # Validates all library URLs
 R/
 ├── turso.R                 # Turso database helper functions
-├── backfill_historical_data.R  # Backfill historical schedules
-└── migrate_services.R      # One-time migration script for service normalization
+└── backfill_historical_data.R  # Backfill historical schedules
 .github/workflows/
 ├── fetch_data.yml          # Daily schedules (2:00 AM UTC) + weekly libraries (Sunday)
 ├── check_library_urls.yml  # Daily URL validation (3:00 AM UTC)
