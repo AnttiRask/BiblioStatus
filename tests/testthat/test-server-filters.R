@@ -627,3 +627,106 @@ test_that("the map legend explains the 'no status data' colour", {
     expect_match(as.character(output$map), light_colors$Unknown, fixed = TRUE)
   })
 })
+
+# ---- the selection in the page address ----
+# testServer()'s session has a fixed fake query string, so the server reads it
+# through url_search_of(), which these tests replace. The data comes from the
+# app's own fetch functions (replaced by the fixtures), because the link is
+# checked when the first data arrives.
+with_address <- function(search, env = parent.frame()) {
+  names_replaced <- c("url_search_of", "updateQueryString", "fetch_libraries", "fetch_schedules", "fetch_library_services")
+  was_global <- vapply(names_replaced, exists, logical(1), envir = globalenv(), inherits = FALSE)
+  originals <- mget(names_replaced, envir = globalenv(), inherits = TRUE)
+  written <- new.env()
+  written$queries <- character()
+
+  assign("url_search_of", function(session) search, envir = globalenv())
+  assign("updateQueryString", function(queryString, mode = "replace", session = NULL) {
+    written$queries <- c(written$queries, queryString)
+    invisible(NULL)
+  }, envir = globalenv())
+  assign("fetch_libraries", function() {
+    fixture_libraries[, c("id", "library_branch_name", "lat", "lon", "city_name",
+      "library_url", "library_phone", "library_email", "library_address")]
+  }, envir = globalenv())
+  assign("fetch_schedules", function() {
+    data.frame(library_id = 1:3, date = "2026-10-23", from = "09:00", to = "20:00",
+      status_label = "Open", stringsAsFactors = FALSE)
+  }, envir = globalenv())
+  assign("fetch_library_services", function() fixture_services, envir = globalenv())
+
+  withr::defer(for (name in names_replaced) {
+    if (was_global[[name]]) assign(name, originals[[name]], envir = globalenv()) else rm(list = name, envir = globalenv())
+  }, envir = env)
+  written
+}
+
+test_that("a link restores the selection, and the map shows it", {
+  written <- with_address("?city=Helsinki&service=Printing")
+
+  testServer(server, {
+    session$flushReact()
+
+    expect_equal(selection(), list(city = "Helsinki", service = "Printing", library = ""))
+    expect_true(startup_city_set())               # the link decided the city
+    expect_equal(sort(libraries_on_map()$id), c(1, 2))
+  })
+})
+
+test_that("a link with values that don't fit starts from what does, with a notice", {
+  written <- with_address("?city=Atlantis&service=Printing")
+  shown <- new.env()
+  assign("showNotification", function(ui, ...) { shown$text <- ui; invisible(NULL) }, envir = globalenv())
+  withr::defer(rm("showNotification", envir = globalenv()))
+
+  testServer(server, {
+    session$flushReact()
+
+    expect_equal(selection()$city, "")            # not a real city
+    expect_equal(selection()$service, "Printing")
+    expect_match(shown$text, "left out")
+  })
+})
+
+test_that("a page without a link starts as usual and the address follows the selection", {
+  written <- with_address("")
+
+  testServer(server, {
+    session$flushReact()
+    startup_city_set(TRUE)
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(service_filter = "Printing")
+    session$flushReact()
+
+    expect_equal(selection(), list(city = "Helsinki", service = "Printing", library = ""))
+    expect_equal(tail(written$queries, 1), "?city=Helsinki&service=Printing")
+
+    session$setInputs(clear_service = 1)
+    session$flushReact()
+    expect_equal(tail(written$queries, 1), "?city=Helsinki")
+  })
+})
+
+test_that("the incoming link is not overwritten: the first address written is the link's", {
+  written <- with_address("?city=Helsinki")
+
+  testServer(server, {
+    session$flushReact()
+    expect_gt(length(written$queries), 0)
+    expect_equal(written$queries[1], "?city=Helsinki")   # not "?" from an empty selection
+  })
+})
+
+# If the data is slow or fails to load, the link can't be checked yet; the
+# address must stay as it is instead of being overwritten with an empty selection.
+test_that("the address is left alone while the data hasn't loaded", {
+  written <- with_address("?city=Helsinki&service=Printing")
+  assign("fetch_libraries", function() shiny::req(FALSE), envir = globalenv())   # silently produces nothing
+
+  testServer(server, {
+    session$flushReact()
+    expect_null(library_data())
+    expect_length(written$queries, 0)      # nothing written: the link is still intact
+    expect_equal(selection(), list(city = "", service = "", library = ""))
+  })
+})

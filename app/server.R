@@ -5,7 +5,7 @@
 # inside every session's server() call so they share its input, output,
 # session and reactive state. The order is the order the observers are created.
 server_parts <- lapply(
-  c("data", "filters", "map", "panels"),
+  c("data", "filters", "url", "map", "panels"),
   function(part) parse(file.path("server", paste0(part, ".R")), keep.source = FALSE)
 )
 
