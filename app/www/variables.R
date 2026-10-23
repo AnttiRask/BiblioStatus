@@ -74,3 +74,7 @@ brand_colours <- list(
   dark_bg     = "#191414"
 )
 
+# Health check (GET /health, see www/health.R)
+health_min_days_ahead <- 2     # the newest stored opening hours must be at least this many days ahead of today
+health_cache_seconds  <- 60    # a monitor checking from several places is answered from a short cache
+
