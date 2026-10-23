@@ -41,16 +41,17 @@ fetch_libraries <- function() {
 
 # Function to fetch schedules (Turso primary, SQLite fallback)
 fetch_schedules <- function() {
-  # The Finnish date: the opening hours are compared with the Finnish time, and
-  # Sys.Date() (UTC on the server) is yesterday for the first hours of the day
-  today <- format(helsinki_today(), "%Y-%m-%d")
+  # Today (the Finnish date: the opening hours are compared with the Finnish time,
+  # and Sys.Date() is the UTC date) and tomorrow, so a page that stays open past
+  # midnight can switch to the new day without loading again
+  dates <- schedule_dates_to_load()
 
   with_turso_fallback(
     turso_query_fn = function() {
       turso_query(
         'SELECT library_id, date, from_time as "from", to_time as "to", status_label
-         FROM schedules WHERE date = ?',
-        list(today)
+         FROM schedules WHERE date >= ? AND date <= ?',
+        list(dates[[1]], dates[[2]])
       )
     },
     sqlite_query_fn = function() {
@@ -58,8 +59,8 @@ fetch_schedules <- function() {
       on.exit(dbDisconnect(con))
       dbGetQuery(con,
         'SELECT library_id, date, "from", "to", status_label
-         FROM schedules WHERE date = ?',
-        params = list(today)
+         FROM schedules WHERE date >= ? AND date <= ?',
+        params = list(dates[[1]], dates[[2]])
       )
     },
     context = "schedules"
@@ -387,5 +388,70 @@ nearest_open_libraries <- function(libs, services, lat, lon, n, service = "") {
   calculate_distances_to_libraries(user_lat = lat, user_lon = lon, library_data = open_libs) |>
     dplyr::arrange(distance_km) |>
     utils::head(n)
+}
+
+# ---------------------------------------------------------------------------
+# Opening status, computed from the schedule rows and the clock. Kept apart from
+# the data loading so the page can recompute it every minute: a status computed
+# once at page load goes stale (a library that opens at 10:00 still read
+# "Closed" at 10:45 for anyone who had the page open).
+# ---------------------------------------------------------------------------
+
+# The time in Finland as "HH:MM" (strings compare in time order). A function of
+# its own so tests can set the clock.
+helsinki_time_now <- function() format(Sys.time(), tz = "Europe/Helsinki", "%H:%M")
+
+# Today and tomorrow as "YYYY-MM-DD": the schedules the page loads
+schedule_dates_to_load <- function(today = helsinki_today()) {
+  as.character(c(today, today + 1))
+}
+
+# The schedule rows of one day, with whether each period is on now and the
+# status it gives ("Open", "Self-service", "Temporarily closed", "Closed", or
+# "Closed for the whole day"). `schedules` has library_id, date, from, to,
+# status_label.
+todays_schedules <- function(schedules, today, now) {
+  schedules %>%
+    filter(date == today) %>%
+    mutate(
+      is_open_now = from <= now & to >= now,
+      open_status = case_when(
+        status_label == "Closed for the whole day" ~
+          "Closed for the whole day",
+        is_open_now & status_label == "Open" ~ "Open",
+        is_open_now & status_label == "Self-service" ~ "Self-service",
+        is_open_now & status_label == "Temporarily closed" ~
+          "Temporarily closed",
+        TRUE ~ "Closed"
+      )
+    )
+}
+
+# The libraries with their status now: one row per library, with the period that
+# is on now (or else the one that ends last) deciding the status. A library with
+# no schedule rows for the day gets NA (shown as "no status data").
+compute_library_statuses <- function(libraries, schedules, today, now) {
+  map_display <- todays_schedules(schedules, today, now) %>%
+    group_by(library_id) %>%
+    arrange(desc(is_open_now), desc(to)) %>%
+    slice(1) %>%
+    ungroup() %>%
+    mutate(
+      opening_hours = if_else(
+        is_open_now,
+        paste0(from, " - ", to),
+        NA_character_
+      )
+    )
+
+  libraries %>%
+    left_join(map_display, by = join_by(id == library_id))
+}
+
+# Milliseconds until a little after the next full minute: the statuses can only
+# change on the minute, so the page checks then and not at some random offset
+ms_to_next_minute <- function(now = Sys.time()) {
+  seconds <- as.numeric(format(now, "%OS3"))     # seconds into the minute, with milliseconds
+  max(1000, round((60 - seconds) * 1000) + 500)
 }
 

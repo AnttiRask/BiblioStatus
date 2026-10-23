@@ -833,3 +833,124 @@ test_that("the nearest list is cleared when the service or the city changes", {
     expect_null(nearest_libraries())
   })
 })
+
+# ---- statuses follow the clock ----
+# The statuses are recomputed every minute from the loaded schedule rows. The data
+# comes from the app's fetch functions (replaced by fixtures) and the clock from
+# helsinki_time_now() / helsinki_today() (replaced by a clock the test moves).
+clock_rows <- rbind(
+  data.frame(library_id = 1, date = "2026-10-23", from = "09:00", to = "10:00", status_label = "Open", stringsAsFactors = FALSE),
+  data.frame(library_id = 2, date = "2026-10-23", from = NA_character_, to = NA_character_, status_label = "Closed for the whole day", stringsAsFactors = FALSE),
+  data.frame(library_id = 3, date = "2026-10-24", from = "07:00", to = "08:00", status_label = "Open", stringsAsFactors = FALSE)
+)
+
+with_clock <- function(time, today = "2026-10-23", env = parent.frame()) {
+  names_replaced <- c("fetch_libraries", "fetch_schedules", "fetch_library_services", "helsinki_time_now", "helsinki_today")
+  originals <- mget(names_replaced, envir = globalenv(), inherits = TRUE)
+  clock <- new.env()
+  clock$time <- time
+  clock$today <- as.Date(today)
+
+  assign("fetch_libraries", function() {
+    fixture_libraries[, c("id", "library_branch_name", "lat", "lon", "city_name",
+      "library_url", "library_phone", "library_email", "library_address")]
+  }, envir = globalenv())
+  assign("fetch_schedules", function() clock_rows, envir = globalenv())
+  assign("fetch_library_services", function() fixture_services, envir = globalenv())
+  assign("helsinki_time_now", function() clock$time, envir = globalenv())
+  assign("helsinki_today", function(now = Sys.time()) clock$today, envir = globalenv())
+
+  withr::defer(for (name in names_replaced) assign(name, originals[[name]], envir = globalenv()), envir = env)
+  clock
+}
+# Evaluated inside testServer() (where library_data() exists), not defined here
+status_now_code <- quote(status_now <- function(id) library_data()$open_status[library_data()$id == id])
+
+test_that("a library that opens while the page is open changes status without a reload", {
+  clock <- with_clock("08:59")
+
+  testServer(server, {
+    eval(status_now_code)
+    session$flushReact()
+    expect_equal(status_now(1), "Closed")
+    expect_equal(status_clock(), "08:59")
+
+    clock$time <- "09:00"                       # the library opens
+    session$elapse(61 * 1000)                   # the page's minute check
+    expect_equal(status_now(1), "Open")
+    expect_equal(library_data()$opening_hours[library_data()$id == 1], "09:00 - 10:00")
+    expect_equal(status_clock(), "09:00")
+    # and what the map shows follows
+    expect_equal(libraries_on_map()$open_status[libraries_on_map()$id == 1], "Open")
+
+    clock$time <- "10:01"                       # and closes again
+    session$elapse(61 * 1000)
+    expect_equal(status_now(1), "Closed")
+  })
+})
+
+test_that("a minute with no change doesn't replace the data, so the map isn't redrawn", {
+  clock <- with_clock("09:30")
+
+  testServer(server, {
+    session$flushReact()
+    replaced <- 0
+    observeEvent(library_data(), replaced <<- replaced + 1, ignoreInit = TRUE)
+
+    session$elapse(61 * 1000)                   # same time, nothing changed
+    session$elapse(61 * 1000)
+    expect_equal(replaced, 0)
+
+    clock$time <- "10:01"                       # now library 1 closes
+    session$elapse(61 * 1000)
+    expect_equal(replaced, 1)
+  })
+})
+
+test_that("the library whose details are open gets its new status too", {
+  clock <- with_clock("08:59")
+
+  testServer(server, {
+    session$flushReact()
+    selected_library(library_data()[library_data()$id == 1, ])
+    expect_equal(selected_library()$open_status, "Closed")
+
+    clock$time <- "09:15"
+    session$elapse(61 * 1000)
+    expect_equal(selected_library()$open_status, "Open")
+    expect_equal(selected_library()$id, 1)
+  })
+})
+
+test_that("a page left open past midnight switches to the new day's schedule", {
+  clock <- with_clock("23:59", today = "2026-10-23")
+
+  testServer(server, {
+    eval(status_now_code)
+    session$flushReact()
+    expect_true(is.na(status_now(3)))                       # library 3 has no rows today
+    expect_equal(unique(all_library_schedules()$date), "2026-10-23")
+
+    clock$today <- as.Date("2026-10-24"); clock$time <- "07:30"
+    session$elapse(61 * 1000)
+    expect_equal(status_now(3), "Open")                    # tomorrow's row, loaded with the page
+    expect_equal(unique(all_library_schedules()$date), "2026-10-24")
+    expect_true(is.na(status_now(1)))                       # library 1 has no rows for the 24th
+  })
+})
+
+test_that("the library details show the time they were computed for", {
+  clock <- with_clock("09:30")
+
+  testServer(server, {
+    session$flushReact()
+    selected_library(library_data()[library_data()$id == 1, ])
+    session$flushReact()
+    expect_match(as.character(output$library_services$html), "09:00-10:00 \\(Open\\) \u2190 now")
+
+    clock$time <- "10:30"
+    session$elapse(61 * 1000)
+    session$flushReact()
+    expect_false(grepl("\u2190 now", as.character(output$library_services$html), fixed = TRUE))
+  })
+})
