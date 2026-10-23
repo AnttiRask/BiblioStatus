@@ -143,6 +143,17 @@ output$library_services <- renderUI({
   }
 })
 
+# A note above the map when there is no schedule data for today at all (the
+# nightly update has not run yet): every library would otherwise look like it
+# just has an unknown status.
+output$data_notice <- renderUI({
+  schedules <- all_library_schedules()
+  req(!is.null(schedules))
+  if (nrow(schedules) == 0) {
+    div(class = "alert alert-warning mx-3 my-2", role = "status", txt$no_schedules_notice)
+  }
+})
+
 # One line under the filters: how many libraries the map shows and for what
 output$filter_summary <- renderText({
   libs <- libraries_on_map()

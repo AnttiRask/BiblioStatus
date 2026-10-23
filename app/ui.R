@@ -126,6 +126,8 @@ ui <- page_navbar(
         txt$heading,
         style = "margin: 12px 16px 4px; font-weight: 600;"
       ),
+      # Shown only when there is no schedule data for today
+      uiOutput("data_notice"),
       div(
         id = "loading-spinner",
         txt$loading,

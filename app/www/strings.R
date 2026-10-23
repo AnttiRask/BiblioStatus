@@ -42,5 +42,7 @@ txt <- list(
   legend_open          = "Open",
   legend_self          = "Self-service",
   legend_closed        = "Closed",
-  legend_closed_day    = "Closed for the whole day"
+  legend_closed_day    = "Closed for the whole day",
+  legend_unknown       = "No status data",
+  no_schedules_notice  = "Opening hours for today are not available yet, so the libraries are shown without a status. They are updated every morning."
 )
