@@ -308,3 +308,9 @@ a:focus, button:focus, input:focus, select:focus {
 .bslib-sidebar-layout > .sidebar > .sidebar-content .app-footer {
   margin-top: auto;
 }
+
+/* One line under the filters: "12 libraries · Espoo · Sauna" and the reset link */
+.filter-summary {
+  font-size: 0.875rem;
+  opacity: 0.85;
+}

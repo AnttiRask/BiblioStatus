@@ -1,8 +1,7 @@
-# Regression tests for the filter-cascade bugs fixed in Plan 1 (fixes.md:4-5):
-#   1. Clearing library/service filters must update committed_* immediately,
-#      without requiring "Show on Map" to be pressed again.
-#   2. The service dropdown's displayed value must stay in sync with whether
-#      the selected service is still valid for the currently selected city.
+# Tests for the filter dropdowns as wired into the server (app/server/filters.R):
+# the selection, the map following it, the x buttons, Reset, the detail panel and
+# the notices. The rules themselves are tested without Shiny in
+# test-filter-logic.R.
 #
 # Uses a small fixture data set (not the real Turso/SQLite fetch) so tests are
 # fast, deterministic, and don't depend on network or database availability.
@@ -56,80 +55,70 @@ seed_fixture_data_code <- quote({
   startup_city_set(TRUE)
 })
 
-test_that("clearing the library filter updates committed_library immediately", {
+ids_on_map <- quote(sort(libraries_on_map()$id))
+
+test_that("the map follows the dropdowns as soon as one changes", {
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    expect_equal(eval(ids_on_map), c(1, 2, 3))
+
+    session$setInputs(city_filter = "Helsinki")
+    expect_equal(eval(ids_on_map), c(1, 2))
+
+    session$setInputs(service_filter = "Printing")
+    session$setInputs(library_search = "1")
+    expect_equal(eval(ids_on_map), 1)
+  })
+})
+
+test_that("the service filter alone narrows the map", {
+  one_service_each <- data.frame(
+    library_id = c(1, 2, 3),
+    service_name = c("Printing", "Yoga", "Printing"),
+    stringsAsFactors = FALSE
+  )
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(one_service_each)
+    startup_city_set(TRUE)
+
+    session$setInputs(service_filter = "Printing")
+    expect_equal(eval(ids_on_map), c(1, 3))        # across cities
+
+    session$setInputs(city_filter = "Helsinki")
+    expect_equal(eval(ids_on_map), 1)              # service and city together
+
+    session$setInputs(service_filter = "")
+    expect_equal(eval(ids_on_map), c(1, 2))
+  })
+})
+
+# The x buttons must widen the map right away even though testServer() (like
+# a slow browser) never echoes the cleared value back to input$*: the map reads
+# selection(), not the inputs.
+test_that("the x buttons widen the map immediately, without waiting for the browser's echo", {
   testServer(server, {
     eval(seed_fixture_data_code)
 
     session$setInputs(city_filter = "Helsinki")
+    session$setInputs(service_filter = "Printing")
     session$setInputs(library_search = "1")
-    session$setInputs(apply_filters = 1)
-    expect_equal(committed_library(), "1")
+    expect_equal(eval(ids_on_map), 1)
 
     session$setInputs(clear_library = 1)
-    expect_equal(committed_library(), "")
-  })
-})
-
-test_that("clearing the service filter updates committed_service immediately", {
-  testServer(server, {
-    eval(seed_fixture_data_code)
-
-    session$setInputs(service_filter = "Printing")
-    session$setInputs(apply_filters = 1)
-    expect_equal(committed_service(), "Printing")
+    expect_equal(selection()$library, "")
+    expect_equal(eval(ids_on_map), c(1, 2))
 
     session$setInputs(clear_service = 1)
-    expect_equal(committed_service(), "")
-  })
-})
-
-# Regression test for a bug reported after Plan 1/7/8/9/10: clicking the ×
-# clear button, then immediately clicking "Show on Map" before the browser's
-# updateSelectInput() round-trip echoes the cleared value back to
-# input$service_filter/input$library_search, committed the STALE
-# pre-clear value instead of "". testServer() never simulates that round-trip
-# at all (see the NOTE below), which makes it a perfect stand-in for "the
-# round-trip hasn't landed yet" - input$service_filter genuinely stays at its
-# old value here even after clear_service fires, exactly like the real race.
-# apply_filters must not use input$service_filter/input$library_search
-# directly for this reason; see selection() in server.R.
-test_that("Show on Map after clearing a filter commits the clear, not the stale input$ value", {
-  testServer(server, {
-    eval(seed_fixture_data_code)
-
-    session$setInputs(service_filter = "Printing")
-    session$setInputs(apply_filters = 1)
-    expect_equal(committed_service(), "Printing")
-
-    # Simulate clicking × then "Show on Map" before the browser round-trip:
-    # input$service_filter is deliberately left at "Printing".
-    session$setInputs(clear_service = 1)
-    session$setInputs(apply_filters = 2)
-    expect_equal(committed_service(), "")
-  })
-})
-
-test_that("Show on Map after clearing the library filter commits the clear, not the stale input$ value", {
-  testServer(server, {
-    eval(seed_fixture_data_code)
-
-    session$setInputs(city_filter = "Helsinki")
-    session$setInputs(library_search = "1")
-    session$setInputs(apply_filters = 1)
-    expect_equal(committed_library(), "1")
-
-    # Simulate clicking × then "Show on Map" before the browser round-trip:
-    # input$library_search is deliberately left at "1".
-    session$setInputs(clear_library = 1)
-    session$setInputs(apply_filters = 2)
-    expect_equal(committed_library(), "")
+    expect_equal(selection()$service, "")
+    expect_equal(eval(ids_on_map), c(1, 2))
   })
 })
 
 # Under the old rules a library only existed because the service had narrowed
 # the dropdown to it, so clearing the service cleared the library too. Now the
-# library is an independent choice (it can be picked with no service), so
-# clearing the service leaves it alone and the map keeps showing it.
+# library is an independent choice, so clearing the service leaves it alone.
 test_that("clearing the service filter leaves the library selection alone", {
   testServer(server, {
     eval(seed_fixture_data_code)
@@ -137,18 +126,62 @@ test_that("clearing the service filter leaves the library selection alone", {
     session$setInputs(city_filter = "Helsinki")
     session$setInputs(service_filter = "Printing")
     session$setInputs(library_search = "1")
-    session$setInputs(apply_filters = 1)
-    expect_equal(committed_service(), "Printing")
-    expect_equal(committed_library(), "1")
-
     session$setInputs(clear_service = 1)
-    expect_equal(committed_service(), "")
-    expect_equal(committed_library(), "1")
-    expect_equal(selection()$library, "1")
+    expect_equal(selection(), list(city = "Helsinki", service = "", library = "1"))
+    expect_equal(eval(ids_on_map), 1)
+  })
+})
 
-    session$setInputs(apply_filters = 2)
-    expect_equal(committed_service(), "")
-    expect_equal(committed_library(), "1")
+test_that("the library details follow the library selection", {
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    expect_null(selected_library())
+
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(library_search = "1")
+    expect_equal(selected_library()$id, 1)
+
+    session$setInputs(library_search = "2")
+    expect_equal(selected_library()$id, 2)
+
+    session$setInputs(clear_library = 1)
+    expect_null(selected_library())
+
+    session$setInputs(library_search = "1")
+    session$setInputs(city_filter = "Tampere")       # library 1 isn't in Tampere
+    expect_null(selected_library())
+  })
+})
+
+test_that("Reset filters returns to the startup city and nothing else", {
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    startup_city("Tampere")
+
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(service_filter = "Printing")
+    session$setInputs(library_search = "1")
+    expect_equal(selection(), list(city = "Helsinki", service = "Printing", library = "1"))
+
+    session$setInputs(reset_filters = 1)
+    expect_equal(selection(), list(city = "Tampere", service = "", library = ""))
+    expect_equal(eval(ids_on_map), 3)
+    expect_null(selected_library())
+  })
+})
+
+test_that("the summary line says how many libraries are shown and for what", {
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    session$flushReact()   # render the output with the fixture data, not the startup load
+    expect_equal(output$filter_summary, "3 libraries")
+
+    session$setInputs(city_filter = "Helsinki")
+    expect_equal(output$filter_summary, "2 libraries \u00b7 Helsinki")
+
+    session$setInputs(service_filter = "Printing")
+    session$setInputs(library_search = "1")
+    expect_equal(output$filter_summary, "1 library \u00b7 Helsinki \u00b7 Printing \u00b7 Alpha Library")
   })
 })
 
@@ -263,32 +296,55 @@ test_that("the rendered map uses dark tiles and the dark marker palette in dark 
 })
 
 # After a reconnect (session$allowReconnect("force")) the browser re-sends all
-# the dropdown values and the "Show on Map" click count as the new session's
-# FIRST values, in one go. testServer() does the same when the very first
-# setInputs() call carries them all (so no session$flushReact() before it,
-# unlike seed_fixture_data_code, which would use up the first flush).
-test_that("a reconnect restores the committed library, so the map and Show on Map agree with the dropdowns", {
+# the dropdown values as the new session's FIRST values, in one go. testServer()
+# does the same when the very first setInputs() call carries them all (so no
+# session$flushReact() before it, unlike seed_fixture_data_code, which would use
+# up the first flush).
+test_that("a reconnect restores the selection, so the map agrees with the dropdowns", {
   testServer(server, {
     session$setInputs(
-      city_filter = "Tampere", library_search = "3", service_filter = "Printing",
-      apply_filters = 1
+      city_filter = "Tampere", library_search = "3", service_filter = "Printing"
     )
 
     expect_equal(selection(), list(city = "Tampere", service = "Printing", library = "3"))
-    expect_equal(committed_city(), "Tampere")
-    expect_equal(committed_library(), "3")
-    expect_equal(committed_service(), "Printing")
   })
 })
 
-test_that("a reconnect before Show on Map was ever pressed still restores the city the map shows", {
+test_that("a reconnect with only a city restores that city", {
   testServer(server, {
     session$setInputs(city_filter = "Helsinki", library_search = "", service_filter = "")
 
-    expect_equal(committed_city(), "Helsinki")
-    expect_equal(committed_library(), "")
-    expect_equal(committed_service(), "")
     expect_equal(selection(), list(city = "Helsinki", service = "", library = ""))
+  })
+})
+
+# The startup inputs are sent again after a reconnect (seen in a real browser:
+# the new session seeded Espoo + a service from the dropdowns and then, 1.3 s
+# later, startup moved the city to Helsinki, so the map no longer matched the
+# dropdowns). The startup city must only apply when no city is chosen yet.
+test_that("the startup city doesn't overwrite a city that is already selected", {
+  testServer(server, {
+    session$setInputs(city_filter = "Tampere", library_search = "", service_filter = "")
+    expect_equal(selection()$city, "Tampere")
+
+    session$setInputs(startup_geolocation_timeout = TRUE)
+    expect_equal(selection()$city, "Tampere")
+    expect_true(startup_city_set())
+
+    session$setInputs(startup_location = list(lat = 60.17, lon = 24.94))   # a second startup event
+    expect_equal(selection()$city, "Tampere")
+  })
+})
+
+test_that("the startup city is used when no city has been chosen", {
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(fixture_services)
+
+    session$setInputs(startup_geolocation_timeout = TRUE)
+    expect_equal(selection()$city, "Helsinki")
+    expect_equal(sort(libraries_on_map()$id), c(1, 2))
   })
 })
 
@@ -296,14 +352,12 @@ test_that("a normal page load (empty first values) is left alone, and later chan
   testServer(server, {
     eval(seed_fixture_data_code)
 
-    expect_equal(committed_city(), "")
     expect_equal(selection(), list(city = "", service = "", library = ""))
 
     session$setInputs(city_filter = "Helsinki")
     session$setInputs(library_search = "1")
-    session$setInputs(apply_filters = 1)
     expect_equal(selection(), list(city = "Helsinki", service = "", library = "1"))
-    expect_equal(committed_library(), "1")
+    expect_equal(eval(ids_on_map), 1)
   })
 })
 
@@ -347,7 +401,7 @@ services_by_city <- data.frame(
   stringsAsFactors = FALSE
 )
 
-test_that("a city the selected service isn't offered in is refused and the dropdown is sent back", {
+test_that("a city the selected service isn't offered in clears the service with a notice; the city list stays complete", {
   calls <- record_dropdown_updates()
 
   testServer(server, {
@@ -358,14 +412,15 @@ test_that("a city the selected service isn't offered in is refused and the dropd
 
     session$setInputs(city_filter = "Helsinki")
     session$setInputs(service_filter = "Printing")
-    # with Printing selected only Helsinki is offered as a city
-    expect_equal(unname(last_sent(calls, "city_filter")$choices), c("", "Helsinki"))
+    # picking a service doesn't narrow the city list
+    expect_equal(unname(last_sent(calls, "city_filter")$choices), c("", "Helsinki", "Tampere"))
     calls$sent <- list()
 
     session$setInputs(city_filter = "Tampere")   # Tampere has no "Printing"
-    expect_equal(selection(), list(city = "Helsinki", service = "Printing", library = ""))
-    expect_equal(last_sent(calls, "city_filter")$selected, "Helsinki")
-    expect_equal(last_sent(calls, "city_filter")$choices[["Helsinki (1)"]], "Helsinki")
+    expect_equal(selection(), list(city = "Tampere", service = "", library = ""))
+    expect_equal(calls$notice, "Service cleared: it is not offered in Tampere")
+    expect_equal(last_sent(calls, "service_filter")$selected, "")
+    expect_equal(eval(ids_on_map), 3)
   })
 })
 

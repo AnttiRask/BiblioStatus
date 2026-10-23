@@ -1,58 +1,24 @@
 # Map: marker rendering, marker clicks, Find Nearest.
 # Evaluated inside server() (see server_parts in server.R), so it shares the
-# session's reactive state, input, output and session. State: selection, committed_*, library_data, nearest_libraries, user_location, selected_library.
+# session's reactive state, input, output and session. State: selection, library_data, nearest_libraries, user_location, selected_library.
 
-# Render map when committed filter state, dark mode, or underlying data changes.
-# Committed state is only updated by the "Show on Map" button or startup — so
-# cascade observers updating dropdowns never trigger a premature map re-render.
+# The libraries the map shows: the ones matching the selection
+libraries_on_map <- reactive({
+  libs <- library_data()
+  req(libs)
+  svcs <- library_services_data()
+  if (is.null(svcs)) svcs <- data.frame(library_id = numeric(), service_name = character())
+  filter_libraries(libs, svcs, selection())
+})
+
+# Render the map when the selection, dark mode, the data or the startup city
+# change. The startup city is part of the trigger so the first map is drawn
+# even when it doesn't change the selection (e.g. after a reconnect).
 observeEvent(
+  list(libraries_on_map(), is_dark(), startup_city_set()),
   {
-    committed_city()
-    committed_service()
-    committed_library()
-    is_dark()
-    library_data()
-  },
-  {
-    req(library_data())
     req(startup_city_set())  # wait until startup city is determined
-
-    # Start with all libraries
-    data <- library_data()
-
-    city_val    <- committed_city()
-    service_val <- committed_service()
-    library_val <- committed_library()
-
-    # Apply city filter
-    if (!is.null(city_val) && city_val != "") {
-      data <- data %>% filter(city_name == city_val)
-    }
-
-    # Apply service filter
-    if (!is.null(service_val) && service_val != "") {
-      services_data <- library_services_data()
-      req(services_data)
-
-      lib_ids_with_service <- services_data %>%
-        filter(service_name == service_val) %>%
-        pull(library_id)
-
-      data <- data %>% filter(id %in% lib_ids_with_service)
-    }
-
-    # Apply specific library filter
-    if (!is.null(library_val) && library_val != "") {
-      data <- data %>% filter(id == as.numeric(library_val))
-    }
-
-    # Self-heal: if committed library id produces 0 rows, clear it.
-    if (nrow(data) == 0 && !is.null(library_val) && library_val != "") {
-      selection(modifyList(selection(), list(library = "")))
-      push_dropdowns()
-      committed_library("")
-      return()
-    }
+    data <- libraries_on_map()
     req(nrow(data) > 0)
 
     output$map <- renderLeaflet({

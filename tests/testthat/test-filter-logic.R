@@ -38,18 +38,23 @@ test_that("filter_libraries can skip fields, and ids of 100000 or more match as 
   expect_equal(id_text(100000), "100000")
 })
 
-test_that("the city list depends on the service only, and the service list on the city only", {
-  o <- filter_options(fl, fs, sel(service = "Sauna"))
-  expect_equal(o$cities$value, c("Espoo", "Helsinki"))
-  expect_equal(o$cities$n, c(1, 1))
+test_that("the city list is always complete, and the service list depends on the city only", {
+  all_cities <- c("Espoo", "Helsinki", "Tampere", "\u00c4\u00e4nekoski")
+  expect_equal(filter_options(fl, fs, sel())$cities$value, all_cities)
 
+  # neither a service nor a library narrows the city list
+  o <- filter_options(fl, fs, sel(service = "Sauna"))
+  expect_equal(o$cities$value, all_cities)
+  expect_equal(o$cities$n, c(1, 2, 2, 1))          # all libraries of each city
+  expect_equal(filter_options(fl, fs, sel(library = "1"))$cities$value, all_cities)
+
+  # the service list follows the city
   o <- filter_options(fl, fs, sel(city = "Tampere"))
   expect_equal(o$services$value, c("Kirjakahvila", "Pelit"))
   expect_equal(o$services$label, c("Kirjakahvila (1)", "Pelit (1)"))
 
-  # a picked library narrows neither list
+  # a picked library doesn't narrow the service list either
   o <- filter_options(fl, fs, sel(library = "1"))
-  expect_equal(length(o$cities$value), 4)
   expect_equal(o$services$value, c("Kirjakahvila", "Pelit", "Sauna"))
 })
 
@@ -120,10 +125,35 @@ test_that("the browser echoing a value we already have is a no-op", {
 
 test_that("a value that isn't offered is rejected without touching the selection", {
   start <- sel(service = "Pelit")
-  r <- apply_filter_change(fl, fs, start, "city", "Espoo")   # nothing in Espoo offers Pelit
+  r <- apply_filter_change(fl, fs, start, "library", "1")   # library 1 doesn't offer Pelit
   expect_false(r$changed)
   expect_equal(r$sel, start)
   expect_false(apply_filter_change(fl, fs, sel(), "library", "999")$changed)
+  expect_false(apply_filter_change(fl, fs, sel(city = "Helsinki"), "service", "Pelit")$changed)
+})
+
+test_that("a city the selected service isn't offered in clears the service with a notice", {
+  r <- apply_filter_change(fl, fs, sel(city = "Helsinki", service = "Kirjakahvila"), "city", "Espoo")
+  expect_true(r$changed)
+  expect_equal(r$sel, sel(city = "Espoo"))
+  expect_equal(r$notice, "Service cleared: it is not offered in Espoo")
+
+  # without a city selected the same happens
+  r <- apply_filter_change(fl, fs, sel(service = "Sauna"), "city", "Tampere")
+  expect_equal(r$sel, sel(city = "Tampere"))
+  expect_equal(r$notice, "Service cleared: it is not offered in Tampere")
+})
+
+test_that("a city that offers the selected service keeps it", {
+  r <- apply_filter_change(fl, fs, sel(city = "Helsinki", service = "Kirjakahvila"), "city", "Tampere")
+  expect_equal(r$sel, sel(city = "Tampere", service = "Kirjakahvila"))
+  expect_null(r$notice)
+})
+
+test_that("a city that matches neither the library nor the service clears both, and says so", {
+  r <- apply_filter_change(fl, fs, sel(city = "Helsinki", service = "Sauna", library = "1"), "city", "Tampere")
+  expect_equal(r$sel, sel(city = "Tampere"))
+  expect_equal(r$notice, "Library cleared: it is not in Tampere. Service cleared: it is not offered in Tampere")
 })
 
 test_that("random changes keep every selection valid, and every offered choice gives a map", {

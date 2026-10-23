@@ -6,14 +6,15 @@
 #
 # The rules (so a selection is never silently thrown away and the lists never
 # offer a choice that gives an empty map):
-#   * The city list depends on the service only, and the service list on the
-#     city only: each shows what is available with the other one chosen. A
-#     picked library does not narrow either list.
+#   * The city list is always complete: neither the service nor a picked
+#     library narrows it.
+#   * The service list depends on the city only (a picked library does not
+#     narrow it).
 #   * The library list depends on the city and the service.
-#   * Picking a library also sets the city to the library's city. That is the
-#     only time one dropdown writes to another.
-#   * Picking a city or service that the picked library does not match clears
-#     the library and says so in a notice.
+#   * Picking a library also sets the city to the library's city.
+#   * Picking a city that the selected service is not offered in clears the
+#     service, and picking a city or service that the picked library does not
+#     match clears the library. Each says so in a notice.
 
 # libs: one row per library (id, library_branch_name, city_name, ...)
 # services: library_id, service_name
@@ -55,7 +56,7 @@ filter_options <- function(libs, services, sel) {
   sel <- normalize_selection(sel)
   by_finnish <- function(tbl, col) tbl[stringr::str_order(tbl[[col]], locale = "fi"), ]
 
-  city_libs <- filter_libraries(libs, services, sel, ignore = c("city", "library"))
+  city_libs <- filter_libraries(libs, services, sel, ignore = c("city", "service", "library"))
   cities <- city_libs |>
     count(city_name, name = "n") |>
     mutate(value = city_name, label = sprintf("%s (%d)", city_name, n)) |>
@@ -104,25 +105,38 @@ apply_filter_change <- function(libs, services, sel, changed, value, msgs = txt)
   }
 
   sel[[changed]] <- value
-  notice <- NULL
 
   # A library implies its city
   if (changed == "library" && nzchar(value)) {
     sel$city <- libs |> filter(id_text(id) == value) |> pull(city_name) |> first()
   }
 
+  notices <- character()
+
   # A city or service the picked library doesn't match clears the library
   if (changed %in% c("city", "service") && nzchar(value) && nzchar(sel$library)) {
     still_matches <- nrow(filter_libraries(libs, services, sel, ignore = character())) > 0
     if (!still_matches) {
-      notice <- if (changed == "city") {
+      notices <- c(notices, if (changed == "city") {
         sprintf(msgs$notice_library_not_in_city, value)
       } else {
         sprintf(msgs$notice_library_no_service, value)
-      }
+      })
       sel$library <- ""
     }
   }
 
+  # A city the selected service isn't offered in clears the service
+  if (changed == "city" && nzchar(value) && nzchar(sel$service)) {
+    offered_here <- services |>
+      filter(library_id %in% libs$id[libs$city_name == value]) |>
+      pull(service_name)
+    if (!sel$service %in% offered_here) {
+      notices <- c(notices, sprintf(msgs$notice_service_not_in_city, value))
+      sel$service <- ""
+    }
+  }
+
+  notice <- if (length(notices)) paste(notices, collapse = ". ") else NULL
   list(sel = sel, notice = notice, changed = TRUE)
 }

@@ -19,7 +19,9 @@ txt <- list(
   all_services         = "All Services",
   clear_library        = "Clear library selection",
   clear_service        = "Clear service selection",
-  show_on_map          = "Show on Map",
+  reset_filters        = "Reset filters",
+  summary_one          = "%d library",
+  summary_many         = "%d libraries",
   find_nearest         = "Find Nearest Open Library",
   getting_location     = " Getting your location...",
 
@@ -34,6 +36,7 @@ txt <- list(
 
   notice_library_not_in_city = "Library cleared: it is not in %s",
   notice_library_no_service  = "Library cleared: it does not offer %s",
+  notice_service_not_in_city = "Service cleared: it is not offered in %s",
 
   legend_title         = "Status",
   legend_open          = "Open",

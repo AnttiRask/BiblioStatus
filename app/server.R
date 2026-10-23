@@ -35,23 +35,16 @@ server <- function(input, output, session) {
   startup_city      <- reactiveVal("Helsinki") # City determined on startup (geolocation / fallback)
   # What the three dropdowns hold: list(city, service, library), "" = all. The
   # rules for changing it are in www/filter_logic.R; server/filters.R connects
-  # them to the inputs. Everything that needs the current selection reads this
-  # and not input$*, which can lag behind what the server has just sent.
+  # them to the inputs. The map follows it directly. Everything that needs the
+  # current selection reads this and not input$*, which can lag behind what the
+  # server has just sent.
   selection <- reactiveVal(empty_selection())
-  # Committed filter state: what the map currently shows. Set by the "Show on
-  # Map" button, the x buttons and the startup city; not by changing a dropdown.
-  committed_city    <- reactiveVal("")
-  committed_service <- reactiveVal("")
-  committed_library <- reactiveVal("")
-
   # After a reconnect (see allowReconnect above) the browser re-sends the
   # dropdown values as this new session's first values. The dropdown observers
-  # skip first values (ignoreInit) and the startup inputs are one-shot, so the
-  # state above would start empty while the dropdowns still show the old
-  # selection: "Show on Map" would commit nothing and the map would show the
-  # whole country. Seed it from the dropdowns once, ahead of every other
-  # observer (priority). On a normal page load the first values are empty and
-  # this changes nothing.
+  # skip first values (ignoreInit), so the selection would start empty while the
+  # dropdowns still show the old one, and the map would show the whole country.
+  # Seed it from the dropdowns once, ahead of every other observer (priority).
+  # On a normal page load the first values are empty and this changes nothing.
   observeEvent(
     list(input$city_filter, input$service_filter, input$library_search),
     {
@@ -60,7 +53,6 @@ server <- function(input, output, session) {
         service = input$service_filter,
         library = input$library_search
       )))
-      if (!nzchar(committed_city())) committed_city(selection()$city)
     },
     once = TRUE,
     priority = 10

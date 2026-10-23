@@ -99,11 +99,9 @@ ui <- page_navbar(
           selectInput(inputId = "service_filter", label = NULL, choices = NULL,
             selected = NULL)
         ),
-        actionButton(
-          inputId = "apply_filters",
-          label = txt$show_on_map,
-          icon = icon("map"),
-          class = "btn-primary w-100 mb-2"
+        div(class = "filter-summary d-flex justify-content-between align-items-baseline mb-2",
+          textOutput("filter_summary", inline = TRUE),
+          actionLink("reset_filters", txt$reset_filters)
         ),
         actionButton(
           inputId = "find_nearest",
