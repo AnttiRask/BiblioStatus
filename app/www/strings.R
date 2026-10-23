@@ -11,7 +11,7 @@ txt <- list(
   tab_stats            = "Service Statistics",
 
   city_label           = "Select City/Municipality:",
-  finder_label         = "Search all libraries:",
+  finder_label         = "Search All Libraries:",
   finder_placeholder   = "Type a library name...",
   library_label        = "Select Library:",
   library_placeholder  = "All Libraries",
