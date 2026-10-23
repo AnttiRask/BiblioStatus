@@ -74,13 +74,16 @@ handle_user_change <- function(field, value, from_dropdown = TRUE) {
     sent_to_browser[[id]]$selected <- value  # the browser already shows it
   }
   city_changed <- !identical(result$sel$city, selection()$city)
+  service_changed <- !identical(result$sel$service, selection()$service)
   selection(result$sel)
 
-  if (city_changed) {
+  # The nearest-libraries result belongs to the city shown and to the service it
+  # was searched with: clear it when either changes (press Find Nearest again)
+  if (city_changed || service_changed) {
     nearest_libraries(NULL)
     user_location(NULL)
-    selected_library(NULL)
   }
+  if (city_changed) selected_library(NULL)
   push_dropdowns(result$sel)
   if (!is.null(result$notice)) showNotification(result$notice, type = "message", duration = 6)
   invisible(TRUE)

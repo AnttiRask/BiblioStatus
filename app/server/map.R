@@ -100,26 +100,27 @@ observeEvent(input$user_location, {
   user_loc <- input$user_location
   user_location(user_loc)
 
-  # Filter to only open/self-service libraries
-  open_libs <- library_data() %>%
-    filter(open_status %in% c("Open", "Self-service"))
+  # The nearest open libraries, only those offering the selected service when
+  # one is selected (the city and library filters don't apply: what is nearest
+  # depends on where the user is)
+  service <- selection()$service
+  services <- library_services_data()
+  if (is.null(services)) services <- data.frame(library_id = numeric(), service_name = character())
 
-  if (nrow(open_libs) == 0) {
-    nearest_libraries(data.frame())
-    showNotification(txt$no_open_nearby, type = "warning")
-    return()
-  }
-
-  # Calculate distances and get top 5
-  libs_with_distance <- calculate_distances_to_libraries(
-    user_lat = user_loc$lat,
-    user_lon = user_loc$lon,
-    library_data = open_libs
+  nearest <- nearest_open_libraries(
+    library_data(), services, user_loc$lat, user_loc$lon,
+    n = if (isTRUE(input$is_mobile)) MOBILE_NEAREST_COUNT else DESKTOP_NEAREST_COUNT,
+    service = service
   )
 
-  nearest <- libs_with_distance %>%
-    arrange(distance_km) %>%
-    head(if (isTRUE(input$is_mobile)) MOBILE_NEAREST_COUNT else DESKTOP_NEAREST_COUNT)
+  if (nrow(nearest) == 0) {
+    nearest_libraries(data.frame())
+    showNotification(
+      if (nzchar(service)) sprintf(txt$no_open_nearby_service, service) else txt$no_open_nearby,
+      type = "warning"
+    )
+    return()
+  }
 
   nearest_libraries(nearest)
 

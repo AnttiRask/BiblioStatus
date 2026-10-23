@@ -730,3 +730,106 @@ test_that("the address is left alone while the data hasn't loaded", {
     expect_equal(selection(), list(city = "", service = "", library = ""))
   })
 })
+
+# ---- Find Nearest ----
+# Fixtures: library 1 and 2 (Helsinki, near each other) and 3 (Tampere, far). All open.
+nearest_services <- data.frame(
+  library_id = c(1, 3), service_name = c("Printing", "Printing"), stringsAsFactors = FALSE
+)
+
+test_that("Find Nearest lists the nearest open libraries and the heading says nothing special without a service", {
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(nearest_services)
+    startup_city_set(TRUE)
+    session$setInputs(is_mobile = FALSE)
+
+    session$setInputs(user_location = list(lat = 60.1, lon = 24.9))
+    expect_equal(nearest_libraries()$id, c(1, 2, 3))
+    session$flushReact()
+    html <- as.character(output$nearest_libraries_ui$html)
+    expect_match(html, "Nearest Open Libraries")
+    expect_false(grepl("offering", html, fixed = TRUE))
+  })
+})
+
+test_that("with a service selected, Find Nearest only lists libraries offering it, and the heading says so", {
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(nearest_services)
+    startup_city_set(TRUE)
+    session$setInputs(is_mobile = FALSE)
+    session$setInputs(service_filter = "Printing")
+
+    session$setInputs(user_location = list(lat = 60.1, lon = 24.9))
+    expect_equal(nearest_libraries()$id, c(1, 3))         # 2 is closer than 3 but has no Printing
+    session$flushReact()
+    expect_match(as.character(output$nearest_libraries_ui$html), "Nearest open libraries offering Printing")
+  })
+})
+
+test_that("Find Nearest doesn't touch the dropdowns or the map's selection", {
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(nearest_services)
+    startup_city_set(TRUE)
+    session$setInputs(is_mobile = FALSE)
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(service_filter = "Printing")
+    before <- selection()
+
+    session$setInputs(user_location = list(lat = 61.5, lon = 23.7))   # next to the Tampere library
+    expect_equal(nearest_libraries()$id[1], 3)            # the nearest is in another city
+    expect_equal(selection(), before)
+  })
+})
+
+test_that("nothing offering the selected service is open: an empty result and a notice that names it", {
+  shown <- new.env()
+  assign("showNotification", function(ui, ...) { shown$text <- ui; invisible(NULL) }, envir = globalenv())
+  withr::defer(rm("showNotification", envir = globalenv()))
+
+  testServer(server, {
+    session$flushReact()
+    closed <- fixture_libraries
+    closed$open_status <- "Closed"
+    library_data(closed)
+    library_services_data(nearest_services)
+    startup_city_set(TRUE)
+    session$setInputs(is_mobile = FALSE)
+    session$setInputs(service_filter = "Printing")
+
+    session$setInputs(user_location = list(lat = 60.1, lon = 24.9))
+    expect_equal(nrow(nearest_libraries()), 0)
+    expect_equal(shown$text, "No open libraries offering Printing found nearby")
+  })
+})
+
+test_that("the nearest list is cleared when the service or the city changes", {
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(nearest_services)
+    startup_city_set(TRUE)
+    session$setInputs(is_mobile = FALSE)
+
+    session$setInputs(user_location = list(lat = 60.1, lon = 24.9))
+    expect_gt(nrow(nearest_libraries()), 0)
+    session$setInputs(service_filter = "Printing")
+    expect_null(nearest_libraries())                       # searched without the service
+    expect_null(user_location())
+
+    session$setInputs(user_location = list(lat = 60.2, lon = 24.8))
+    expect_gt(nrow(nearest_libraries()), 0)
+    session$setInputs(city_filter = "Helsinki")
+    expect_null(nearest_libraries())
+
+    session$setInputs(user_location = list(lat = 60.3, lon = 24.7))
+    expect_gt(nrow(nearest_libraries()), 0)
+    session$setInputs(clear_service = 1)
+    expect_null(nearest_libraries())
+  })
+})
