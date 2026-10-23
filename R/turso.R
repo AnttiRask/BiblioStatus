@@ -12,32 +12,14 @@ convert_to_https <- function(url) {
   return(url)
 }
 
-# Load Turso credentials from environment or secret.R
+# Load Turso credentials from the environment (locally from the git-ignored
+# .Renviron, which R reads at startup and docker compose passes to the container)
 load_turso_credentials <- function() {
   url <- Sys.getenv("TURSO_DATABASE_URL")
   token <- Sys.getenv("TURSO_AUTH_TOKEN")
 
-  # If not in environment, try loading from secret.R. Resolved via here() so
-  # this works regardless of the caller's working directory (repo root for
-  # standalone scripts, app/ for the Shiny app itself).
   if (url == "" || token == "") {
-    secret_file <- if (file.exists(here::here("secret.R"))) {
-      here::here("secret.R")
-    } else if (file.exists(here::here("app", "secret.R"))) {
-      here::here("app", "secret.R")
-    } else {
-      NULL
-    }
-
-    if (!is.null(secret_file)) {
-      source(secret_file, local = TRUE)
-      url <- get0("TURSO_DATABASE_URL", ifnotfound = url)
-      token <- get0("TURSO_AUTH_TOKEN", ifnotfound = token)
-    }
-  }
-
-  if (url == "" || token == "") {
-    stop("Turso credentials not found. Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN environment variables or create secret.R file.")
+    stop("Turso credentials not found. Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN environment variables (locally in .Renviron).")
   }
 
   list(url = url, token = token)

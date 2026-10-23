@@ -5,9 +5,6 @@ source(here("R", "schedules.R"))
 # Load Turso credentials
 TURSO_DATABASE_URL <- Sys.getenv("TURSO_DATABASE_URL")
 TURSO_AUTH_TOKEN <- Sys.getenv("TURSO_AUTH_TOKEN")
-if (TURSO_DATABASE_URL == "" && file.exists("secret.R")) {
-  source("secret.R")
-}
 
 # SQLite fallback path (auto-detect for shinyapps.io vs Docker/local)
 db_path <- if (file.exists(here("libraries.sqlite"))) {
