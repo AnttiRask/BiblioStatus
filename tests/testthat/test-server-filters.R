@@ -525,3 +525,35 @@ test_that("clearing a dropdown by hand doesn't send the value back to it", {
     expect_null(last_sent(calls, "service_filter")$selected)   # nothing sent to it
   })
 })
+
+# With no schedule data for today (the nightly update hasn't run yet) every
+# library is drawn purple, "no status data". The page says why.
+test_that("a notice explains the missing statuses when there is no schedule data for today", {
+  testServer(server, {
+    eval(seed_fixture_data_code)
+
+    all_library_schedules(data.frame(
+      library_id = numeric(), date = character(), from = character(),
+      to = character(), status_label = character(), stringsAsFactors = FALSE
+    ))
+    session$flushReact()
+    expect_match(as.character(output$data_notice$html), "not available yet")
+
+    all_library_schedules(data.frame(
+      library_id = 1, date = "2026-10-23", from = "08:00", to = "18:00",
+      status_label = "Open", stringsAsFactors = FALSE
+    ))
+    session$flushReact()
+    expect_false(any(grepl("not available yet", as.character(output$data_notice$html))))
+  })
+})
+
+test_that("the map legend explains the 'no status data' colour", {
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    session$setInputs(dark_mode = "light", is_mobile = FALSE)
+    session$flushReact()
+    expect_match(as.character(output$map), "No status data", fixed = TRUE)
+    expect_match(as.character(output$map), light_colors$Unknown, fixed = TRUE)
+  })
+})

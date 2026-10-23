@@ -94,14 +94,15 @@ observeEvent(
         addLegend(
           position = "topright",
           colors = map_chr(
-            c("Open", "Self", "ClosedNow", "ClosedDay"),
+            c("Open", "Self", "ClosedNow", "ClosedDay", "Unknown"),
             ~ chosen_colors[[.x]]
           ),
           labels = c(
             txt$legend_open,
             txt$legend_self,
             txt$legend_closed,
-            txt$legend_closed_day
+            txt$legend_closed_day,
+            txt$legend_unknown
           ),
           title = txt$legend_title
         )

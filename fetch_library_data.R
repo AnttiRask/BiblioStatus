@@ -7,8 +7,9 @@ library(RSQLite)
 library(stringr)
 library(tidyr)
 
-# Load Turso helper functions
+# Load Turso helper functions and the schedule fetching/parsing
 source(here("R/turso.R"))
+source(here("R/schedules.R"))
 
 # Determine update type from environment variable (default: schedules only)
 update_type <- Sys.getenv("UPDATE_TYPE", unset = "schedules")
@@ -87,96 +88,6 @@ fetch_libraries_from_api <- function() {
   } else {
     stop("Failed to fetch libraries")
   }
-}
-
-# Fetch schedules from API
-fetch_schedules_from_api <- function(libraries) {
-  api_url <- "https://api.kirjastot.fi/v4/schedules"
-  today <- format(Sys.Date(), tz = "Europe/Helsinki")
-
-  schedules <- map_dfr(libraries$id, function(library_id) {
-    response <- GET(api_url, query = list(library = library_id, date = today))
-
-    if (status_code(response) == 200) {
-      data <- fromJSON(
-        content(response, "text", encoding = "UTF-8"),
-        flatten = TRUE
-      )$items
-
-      if (length(data) == 0 || is.null(data$times)) {
-        return(
-          # fmt: skip
-          tibble(
-              library_id,
-              date          = today,
-              from_time     = NA_character_,
-              to_time       = NA_character_,
-              status_label  = "Unknown"
-          )
-        )
-      }
-
-      closed <- data$closed[1]
-
-      if (closed) {
-        return(
-          # fmt: skip
-          tibble(
-              library_id,
-              date          = today,
-              from_time     = NA_character_,
-              to_time       = NA_character_,
-              status_label  = "Closed for the whole day"
-          )
-        )
-      }
-
-      times <- data$times[[1]]
-
-      if (
-        is.null(times) ||
-          !all(c("from", "to") %in% names(times))
-      ) {
-        return(
-          # fmt: skip
-          tibble(
-            library_id,
-            date         = today,
-            from_time    = NA_character_,
-            to_time      = NA_character_,
-            status_label = "Unknown"
-          )
-        )
-      }
-
-      times %>%
-        # fmt: skip
-        mutate(
-          library_id   = library_id,
-          date         = today,
-          from_time    = as.character(from),
-          to_time      = as.character(to),
-          status_label = case_when(
-            status == 0 ~ "Temporarily closed",
-            status == 1 ~ "Open",
-            status == 2 ~ "Self-service",
-            TRUE ~ "Unknown"
-          )
-        ) %>%
-        select(library_id, date, from_time, to_time, status_label)
-    } else {
-      # fmt: skip
-      tibble(
-        library_id,
-        date         = today,
-        from_time    = NA_character_,
-        to_time      = NA_character_,
-        status_label = "Unknown"
-      )
-    }
-  })
-
-  return(schedules)
 }
 
 # =============================================================================
@@ -294,8 +205,22 @@ if (update_type %in% c("schedules", "both")) {
     libs
   })
 
-  schedules <- fetch_schedules_from_api(libraries)
+  # A window of days, not only today: GitHub starts this job hours late, and
+  # with the days ahead already stored the app has today's hours at midnight
+  dates <- schedule_window()
+  cat(sprintf("Fetching schedules for %s to %s\n", min(dates), max(dates)))
+  schedules <- fetch_schedules_from_api(libraries, dates)
   cat(sprintf("Fetched %d schedule records\n", nrow(schedules)))
+
+  # If the API failed for many libraries the data is not worth storing: stop
+  # before replacing good data with "Unknown" rows
+  unknown_share <- mean(schedules$status_label == "Unknown")
+  if (unknown_share > 0.5) {
+    stop(sprintf(
+      "%.0f%% of the fetched schedule rows are Unknown - the Kirkanta API looks broken. Nothing was written.",
+      100 * unknown_share
+    ))
+  }
 
   # Orphaned data detection
   orphaned <- schedules %>%
@@ -309,11 +234,13 @@ if (update_type %in% c("schedules", "both")) {
     ))
   }
 
-  # Write to Turso (append mode - preserves historical data)
+  # Write to Turso. Past days are kept (history); the window from today on is
+  # replaced, so changed opening hours are picked up and a second run on the same
+  # day doesn't pile up duplicate rows (the UNIQUE constraint can't catch rows
+  # with NULL times). The DELETE goes first in the same batch as the first inserts.
   turso_success <- tryCatch({
     cat("Writing schedules to Turso...\n")
 
-    # Use INSERT OR IGNORE to skip duplicates (UNIQUE constraint handles this)
     schedule_statements <- purrr::pmap(schedules, function(library_id, date, from_time,
                                                             to_time, status_label, ...) {
       list(
@@ -322,7 +249,11 @@ if (update_type %in% c("schedules", "both")) {
         params = list(library_id, date, from_time, to_time, status_label)
       )
     })
-    turso_execute_batch(schedule_statements)
+    replace_window <- list(list(
+      sql = "DELETE FROM schedules WHERE date >= ?",
+      params = list(min(dates))
+    ))
+    turso_execute_batch(c(replace_window, schedule_statements))
     cat(sprintf("✓ Wrote %d schedule records to Turso\n", nrow(schedules)))
     TRUE
   }, error = function(e) {
@@ -330,7 +261,8 @@ if (update_type %in% c("schedules", "both")) {
     FALSE
   })
 
-  # Always write to SQLite as backup (overwrite - only today's data)
+  # Always write to SQLite as backup (overwrite - the whole window, which is what
+  # the app's fallback needs to show statuses for the next days too)
   cat("Writing schedules to SQLite backup...\n")
   con <- dbConnect(SQLite(), dbname = here("app/libraries.sqlite"))
   # Rename columns back to original schema for SQLite compatibility

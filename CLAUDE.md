@@ -38,7 +38,7 @@ UPDATE_TYPE=both Rscript fetch_library_data.R
 
 ### Data Flow
 1. **fetch_library_data.R** - Pulls data from Kirkanta API (v4):
-   - Daily: schedules (opening hours) at 2 AM UTC
+   - Daily: schedules (opening hours) for a window of 7 days from today (Finnish date, `R/schedules.R`), requested at 2 AM UTC but GitHub starts the job hours late (06:47 to 07:09 UTC in October). The app reads today's rows, so with only today's day stored every library was unknown from midnight until the job ran; the window means yesterday's run already stored today
    - Weekly (Sunday): library metadata + services
    - Writes to Turso (primary) and `app/libraries.sqlite` (backup)
 
@@ -79,7 +79,7 @@ There is no map-tile key: the basemap is Esri's keyless World Light/Dark Gray ca
 
 - **fetch_data.yml** - Daily schedules (2 AM UTC), weekly full refresh (Sunday)
 - **tests.yml** - Runs the testthat suite on the locked packages (push, pull request, manual); the deploy calls it first
-- **deploy_shiny_app.yml** - Deploys to Cloud Run when tests pass, on pushes that change the app or build files (not the nightly database commit), weekly (Monday 04:00 UTC, refreshes the SQLite fallback in the image) and on demand; labels the revision with the commit and smoke tests it. Turso is the primary data source, so the nightly data fetch no longer redeploys. The SQLite fallback holds one day of schedules, so an old image shows no opening hours during a Turso outage
+- **deploy_shiny_app.yml** - Deploys to Cloud Run when tests pass, on pushes that change the app or build files (not the nightly database commit), weekly (Monday 04:00 UTC, refreshes the SQLite fallback in the image) and on demand; labels the revision with the commit and smoke tests it. Turso is the primary data source, so the nightly data fetch no longer redeploys. The SQLite fallback holds the 7-day window written by the last fetch, so an old image shows opening hours for up to a week during a Turso outage
 - **check_library_urls.yml** - Daily URL validation (3 AM UTC)
 
 ## Code Patterns

@@ -1,5 +1,6 @@
-# Load Turso helper functions
+# Load Turso helper functions and the schedule helpers (helsinki_today())
 source(here("R", "turso.R"))
+source(here("R", "schedules.R"))
 
 # Load Turso credentials
 TURSO_DATABASE_URL <- Sys.getenv("TURSO_DATABASE_URL")
@@ -40,7 +41,9 @@ fetch_libraries <- function() {
 
 # Function to fetch schedules (Turso primary, SQLite fallback)
 fetch_schedules <- function() {
-  today <- format(Sys.Date(), "%Y-%m-%d")
+  # The Finnish date: the opening hours are compared with the Finnish time, and
+  # Sys.Date() (UTC on the server) is yesterday for the first hours of the day
+  today <- format(helsinki_today(), "%Y-%m-%d")
 
   with_turso_fallback(
     turso_query_fn = function() {
