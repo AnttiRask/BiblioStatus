@@ -363,3 +363,7 @@ app_theme <- function() {
     )
 }
 
+# The query string of the page address ("?city=Espoo"). A function of its own
+# because testServer()'s session has a fixed fake one; tests replace this.
+url_search_of <- function(session) session$clientData$url_search
+

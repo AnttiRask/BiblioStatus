@@ -140,3 +140,43 @@ apply_filter_change <- function(libs, services, sel, changed, value, msgs = txt)
   notice <- if (length(notices)) paste(notices, collapse = ". ") else NULL
   list(sel = sel, notice = notice, changed = TRUE)
 }
+
+# ---------------------------------------------------------------------------
+# The selection in the page address (?city=Espoo&service=Sauna&library=123), so
+# a link restores a selection and a reconnected page starts from the same one.
+# ---------------------------------------------------------------------------
+
+filter_fields <- c("city", "service", "library")
+
+# The address query for a selection; "?" when nothing is selected. Values are
+# percent-encoded (UTF-8), so city and service names with ä, ö or spaces work.
+selection_to_query <- function(sel) {
+  sel <- normalize_selection(sel)
+  parts <- vapply(
+    filter_fields[nzchar(unlist(sel[filter_fields]))],
+    function(field) paste0(field, "=", utils::URLencode(sel[[field]], reserved = TRUE)),
+    character(1)
+  )
+  paste0("?", paste(parts, collapse = "&"))
+}
+
+# A valid selection from an address query (a list like shiny::parseQueryString()
+# returns). The fields are applied in the order city, service, library through
+# the same rules as the dropdowns, on top of `base`: a value that isn't offered
+# (a made-up city, a service the city doesn't have, a library elsewhere) is
+# ignored instead of producing an empty map. `ignored` names those fields.
+selection_from_query <- function(libs, services, query, base = empty_selection()) {
+  sel <- normalize_selection(base)
+  requested <- normalize_selection(query[filter_fields])
+
+  for (field in filter_fields) {
+    if (!nzchar(requested[[field]])) next
+    result <- apply_filter_change(libs, services, sel, field, requested[[field]])
+    if (result$changed) sel <- result$sel
+  }
+
+  asked <- filter_fields[nzchar(unlist(requested[filter_fields]))]
+  ignored <- asked[!vapply(asked, function(field) identical(sel[[field]], requested[[field]]), logical(1))]
+  list(sel = sel, ignored = ignored)
+}
+

@@ -37,6 +37,7 @@ txt <- list(
   notice_library_not_in_city = "Library cleared: it is not in %s",
   notice_library_no_service  = "Library cleared: it does not offer %s",
   notice_service_not_in_city = "Service cleared: it is not offered in %s",
+  url_ignored                = "Part of the link's filters didn't match any libraries and was left out.",
 
   legend_title         = "Status",
   legend_open          = "Open",
