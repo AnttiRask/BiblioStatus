@@ -1,8 +1,9 @@
-# All user-facing text of the main app (ui.R and server.R) in one place, so a
+# All user-facing text of the app (ui.R, server.R, the map popups, the service
+# statistics module and the messages app.js shows) in one place, so a
 # translation (Finnish, Swedish) only has to replace this list. Data values that
 # the code compares against (status labels such as "Open") are not text and
-# stay in the code. Text inside the popup helper (functions.R) and the
-# service statistics module is not moved yet.
+# stay in the code. The text is used as it is in HTML, so it must not contain
+# markup of its own (the code escapes it).
 txt <- list(
   app_title            = "BiblioStatus",
   heading              = "Which Finnish Libraries Are Open Right Now?",
@@ -34,7 +35,8 @@ txt <- list(
   get_directions       = " Get Directions",
   current_status       = "Current Status:",
   todays_schedule      = "Today's Schedule:",
-  no_schedule          = "<p>No schedule information available</p>",
+  no_schedule          = "No schedule information available",
+  schedule_now         = " \u2190 now",
   services_heading     = "Services (in Finnish):",
   no_services          = "No services listed",
 
@@ -43,6 +45,29 @@ txt <- list(
   notice_service_not_in_city = "Service cleared: it is not offered in %s",
   notice_service_not_at_library = "Service cleared: %s does not offer %s",
   url_ignored                = "Part of the link's filters didn't match any libraries and was left out.",
+
+  popup_status         = "Status:",
+  popup_hours          = "Hours:",
+  popup_hours_none     = "NA",
+  popup_distance       = "Distance:",
+  popup_directions     = "Get Directions",
+  your_location        = "Your Location",
+
+  geolocation_unsupported = "Geolocation is not supported by your browser",
+  geolocation_denied      = "Please enable location permissions to find nearby libraries",
+  geolocation_failed      = "Unable to get your location. Please try again.",
+
+  footer_created_by    = "Created by",
+
+  stats_heading        = "Library Service Statistics",
+  stats_intro          = "Explore which services are offered by Finnish libraries across different cities",
+  stats_city_label     = "Filter by City:",
+  stats_top_heading    = "Top 15 Most Common Services",
+  stats_all_heading    = "All Services",
+  stats_title_city     = "Most Common Services in %s",
+  stats_title_all      = "Most Common Library Services (All Cities)",
+  stats_col_service    = "Service Name",
+  stats_col_count      = "Libraries Offering",
 
   legend_title         = "Status",
   legend_open          = "Open",

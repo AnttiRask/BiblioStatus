@@ -69,7 +69,7 @@ output$library_services <- renderUI({
     schedule_html <- if (!is.null(schedules)) {
       format_schedule_periods(selected$id, schedules, now)
     } else {
-      txt$no_schedule
+      paste0("<p>", htmltools::htmlEscape(txt$no_schedule), "</p>")
     }
 
     tagList(

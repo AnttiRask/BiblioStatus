@@ -15,6 +15,15 @@ library(shinyjs)
 
 source("www/variables.R")
 source("www/strings.R")
+
+# What app.js gets as window.BIBLIO_CONFIG: the timings (variables.R), and the
+# messages it shows itself (strings.R)
+client_config <- c(geo_config, list(messages = list(
+  geolocationUnsupported = txt$geolocation_unsupported,
+  geolocationDenied      = txt$geolocation_denied,
+  geolocationFailed      = txt$geolocation_failed
+)))
+
 source("www/functions.R")
 source("www/filter_logic.R")
 source("www/health.R")

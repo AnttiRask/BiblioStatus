@@ -19,7 +19,7 @@ create_app_footer <- function(current_app = "") {
             div(
                 class = "footer-credit",
                 p(
-                    "Created by ",
+                    paste0(txt$footer_created_by, " "),
                     a(href = "https://www.linkedin.com/in/AnttiRask/", "Antti Rask"),
                     " | ",
                     a(href = "https://youcanbeapirate.com", "youcanbeapirate.com")
@@ -38,7 +38,7 @@ ui <- page_navbar(
     # Client-side settings (geolocation timings) for app.js, then the script
     tags$script(HTML(sprintf(
       "window.BIBLIO_CONFIG = %s;",
-      jsonlite::toJSON(geo_config, auto_unbox = TRUE)
+      jsonlite::toJSON(client_config, auto_unbox = TRUE)
     ))),
     tags$script(src = asset("app.js")),
     # Enable JavaScript interactivity

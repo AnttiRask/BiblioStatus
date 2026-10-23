@@ -102,7 +102,7 @@ Mechanical, no behaviour change. Result:
 
 - `app/global.R` loads the packages, then `www/variables.R`, `strings.R`, `functions.R` and the stats module; `server.R` and `ui.R` load nothing themselves. `tests/testthat.R` sources `global.R` and `server.R`.
 - `www/variables.R` holds the 14 map constants, the footer app list (**FillariStatus added**) and `geo_config` (geolocation timings).
-- `www/strings.R` holds the text of `ui.R` and `server.R` as `txt$...`. **Not moved yet:** the text in `build_library_popup()` (`functions.R`) and in `modules/service_stats.R`.
+- `www/strings.R` holds the text of `ui.R` and `server.R` as `txt$...`. **Moved 2026-10-24:** the popup text (`build_library_popup()`, the schedule list), `modules/service_stats.R`, the footer, the "Your Location" popup and the geolocation messages of `app.js` (through `client_config`); `test-strings.R` guards it. The status labels stay in the code (they are data values).
 - `www/app.js` replaces the inline script: timings come from `window.BIBLIO_CONFIG`, `asset()` cache-busts the file, the dead `checkMobile` handler is gone (nothing in the server sent it). Plan 11 (head-script race) stays handled by the `onShinyReady` polling already there.
 - `server.R` is about 70 lines (state, reconnect seeding). The rest is in `app/server/{data,filters,map,panels}.R`, **parsed once when `server.R` loads (`server_parts`) and evaluated inside every session's `server()`**, in the original observer order. A first version used `source("server/...", local = TRUE)` at session time and failed in the tests, because testthat changes the working directory; do not go back to relative paths at session time.
 - Not done from the original list: the `refresh` observer (`ignoreNULL = FALSE`, no `refresh` input) is still there, and `app/secret.R` was only confirmed git-ignored and excluded by `.dockerignore`.
@@ -152,7 +152,7 @@ Lessons from this phase: production merges and workflow dispatches were blocked 
 1. ~~Phase 4~~ done (tests in CI, deploy gate, pins, cleanup policy).
 2. Phase 2 (structure), reviewed by running the app.
 3. Phase 1 in the order given in 1.3, user review after (b) and (c) because they change what the user sees (**done**; now (d), (e), (f)).
-4. Phase 3: items 3 (stale status), 4 (time zone), 5 (`/health` and its alert) and 8 (the week of schedules) are **done**; items 1 and 2 (the data layer and the shared cache) were built on 2026-10-24 (branch `feat/data-layer`, see CLAUDE.md "Data layer"). What is left of Phase 3: text in popups and the stats module into `strings.R`.
+4. Phase 3: items 3 (stale status), 4 (time zone), 5 (`/health` and its alert) and 8 (the week of schedules) are **done**; items 1 and 2 (the data layer and the shared cache) were built on 2026-10-24 (branch `feat/data-layer`, see CLAUDE.md "Data layer"). The text of the popups, the stats module and `app.js` was moved into `strings.R` on 2026-10-24. What is left of Phase 3: items 6 (small leftovers) and 7 (security details: `href` schemes, `mailto:`/`tel:` links, the CSP).
 5. One deploy per phase, with the verification below. Work on a branch and open a pull request: `tests.yml` runs on pull requests, and merging to `main` triggers the single deploy (pushes to `main` that touch `app/**` deploy automatically).
 
 ### 5.2 Verification (as the user's rules require)

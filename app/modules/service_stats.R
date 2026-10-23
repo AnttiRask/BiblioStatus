@@ -4,6 +4,18 @@
 library(ggplot2)
 library(DT)
 
+# The chart title for the city picked in the stats tab ("all" or none: the whole country)
+stats_chart_title <- function(city) {
+  if (!is.null(city) && city != "all") sprintf(txt$stats_title_city, city) else txt$stats_title_all
+}
+
+# The service table with its column headings
+stats_table <- function(counts) {
+  names(counts)[names(counts) == "service_name"] <- txt$stats_col_service
+  names(counts)[names(counts) == "library_count"] <- txt$stats_col_count
+  counts
+}
+
 # UI function for service statistics
 service_stats_ui <- function(id) {
   ns <- NS(id)
@@ -12,13 +24,13 @@ service_stats_ui <- function(id) {
     fluidRow(
       column(
         12,
-        h3("Library Service Statistics"),
-        p("Explore which services are offered by Finnish libraries across different cities"),
+        h3(txt$stats_heading),
+        p(txt$stats_intro),
         br(),
         selectInput(
           ns("stats_city"),
-          "Filter by City:",
-          choices = c("All Cities" = "all"),
+          txt$stats_city_label,
+          choices = c(setNames("all", txt$all_cities)),
           selected = "all"
         )
       )
@@ -26,7 +38,7 @@ service_stats_ui <- function(id) {
     fluidRow(
       column(
         12,
-        h4("Top 15 Most Common Services"),
+        h4(txt$stats_top_heading),
         plotOutput(ns("service_chart"), height = "500px")
       )
     ),
@@ -34,7 +46,7 @@ service_stats_ui <- function(id) {
     fluidRow(
       column(
         12,
-        h4("All Services"),
+        h4(txt$stats_all_heading),
         DT::dataTableOutput(ns("service_table"))
       )
     )
@@ -55,7 +67,7 @@ service_stats_server <- function(id, library_services, libraries, dark_mode) {
       updateSelectInput(
         session,
         "stats_city",
-        choices = c("All Cities" = "all", cities),
+        choices = c(setNames("all", txt$all_cities), cities),
         selected = "all"
       )
     })
@@ -107,11 +119,7 @@ service_stats_server <- function(id, library_services, libraries, dark_mode) {
         coord_flip() +
         scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
         labs(
-          title = if (!is.null(input$stats_city) && input$stats_city != "all") {
-            paste("Most Common Services in", input$stats_city)
-          } else {
-            "Most Common Library Services (All Cities)"
-          },
+          title = stats_chart_title(input$stats_city),
           x = NULL,
           y = NULL
         ) +
@@ -133,10 +141,7 @@ service_stats_server <- function(id, library_services, libraries, dark_mode) {
     # Data table with all services
     output$service_table <- DT::renderDataTable({
       service_counts() %>%
-        rename(
-          "Service Name" = service_name,
-          "Libraries Offering" = library_count
-        )
+        stats_table()
     }, options = list(
       pageLength = 20,
       searching = TRUE,
