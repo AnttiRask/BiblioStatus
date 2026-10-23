@@ -275,7 +275,43 @@ test_that("is_dark follows bslib's string value and also accepts a logical", {
   })
 })
 
-test_that("the rendered map uses dark tiles and the dark marker palette in dark mode", {
+# The map is rendered once; later changes go through leafletProxy() as calls of
+# refresh_map(). These tests record those calls (the real function still runs).
+record_map_updates <- function(env = parent.frame()) {
+  calls <- new.env()
+  calls$refresh <- list()
+  calls$renders <- 0
+  real_refresh <- get("refresh_map", envir = globalenv())
+  real_options <- get("map_options", envir = globalenv())
+  assign("refresh_map", function(map, data, dark = FALSE, mobile = FALSE, fit = TRUE) {
+    calls$refresh[[length(calls$refresh) + 1]] <- list(
+      proxy = inherits(map, "leaflet_proxy"), n = nrow(data), dark = dark, fit = fit
+    )
+    real_refresh(map, data, dark, mobile, fit)
+  }, envir = globalenv())
+  assign("map_options", function(mobile = FALSE) {
+    calls$renders <- calls$renders + 1      # called once per render of the base map
+    real_options(mobile)
+  }, envir = globalenv())
+  withr::defer({
+    assign("refresh_map", real_refresh, envir = globalenv())
+    assign("map_options", real_options, envir = globalenv())
+  }, envir = env)
+  calls
+}
+
+test_that("the first map uses the theme at that moment: dark tiles and the dark marker palette", {
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    session$setInputs(dark_mode = "dark", is_mobile = FALSE)
+    session$flushReact()
+    dark_map <- as.character(output$map)
+    expect_match(dark_map, "World_Dark_Gray_Base", fixed = TRUE)
+    expect_match(dark_map, "World_Dark_Gray_Reference", fixed = TRUE)
+    expect_false(grepl("World_Light_Gray", dark_map, fixed = TRUE))
+    expect_match(dark_map, dark_colors$Open, fixed = TRUE)
+  })
+
   testServer(server, {
     eval(seed_fixture_data_code)
     session$setInputs(dark_mode = "light", is_mobile = FALSE)
@@ -284,14 +320,48 @@ test_that("the rendered map uses dark tiles and the dark marker palette in dark 
     expect_match(light_map, "World_Light_Gray_Base", fixed = TRUE)
     expect_false(grepl("World_Dark_Gray", light_map, fixed = TRUE))
     expect_match(light_map, light_colors$Open, fixed = TRUE)
+  })
+})
+
+test_that("a filter change updates the map through the proxy and moves the view, without rebuilding the map", {
+  calls <- record_map_updates()
+
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    session$setInputs(dark_mode = "light", is_mobile = FALSE)
+    session$flushReact()
+    invisible(output$map)
+    expect_equal(calls$renders, 1)
+    expect_false(calls$refresh[[length(calls$refresh)]]$proxy)   # the render itself
+    before <- length(calls$refresh)
+
+    session$setInputs(city_filter = "Helsinki")
+    session$flushReact()
+    update <- calls$refresh[[length(calls$refresh)]]
+    expect_gt(length(calls$refresh), before)
+    expect_true(update$proxy)
+    expect_equal(update$n, 2)          # Alpha and Beta
+    expect_true(update$fit)            # a different set of libraries: move the view
+    expect_equal(calls$renders, 1)     # the base map was not rendered again
+  })
+})
+
+test_that("a theme change alone swaps tiles and colours but keeps the user's view", {
+  calls <- record_map_updates()
+
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    session$setInputs(dark_mode = "light", is_mobile = FALSE)
+    session$flushReact()
+    invisible(output$map)
 
     session$setInputs(dark_mode = "dark")
     session$flushReact()
-    dark_map <- as.character(output$map)
-    expect_match(dark_map, "World_Dark_Gray_Base", fixed = TRUE)
-    expect_match(dark_map, "World_Dark_Gray_Reference", fixed = TRUE)
-    expect_false(grepl("World_Light_Gray", dark_map, fixed = TRUE))
-    expect_match(dark_map, dark_colors$Open, fixed = TRUE)
+    update <- calls$refresh[[length(calls$refresh)]]
+    expect_true(update$proxy)
+    expect_true(update$dark)
+    expect_false(update$fit)           # same libraries: the view stays
+    expect_equal(calls$renders, 1)
   })
 })
 

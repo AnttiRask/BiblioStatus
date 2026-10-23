@@ -217,3 +217,128 @@ asset <- function(file) {
   if (!file.exists(path)) return(file)
   paste0(file, "?v=", as.integer(file.mtime(path)))
 }
+
+# ---------------------------------------------------------------------------
+# Map drawing. Used both for the first render of the map and for the updates
+# sent through leafletProxy(), so the two can't drift apart. Each takes a leaflet
+# map or a proxy and returns it.
+# ---------------------------------------------------------------------------
+
+# Leaflet options; phones get larger touch targets and no accidental zooms
+map_options <- function(mobile = FALSE) {
+  if (isTRUE(mobile)) {
+    leaflet::leafletOptions(
+      zoomControl = TRUE,
+      dragging = TRUE,
+      tap = TRUE,
+      tapTolerance = 20,        # larger tap area
+      touchZoom = TRUE,
+      doubleClickZoom = FALSE,  # prevent accidental double-tap zoom
+      scrollWheelZoom = FALSE   # prevent scroll conflicts
+    )
+  } else {
+    leaflet::leafletOptions()
+  }
+}
+
+add_status_legend <- function(map, colors) {
+  leaflet::addLegend(
+    map,
+    position = "topright",
+    layerId = "status_legend",
+    colors = vapply(
+      c("Open", "Self", "ClosedNow", "ClosedDay", "Unknown"),
+      function(name) colors[[name]], character(1), USE.NAMES = FALSE
+    ),
+    labels = c(
+      txt$legend_open, txt$legend_self, txt$legend_closed,
+      txt$legend_closed_day, txt$legend_unknown
+    ),
+    title = txt$legend_title
+  )
+}
+
+add_library_markers <- function(map, data, colors, mobile = FALSE) {
+  leaflet::addCircleMarkers(
+    map,
+    data = data,
+    lng = ~lon,
+    lat = ~lat,
+    layerId = ~id,
+    # fmt: skip
+    color = ~ dplyr::case_when(
+      open_status == "Open"                              ~ colors$Open,
+      open_status == "Self-service"                      ~ colors$Self,
+      open_status %in% c("Closed", "Temporarily closed") ~ colors$ClosedNow,
+      open_status == "Closed for the whole day"          ~ colors$ClosedDay,
+      TRUE                                               ~ colors$Unknown
+    ),
+    # Non-color status cue (WCAG 1.4.1): closed markers get a dashed, thinner
+    # border so status isn't conveyed by color alone.
+    # fmt: skip
+    weight = ~ dplyr::case_when(
+      open_status %in% c("Open", "Self-service") ~ 3,
+      TRUE                                        ~ 2
+    ),
+    # fmt: skip
+    dashArray = ~ dplyr::case_when(
+      open_status %in% c("Open", "Self-service") ~ NA_character_,
+      TRUE                                        ~ "4, 3"
+    ),
+    radius = if (isTRUE(mobile)) MOBILE_MARKER_RADIUS else DESKTOP_MARKER_RADIUS,
+    popup = ~ build_library_popup(
+      library_url, library_branch_name, library_address,
+      open_status, lat, lon,
+      opening_hours = opening_hours
+    ),
+    label = if (!isTRUE(mobile)) ~library_branch_name else NULL,
+    labelOptions = leaflet::labelOptions(
+      style = list("font-size" = "14px", "font-weight" = "bold", "color" = "#222")
+    ),
+    popupOptions = leaflet::popupOptions(
+      maxWidth = if (isTRUE(mobile)) MOBILE_POPUP_MAX_WIDTH else DESKTOP_POPUP_MAX_WIDTH,
+      minWidth = if (isTRUE(mobile)) MOBILE_POPUP_MIN_WIDTH else DESKTOP_POPUP_MIN_WIDTH,
+      autoPan = TRUE,    # auto-pan to show the full popup
+      keepInView = TRUE,
+      closeButton = TRUE
+    )
+  )
+}
+
+# Zoom to the libraries: a few of them are centred at a fixed zoom, more are
+# fitted into view
+fit_to_libraries <- function(map, data) {
+  if (dplyr::n_distinct(data$id) <= SINGLE_LIBRARY_ZOOM_THRESHOLD) {
+    leaflet::setView(
+      map,
+      lat = mean(data$lat, na.rm = TRUE),
+      lng = mean(data$lon, na.rm = TRUE),
+      zoom = DEFAULT_ZOOM_LEVEL
+    )
+  } else {
+    leaflet::fitBounds(
+      map,
+      lng1 = min(data$lon, na.rm = TRUE),
+      lat1 = min(data$lat, na.rm = TRUE),
+      lng2 = max(data$lon, na.rm = TRUE),
+      lat2 = max(data$lat, na.rm = TRUE),
+      options = list(maxZoom = map_tile_max_native_zoom)
+    )
+  }
+}
+
+# Everything that depends on the libraries shown and the theme: the basemap
+# tiles (replaced by layer id, so a proxy swaps them), the legend and the
+# markers. `fit` moves the view; a theme change alone keeps the user's view.
+refresh_map <- function(map, data, dark = FALSE, mobile = FALSE, fit = TRUE) {
+  colors <- if (dark) dark_colors else light_colors
+  map <- map |>
+    add_basemap(dark = dark) |>
+    leaflet::clearMarkers() |>
+    leaflet::clearControls() |>
+    add_library_markers(data, colors, mobile) |>
+    add_status_legend(colors)
+  if (fit) map <- fit_to_libraries(map, data)
+  map
+}
+

@@ -11,128 +11,61 @@ libraries_on_map <- reactive({
   filter_libraries(libs, svcs, selection())
 })
 
-# Render the map when the selection, dark mode, the data or the startup city
-# change. The startup city is part of the trigger so the first map is drawn
-# even when it doesn't change the selection (e.g. after a reconnect).
+# The map is rendered ONCE, with the libraries and the theme of that moment.
+# Later changes (the filters, dark mode) are sent as small updates through
+# leafletProxy(): the map keeps its tiles and, when only the theme changes, its
+# view, instead of being rebuilt (which re-requested every tile and reset the
+# zoom). Rendering waits for the startup city and for the device type (is_mobile
+# is reported by the browser a moment after the page loads); neither changes
+# again, so the render doesn't run twice. Everything else is read with
+# isolate(), which is what keeps filter changes from re-rendering the map.
+#
+# The ids of the libraries last fitted into view: the view only moves when the
+# set of libraries changes.
+fitted <- new.env()
+
+output$map <- renderLeaflet({
+  req(startup_city_set())
+  mobile <- input$is_mobile
+  req(!is.null(mobile))
+
+  data <- isolate(libraries_on_map())
+  req(nrow(data) > 0)
+  fitted$ids <- sort(data$id)
+
+  leaflet(data, options = map_options(mobile)) |>
+    refresh_map(data, dark = isolate(is_dark()), mobile = isTRUE(mobile), fit = TRUE)
+})
+
+# Filters or the theme changed: update the existing map. A proxy message sent
+# before the browser has built the map is dropped, which is harmless: the
+# render above already used the current selection. ignoreInit skips the
+# start-up run (the render draws the first map).
 observeEvent(
-  list(libraries_on_map(), is_dark(), startup_city_set()),
+  list(libraries_on_map(), is_dark()),
   {
-    req(startup_city_set())  # wait until startup city is determined
+    req(startup_city_set())
     data <- libraries_on_map()
     req(nrow(data) > 0)
 
-    output$map <- renderLeaflet({
-      chosen_colors <- if (is_dark()) dark_colors else light_colors
+    ids <- sort(data$id)
+    fit <- !identical(ids, fitted$ids)   # a theme change alone doesn't move the view
+    fitted$ids <- ids
 
-      # Mobile-optimized leaflet options
-      leaflet_options <- if (isTRUE(input$is_mobile)) {
-        leafletOptions(
-          zoomControl = TRUE,
-          dragging = TRUE,
-          tap = TRUE,
-          tapTolerance = 20,  # Larger tap area for mobile
-          touchZoom = TRUE,
-          doubleClickZoom = FALSE,  # Prevent accidental double-tap zoom
-          scrollWheelZoom = FALSE   # Prevent scroll conflicts on mobile
-        )
-      } else {
-        leafletOptions()
-      }
-
-      map <- leaflet(data, options = leaflet_options) %>%
-        add_basemap(dark = is_dark()) %>%
-        addCircleMarkers(
-          lng = ~lon,
-          lat = ~lat,
-          layerId = ~id,
-          # fmt: skip
-          color = ~ case_when(
-            open_status == "Open"                              ~ chosen_colors$Open,
-            open_status == "Self-service"                      ~ chosen_colors$Self,
-            open_status %in% c("Closed", "Temporarily closed") ~ chosen_colors$ClosedNow,
-            open_status == "Closed for the whole day"          ~ chosen_colors$ClosedDay,
-            TRUE                                               ~ chosen_colors$Unknown
-          ),
-          # Non-color status cue (WCAG 1.4.1): closed markers get a dashed,
-          # thinner border so status isn't conveyed by color alone.
-          # fmt: skip
-          weight = ~ case_when(
-            open_status %in% c("Open", "Self-service") ~ 3,
-            TRUE                                        ~ 2
-          ),
-          # fmt: skip
-          dashArray = ~ case_when(
-            open_status %in% c("Open", "Self-service") ~ NA_character_,
-            TRUE                                        ~ "4, 3"
-          ),
-          radius = if (isTRUE(input$is_mobile)) MOBILE_MARKER_RADIUS else DESKTOP_MARKER_RADIUS,
-          popup = ~ build_library_popup(
-            library_url, library_branch_name, library_address,
-            open_status, lat, lon,
-            opening_hours = opening_hours
-          ),
-          label = if (!isTRUE(input$is_mobile)) {
-            ~library_branch_name
-          } else {
-            NULL
-          },
-          labelOptions = labelOptions(
-            style = list(
-              "font-size" = "14px",
-              "font-weight" = "bold",
-              "color" = "#222"
-            )
-          ),
-          popupOptions = popupOptions(
-            maxWidth = if (isTRUE(input$is_mobile)) MOBILE_POPUP_MAX_WIDTH else DESKTOP_POPUP_MAX_WIDTH,
-            minWidth = if (isTRUE(input$is_mobile)) MOBILE_POPUP_MIN_WIDTH else DESKTOP_POPUP_MIN_WIDTH,
-            autoPan = TRUE,  # Auto-pan to show full popup
-            keepInView = TRUE,  # Keep popup in view
-            closeButton = TRUE
-          )
-        ) %>%
-        addLegend(
-          position = "topright",
-          colors = map_chr(
-            c("Open", "Self", "ClosedNow", "ClosedDay", "Unknown"),
-            ~ chosen_colors[[.x]]
-          ),
-          labels = c(
-            txt$legend_open,
-            txt$legend_self,
-            txt$legend_closed,
-            txt$legend_closed_day,
-            txt$legend_unknown
-          ),
-          title = txt$legend_title
-        )
-
-      # Zoom logic
-      if (data %>% distinct(id) %>% nrow() <= SINGLE_LIBRARY_ZOOM_THRESHOLD) {
-        map <- map %>%
-          setView(
-            lat = mean(data$lat, na.rm = TRUE),
-            lng = mean(data$lon, na.rm = TRUE),
-            zoom = DEFAULT_ZOOM_LEVEL
-          )
-      } else {
-        map <- map %>%
-          fitBounds(
-            lng1 = min(data$lon, na.rm = TRUE),
-            lat1 = min(data$lat, na.rm = TRUE),
-            lng2 = max(data$lon, na.rm = TRUE),
-            lat2 = max(data$lat, na.rm = TRUE),
-            options = list(maxZoom = map_tile_max_native_zoom)
-          )
-      }
-
-      return(map)
-    })
-
-    hide("loading-spinner")
-    runjs("document.getElementById('map').style.visibility = 'visible';")
-  }
+    refresh_map(
+      leafletProxy("map"), data,
+      dark = is_dark(), mobile = isTRUE(input$is_mobile), fit = fit
+    )
+  },
+  ignoreInit = TRUE
 )
+
+# The first time the browser reports the map's bounds the map exists: remove the
+# loading text and show it
+observeEvent(input$map_bounds, {
+  hide("loading-spinner")
+  runjs("document.getElementById('map').style.visibility = 'visible';")
+}, once = TRUE)
 
 # Click marker to update sidebar
 observeEvent(input$map_marker_click, {
