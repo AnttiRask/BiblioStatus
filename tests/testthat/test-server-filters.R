@@ -318,6 +318,36 @@ test_that("a reconnect with only a city restores that city", {
   })
 })
 
+# The startup inputs are sent again after a reconnect (seen in a real browser:
+# the new session seeded Espoo + a service from the dropdowns and then, 1.3 s
+# later, startup moved the city to Helsinki, so the map no longer matched the
+# dropdowns). The startup city must only apply when no city is chosen yet.
+test_that("the startup city doesn't overwrite a city that is already selected", {
+  testServer(server, {
+    session$setInputs(city_filter = "Tampere", library_search = "", service_filter = "")
+    expect_equal(selection()$city, "Tampere")
+
+    session$setInputs(startup_geolocation_timeout = TRUE)
+    expect_equal(selection()$city, "Tampere")
+    expect_true(startup_city_set())
+
+    session$setInputs(startup_location = list(lat = 60.17, lon = 24.94))   # a second startup event
+    expect_equal(selection()$city, "Tampere")
+  })
+})
+
+test_that("the startup city is used when no city has been chosen", {
+  testServer(server, {
+    session$flushReact()
+    library_data(fixture_libraries)
+    library_services_data(fixture_services)
+
+    session$setInputs(startup_geolocation_timeout = TRUE)
+    expect_equal(selection()$city, "Helsinki")
+    expect_equal(sort(libraries_on_map()$id), c(1, 2))
+  })
+})
+
 test_that("a normal page load (empty first values) is left alone, and later changes still work", {
   testServer(server, {
     eval(seed_fixture_data_code)

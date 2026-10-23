@@ -96,8 +96,14 @@ observe({
 # The startup city (nearest library's city, or Helsinki) becomes the city
 # selection, which also draws the first map. The data may not have arrived yet when
 # the fallback fires; the populate observer above then shows the selection.
+#
+# It only applies when no city has been chosen yet. The startup events are sent
+# again after a reconnect (and the 9 s fallback can fire after the user has
+# already picked a city); in both cases the selection already has a city, and
+# overwriting it would move the map away from what the dropdowns show.
 set_city_from_startup <- function(city) {
   startup_city_set(TRUE)
+  if (nzchar(selection()$city)) return(invisible())
   libs <- library_data()
   svcs <- library_services_data()
 
