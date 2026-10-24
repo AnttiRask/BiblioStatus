@@ -117,3 +117,30 @@ test_that("the view is still set for libraries that do have coordinates", {
   expect_equal(view_of(refresh_map(leaflet::leaflet(), lib(1), fit = TRUE)), "setView")
   expect_equal(view_of(refresh_map(leaflet::leaflet(), lib(1:5), fit = TRUE)), "fitBounds")
 })
+
+# ---- how close the map zooms ----
+
+zoom_of <- function(map) map$x$setView[[2]]
+
+test_that("a single library is shown close up, two at city level", {
+  one <- refresh_map(leaflet::leaflet(), lib(1), fit = TRUE)
+  expect_equal(view_of(one), "setView")
+  expect_equal(zoom_of(one), SINGLE_LIBRARY_ZOOM_LEVEL)
+  expect_equal(SINGLE_LIBRARY_ZOOM_LEVEL, 15)
+  expect_lte(SINGLE_LIBRARY_ZOOM_LEVEL, map_tile_max_native_zoom)       # real tiles, not the grey placeholder
+
+  two <- refresh_map(leaflet::leaflet(), lib(1:2), fit = TRUE)
+  expect_equal(view_of(two), "setView")
+  expect_equal(zoom_of(two), DEFAULT_ZOOM_LEVEL)
+  expect_lt(DEFAULT_ZOOM_LEVEL, SINGLE_LIBRARY_ZOOM_LEVEL)
+})
+
+test_that("the close-up is centred on the library", {
+  one <- refresh_map(leaflet::leaflet(), lib(7), fit = TRUE)
+  expect_equal(unlist(one$x$setView[[1]]), c(60.7, 24.7))
+})
+
+test_that("a single library with a bad coordinate next to a good one is still shown close up", {
+  libs <- rbind(lib(3), transform(lib(9), lat = 0, lon = 0))
+  expect_equal(zoom_of(refresh_map(leaflet::leaflet(), libs, fit = TRUE)), SINGLE_LIBRARY_ZOOM_LEVEL)
+})

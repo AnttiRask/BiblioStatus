@@ -41,8 +41,9 @@ MOBILE_POPUP_MAX_WIDTH <- 250
 MOBILE_POPUP_MIN_WIDTH <- 200
 DESKTOP_POPUP_MAX_WIDTH <- 300
 DESKTOP_POPUP_MIN_WIDTH <- 100
-DEFAULT_ZOOM_LEVEL <- 11
-SINGLE_LIBRARY_ZOOM_THRESHOLD <- 2
+DEFAULT_ZOOM_LEVEL <- 11                 # two libraries: centred between them
+SINGLE_LIBRARY_ZOOM_LEVEL <- 15          # one library: its neighbourhood (the tiles are real up to 16)
+SINGLE_LIBRARY_ZOOM_THRESHOLD <- 2       # up to this many libraries are centred, more are fitted into view
 MOBILE_NEAREST_COUNT <- 3
 DESKTOP_NEAREST_COUNT <- 5
 
