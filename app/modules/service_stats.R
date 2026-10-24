@@ -138,11 +138,16 @@ service_stats_server <- function(id, library_services, libraries, dark_mode) {
       # bg = "transparent" lets the ggplot plot.background fill (set above) show through
     }, bg = "transparent")
 
-    # Data table with all services
+    # Data table with all services. server = FALSE: the whole table (about 250
+    # rows) goes to the page once and paging, sorting and searching happen in the
+    # browser. With the default (server = TRUE) every page, sort and search is a
+    # request to a URL that belongs to the Shiny session, which answers 404 once
+    # the session has ended (a page left open for an hour, or across a deploy),
+    # and DataTables then shows an "Ajax error" alert.
     output$service_table <- DT::renderDataTable({
       service_counts() %>%
         stats_table()
-    }, options = list(
+    }, server = FALSE, options = list(
       pageLength = 20,
       searching = TRUE,
       ordering = TRUE,

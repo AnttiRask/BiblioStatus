@@ -193,3 +193,5 @@ Lessons from this phase: production merges and workflow dispatches were blocked 
 
 **Light/dark switch (2026-10-24, branch `feat/mode-toggle`, asked for by the user):** BiblioStatus gets the same own button as the other apps instead of bslib's `input_dark_mode()`: it shows the mode a click switches to (moon while light, sun while dark) with a matching label, instead of the current mode's icon. Same `dark_mode` input for the server, so the map, the statistics chart and the filters needed no change.
 
+**DataTables "Ajax error" alert (2026-10-24, branch `fix/stats-table-client-side`, reported by the user with a screenshot):** a page left open for a while showed "DataTables warning: table id=DataTables_Table_1 - Ajax error". Cause: the statistics table was server-side, so each page/sort/search was a request to a URL tied to the Shiny session, and that URL answers 404 once the session has ended (reproduced: 200 while alive, 404 after the websocket closed). Fix: `server = FALSE`, the 245 rows go to the page once. Harmless for the data, but an ugly alert.
+
