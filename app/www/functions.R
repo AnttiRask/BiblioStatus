@@ -306,9 +306,19 @@ add_library_markers <- function(map, data, colors, mobile = FALSE) {
   )
 }
 
+# TRUE for coordinates that can be in Finland. Vector-safe; NA is not plausible.
+plausible_location <- function(lat, lon) {
+  !is.na(lat) & !is.na(lon) &
+    lat >= finland_bounds$lat[1] & lat <= finland_bounds$lat[2] &
+    lon >= finland_bounds$lon[1] & lon <= finland_bounds$lon[2]
+}
+
 # Zoom to the libraries: a few of them are centred at a fixed zoom, more are
-# fitted into view
+# fitted into view. Libraries with coordinates that can't be in Finland are
+# left out of the calculation, so one bad row can't zoom the map out to Africa.
 fit_to_libraries <- function(map, data) {
+  data <- data[plausible_location(data$lat, data$lon), ]
+  if (nrow(data) == 0) return(map)
   if (dplyr::n_distinct(data$id) <= SINGLE_LIBRARY_ZOOM_THRESHOLD) {
     leaflet::setView(
       map,

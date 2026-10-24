@@ -168,9 +168,11 @@ output$filter_summary <- renderText({
   sel <- selection()
   count <- nrow(libs)
   library_name <- if (nzchar(sel$library)) library_data()$library_branch_name[id_text(library_data()$id) == sel$library] else ""
+  # An empty city means "All Cities" once the starting city has been decided
+  city <- if (nzchar(sel$city)) sel$city else if (startup_city_set()) txt$all_cities else ""
   parts <- c(
     sprintf(if (count == 1) txt$summary_one else txt$summary_many, count),
-    sel$city, sel$service, library_name
+    city, sel$service, library_name
   )
   paste(parts[nzchar(parts)], collapse = " \u00b7 ")
 })

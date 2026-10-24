@@ -164,6 +164,12 @@ apply_filter_change <- function(libs, services, sel, changed, value, msgs = txt)
     }
   }
 
+  # "All Cities" shows every library: a selected library would still limit the map to itself
+  if (changed == "city" && !nzchar(value) && nzchar(sel$library)) {
+    notices <- c(notices, msgs$notice_library_all_cities)
+    sel$library <- ""
+  }
+
   # A city the selected service isn't offered in clears the service
   if (changed == "city" && nzchar(value) && nzchar(sel$service)) {
     offered_here <- services |>
@@ -188,14 +194,23 @@ filter_fields <- c("city", "service", "library")
 
 # The address query for a selection; "?" when nothing is selected. Values are
 # percent-encoded (UTF-8), so city and service names with ä, ö or spaces work.
-selection_to_query <- function(sel) {
+# `all_cities`: the empty city is a choice ("All Cities") and not just "not
+# decided yet", so it is written as an empty `city=` that a link or a reconnected
+# page can tell from a missing one.
+selection_to_query <- function(sel, all_cities = FALSE) {
   sel <- normalize_selection(sel)
+  fields <- filter_fields[nzchar(unlist(sel[filter_fields])) | (all_cities & filter_fields == "city")]
   parts <- vapply(
-    filter_fields[nzchar(unlist(sel[filter_fields]))],
+    fields,
     function(field) paste0(field, "=", utils::URLencode(sel[[field]], reserved = TRUE)),
     character(1)
   )
   paste0("?", paste(parts, collapse = "&"))
+}
+
+# TRUE if an address query asks for all cities: a `city` that is there but empty
+query_asks_for_all_cities <- function(query) {
+  "city" %in% names(query) && !nzchar(query[["city"]][[1]])
 }
 
 # A valid selection from an address query (a list like shiny::parseQueryString()

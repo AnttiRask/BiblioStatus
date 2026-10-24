@@ -42,6 +42,7 @@ txt <- list(
 
   notice_library_not_in_city = "Library cleared: it is not in %s",
   notice_library_no_service  = "Library cleared: it does not offer %s",
+  notice_library_all_cities  = "Library cleared: all cities are shown",
   notice_service_not_in_city = "Service cleared: it is not offered in %s",
   notice_service_not_at_library = "Service cleared: %s does not offer %s",
   url_ignored                = "Part of the link's filters didn't match any libraries and was left out.",

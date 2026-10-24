@@ -108,9 +108,8 @@ test_that("picking a library sets its city and nothing else", {
   expect_null(r$notice)
 })
 
-test_that("clearing a filter changes only that filter", {
+test_that("clearing the service or the library changes only that filter (All Cities also clears the library: see below)", {
   start <- sel(city = "Helsinki", service = "Sauna", library = "1")
-  expect_equal(apply_filter_change(fl, fs, start, "city", "")$sel, sel(service = "Sauna", library = "1"))
   expect_equal(apply_filter_change(fl, fs, start, "service", "")$sel, sel(city = "Helsinki", library = "1"))
   expect_equal(apply_filter_change(fl, fs, start, "library", "")$sel, sel(city = "Helsinki", service = "Sauna"))
 })
@@ -310,4 +309,50 @@ test_that("jump_to_library changes nothing for an unknown or empty library, or t
   }
   r <- jump_to_library(fl, fs, sel(city = "Helsinki", library = "1"), "1")
   expect_false(r$changed)
+})
+
+# ---- "All Cities" ----
+
+test_that("choosing All Cities empties the city, keeps the service and clears a selected library with a notice", {
+  r <- apply_filter_change(fl, fs, sel(city = "Helsinki", service = "Sauna", library = "1"), "city", "")
+  expect_true(r$changed)
+  expect_equal(r$sel, sel(service = "Sauna"))
+  expect_equal(r$notice, "Library cleared: all cities are shown")
+
+  r <- apply_filter_change(fl, fs, sel(city = "Helsinki", service = "Sauna"), "city", "")
+  expect_equal(r$sel, sel(service = "Sauna"))
+  expect_null(r$notice)
+})
+
+test_that("choosing All Cities when it is already chosen changes nothing", {
+  r <- apply_filter_change(fl, fs, sel(service = "Sauna"), "city", "")
+  expect_false(r$changed)
+})
+
+test_that("every library can still be reached from All Cities", {
+  expect_equal(ids(filter_libraries(fl, fs, sel())), c(1, 2, 3, 4, 5, 100000))
+  r <- apply_filter_change(fl, fs, sel(), "city", "Tampere")
+  expect_equal(r$sel, sel(city = "Tampere"))
+})
+
+test_that("the address says 'all cities' with an empty city= only when asked to", {
+  expect_equal(selection_to_query(sel()), "?")
+  expect_equal(selection_to_query(sel(), all_cities = TRUE), "?city=")
+  expect_equal(selection_to_query(sel(service = "Sauna"), all_cities = TRUE), "?city=&service=Sauna")
+  expect_equal(selection_to_query(sel(city = "Espoo"), all_cities = TRUE), "?city=Espoo")     # a city is a city
+  expect_equal(selection_to_query(sel(city = "Espoo", library = "3"), all_cities = FALSE), "?city=Espoo&library=3")
+})
+
+test_that("an empty city= in an address asks for all cities; a missing one doesn't", {
+  expect_true(query_asks_for_all_cities(shiny::parseQueryString("?city=")))
+  expect_true(query_asks_for_all_cities(shiny::parseQueryString("?city=&service=Sauna")))
+  expect_false(query_asks_for_all_cities(shiny::parseQueryString("?service=Sauna")))
+  expect_false(query_asks_for_all_cities(shiny::parseQueryString("?city=Espoo")))
+  expect_false(query_asks_for_all_cities(shiny::parseQueryString("")))
+})
+
+test_that("the address round trip keeps 'all cities' with a service", {
+  q <- shiny::parseQueryString(selection_to_query(sel(service = "Sauna"), all_cities = TRUE))
+  expect_true(query_asks_for_all_cities(q))
+  expect_equal(selection_from_query(fl, fs, q)$sel, sel(service = "Sauna"))
 })

@@ -9,8 +9,8 @@
 url_ready <- reactiveVal(FALSE)
 
 # Read the address once, when the data has loaded (a link's values are checked
-# against it). A link with a city decides the starting city, so the map doesn't
-# wait for the location.
+# against it). A link with a city (or with an empty `city=`, which is "All
+# Cities") decides the starting city, so the map doesn't wait for the location.
 observeEvent(library_data(), {
   libs <- library_data()
   svcs <- library_services_data()
@@ -19,10 +19,11 @@ observeEvent(library_data(), {
   search <- url_search_of(session)
   if (is.null(search)) search <- ""
   query <- shiny::parseQueryString(search)
-  if (any(nzchar(unlist(query[filter_fields])))) {
+  all_cities <- query_asks_for_all_cities(query)
+  if (any(nzchar(unlist(query[filter_fields]))) || all_cities) {
     result <- selection_from_query(libs, svcs, query, base = selection())
     selection(result$sel)
-    if (nzchar(result$sel$city)) startup_city_set(TRUE)
+    if (nzchar(result$sel$city) || all_cities) startup_city_set(TRUE)
     push_dropdowns(result$sel)
     if (length(result$ignored) > 0) showNotification(txt$url_ignored, type = "warning", duration = 8)
   }
@@ -33,5 +34,6 @@ observeEvent(library_data(), {
 # change, so the back button leaves the page as it should.
 observe({
   req(url_ready())
-  updateQueryString(selection_to_query(selection()), mode = "replace", session = session)
+  # Once the starting city is decided, an empty city means "All Cities"
+  updateQueryString(selection_to_query(selection(), all_cities = startup_city_set()), mode = "replace", session = session)
 })
