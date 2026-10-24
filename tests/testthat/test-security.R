@@ -11,16 +11,19 @@ test_that("the header set covers framing, referrers, permissions, transport and 
     expect_match(h[["Permissions-Policy"]], "camera=()", fixed = TRUE)
 })
 
-test_that("the enforced CSP only contains directives that can't break the app", {
-    csp <- security_headers()[["Content-Security-Policy"]]
-    expect_match(csp, "frame-ancestors 'none'", fixed = TRUE)
-    expect_match(csp, "object-src 'none'", fixed = TRUE)
-    # no resource-loading directives in the enforced policy
-    expect_false(grepl("script-src|style-src|img-src|connect-src|default-src", csp))
+test_that("the CSP is enforced, in full, and there is no report-only copy of it", {
+    h <- security_headers()
+    csp <- h[["Content-Security-Policy"]]
+    for (directive in c("default-src 'self'", "script-src", "style-src", "font-src", "img-src",
+                        "connect-src", "frame-ancestors 'none'", "base-uri 'self'",
+                        "object-src 'none'", "form-action 'self'")) {
+        expect_match(csp, directive, fixed = TRUE)
+    }
+    expect_null(h[["Content-Security-Policy-Report-Only"]])
 })
 
-test_that("the report-only CSP allows exactly the hosts the app uses", {
-    csp <- security_headers()[["Content-Security-Policy-Report-Only"]]
+test_that("the CSP allows exactly the hosts the app uses", {
+    csp <- security_headers()[["Content-Security-Policy"]]
     expect_match(csp, "img-src [^;]*https://services\\.arcgisonline\\.com")
     expect_false(grepl("cartocdn", csp))
     # the CSP host and the map's tile host are the same thing
@@ -30,6 +33,22 @@ test_that("the report-only CSP allows exactly the hosts the app uses", {
     expect_match(csp, "connect-src 'self' wss:", fixed = TRUE)
     # nothing is allowed from arbitrary hosts
     expect_false(grepl("\\*(;| |$)|https:(;| |$)", csp))
+    # the only hosts named are the two the page loads from
+    hosts <- unique(unlist(regmatches(csp, gregexpr("https://[a-z0-9.-]+", csp))))
+    expect_setequal(hosts, c(map_tiles_host, font_host))
+})
+
+test_that("the policy loads nothing from other origins: scripts, styles, connections and frames", {
+    csp <- security_headers()[["Content-Security-Policy"]]
+    directive <- function(name) {
+        m <- regmatches(csp, regexpr(paste0(name, " [^;]*"), csp))
+        sub(paste0("^", name, " "), "", m)
+    }
+    expect_equal(directive("script-src"), "'self' 'unsafe-inline' 'unsafe-eval'")   # no external script host
+    expect_false(grepl("https:", directive("script-src")))
+    expect_false(grepl("https:", directive("connect-src")))
+    expect_equal(directive("object-src"), "'none'")
+    expect_false(grepl("frame-src", csp))                                            # falls back to default-src: no frames
 })
 
 fake_app <- function(handler) structure(list(httpHandler = handler), class = "shiny.appobj")
