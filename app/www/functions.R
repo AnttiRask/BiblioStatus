@@ -1,6 +1,7 @@
 # Load Turso helper functions and the schedule helpers (helsinki_today())
 source(here("R", "turso.R"))
 source(here("R", "schedules.R"))
+source(here("R", "coordinates.R"))   # plausible_location(), shared with the pipeline
 
 # Load Turso credentials
 TURSO_DATABASE_URL <- Sys.getenv("TURSO_DATABASE_URL")
@@ -337,13 +338,6 @@ add_library_markers <- function(map, data, colors, mobile = FALSE) {
       closeButton = TRUE
     )
   )
-}
-
-# TRUE for coordinates that can be in Finland. Vector-safe; NA is not plausible.
-plausible_location <- function(lat, lon) {
-  !is.na(lat) & !is.na(lon) &
-    lat >= finland_bounds$lat[1] & lat <= finland_bounds$lat[2] &
-    lon >= finland_bounds$lon[1] & lon <= finland_bounds$lon[2]
 }
 
 # Zoom to the libraries: a few of them are centred at a fixed zoom, more are
