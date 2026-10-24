@@ -197,7 +197,8 @@ test_that("the summary line says how many libraries are shown and for what", {
   testServer(server, {
     eval(seed_fixture_data_code)
     session$flushReact()   # render the output with the fixture data, not the startup load
-    expect_equal(output$filter_summary, "3 libraries")
+    # no city chosen, and the starting city is decided: that is "All Cities"
+    expect_equal(output$filter_summary, "3 libraries \u00b7 All Cities")
 
     session$setInputs(city_filter = "Helsinki")
     expect_equal(output$filter_summary, "2 libraries \u00b7 Helsinki")
@@ -1051,5 +1052,104 @@ test_that("the search box doesn't disturb the dropdowns: picking in the dropdown
     expect_equal(selection(), list(city = "Tampere", service = "", library = ""))
     session$setInputs(city_filter = "Helsinki")
     expect_equal(eval(ids_on_map), c(1, 2))
+  })
+})
+
+# ---- All Cities ----
+# An empty city is a choice ("All Cities"): every library on the map. It must
+# survive a reload (the address says `city=`) and not be replaced by the starting
+# city, which comes from the location and may still be on its way.
+
+test_that("choosing All Cities shows every library, clears a library and keeps the service", {
+  calls <- record_dropdown_updates()
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(library_search = "1")
+    calls$notice <- NULL
+
+    session$setInputs(city_filter = "")
+    expect_equal(selection(), list(city = "", service = "", library = ""))
+    expect_equal(eval(ids_on_map), c(1, 2, 3))
+    expect_equal(calls$notice, "Library cleared: all cities are shown")
+    expect_null(selected_library())
+    expect_equal(last_sent(calls, "city_filter")$selected, "")
+  })
+})
+
+test_that("All Cities keeps a selected service", {
+  record_dropdown_updates()
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(service_filter = "Printing")
+    session$setInputs(city_filter = "")
+    expect_equal(selection(), list(city = "", service = "Printing", library = ""))
+    expect_equal(eval(ids_on_map), c(1, 2))
+  })
+})
+
+test_that("the summary says All Cities once the starting city is decided", {
+  testServer(server, {
+    eval(seed_fixture_data_code)
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(city_filter = "")
+    session$flushReact()
+    expect_equal(output$filter_summary, "3 libraries · All Cities")
+  })
+})
+
+test_that("All Cities is written to the address as an empty city=", {
+  written <- with_address("?city=Helsinki")
+  testServer(server, {
+    session$flushReact()
+    session$setInputs(city_filter = "")
+    session$flushReact()
+    expect_equal(tail(written$queries, 1), "?city=")
+  })
+})
+
+test_that("a link with an empty city= opens on All Cities, and the starting city doesn't replace it", {
+  written <- with_address("?city=")
+  testServer(server, {
+    session$flushReact()
+    expect_equal(selection(), list(city = "", service = "", library = ""))
+    expect_true(startup_city_set())                       # the link decided: no waiting for the location
+    expect_equal(eval(ids_on_map), c(1, 2, 3))
+    expect_equal(tail(written$queries, 1), "?city=")      # the address keeps saying so
+
+    session$setInputs(startup_location = list(lat = 60.1, lon = 24.9))   # the location arrives late
+    expect_equal(selection()$city, "")
+  })
+})
+
+test_that("a link with an empty city= and a service opens on that service in all cities", {
+  with_address("?city=&service=Printing")
+  testServer(server, {
+    session$flushReact()
+    expect_equal(selection(), list(city = "", service = "Printing", library = ""))
+    expect_equal(eval(ids_on_map), c(1, 2))
+  })
+})
+
+test_that("choosing All Cities before the location arrives is not overridden by it", {
+  record_dropdown_updates()
+  testServer(server, {
+    session$flushReact()                  # data loaded; the starting city isn't known yet
+    expect_false(startup_city_set())
+    session$setInputs(city_filter = "Helsinki")
+    session$setInputs(city_filter = "")
+    expect_true(startup_city_set())
+    session$setInputs(startup_location = list(lat = 61.5, lon = 23.7))
+    expect_equal(selection()$city, "")
+  })
+})
+
+test_that("without a choice, the address stays empty until the starting city is known", {
+  written <- with_address("")
+  testServer(server, {
+    session$flushReact()
+    expect_false(startup_city_set())
+    expect_true(all(written$queries %in% character()) || !any(written$queries == "?city="))
   })
 })

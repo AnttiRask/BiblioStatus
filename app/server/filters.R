@@ -70,6 +70,10 @@ handle_user_change <- function(field, value, from_dropdown = TRUE) {
     return(invisible(FALSE))
   }
 
+  # Choosing "All Cities" is a decision about the city: the starting city (from
+  # the location, which may still be on its way) must not replace it
+  if (field == "city" && !nzchar(value)) startup_city_set(TRUE)
+
   if (from_dropdown && !is.null(sent_to_browser[[id]])) {
     sent_to_browser[[id]]$selected <- value  # the browser already shows it
   }

@@ -67,10 +67,12 @@ ui <- page_navbar(
           choices = NULL,
           options = list(placeholder = txt$finder_placeholder)
         ),
-        selectInput(
+        # allowEmptyOption: "All Cities" (the empty value) is a choice at the top of the list
+        selectizeInput(
           inputId = "city_filter",
           label = txt$city_label,
-          choices = NULL
+          choices = NULL,
+          options = list(allowEmptyOption = TRUE, placeholder = txt$all_cities)
         ),
         div(
           div(class = "d-flex justify-content-between align-items-baseline mb-1",

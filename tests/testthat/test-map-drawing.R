@@ -84,3 +84,36 @@ test_that("map_options turns off accidental zooms on phones only", {
   expect_equal(map_options(TRUE)$doubleClickZoom, FALSE)
   expect_null(map_options(FALSE)$doubleClickZoom)
 })
+
+# ---- coordinates that can't be in Finland ----
+# The data once had a library at 0, 0 (off the coast of Africa): fitting the
+# view to every library zoomed the all-cities map out to half the world.
+
+test_that("plausible_location accepts Finland, including Åland and Utsjoki, and refuses the rest", {
+  expect_true(plausible_location(60.17, 24.94))     # Helsinki
+  expect_true(plausible_location(60.10, 19.94))     # Mariehamn
+  expect_true(plausible_location(69.91, 27.01))     # Utsjoki
+  expect_false(plausible_location(0, 0))
+  expect_false(plausible_location(NA, 24))
+  expect_false(plausible_location(60, NA))
+  expect_false(plausible_location(59.4, 24.7))      # Tallinn
+  expect_false(plausible_location(55.7, 12.6))      # Copenhagen
+  expect_equal(plausible_location(c(60, 0, NA), c(24, 0, 24)), c(TRUE, FALSE, FALSE))
+})
+
+test_that("one library with wrong coordinates doesn't decide where the map looks", {
+  libs <- rbind(lib(1:5), transform(lib(6), lat = 0, lon = 0))
+  map <- refresh_map(leaflet::leaflet(), libs, fit = TRUE)
+  bounds <- map$x$fitBounds
+  expect_equal(unlist(bounds[1:4]), c(60.1, 24.1, 60.5, 24.5))   # south, west, north, east of libraries 1-5
+})
+
+test_that("a single library with wrong coordinates leaves the view alone", {
+  map <- refresh_map(leaflet::leaflet(), transform(lib(1), lat = 0, lon = 0), fit = TRUE)
+  expect_equal(view_of(map), "none")
+})
+
+test_that("the view is still set for libraries that do have coordinates", {
+  expect_equal(view_of(refresh_map(leaflet::leaflet(), lib(1), fit = TRUE)), "setView")
+  expect_equal(view_of(refresh_map(leaflet::leaflet(), lib(1:5), fit = TRUE)), "fitBounds")
+})

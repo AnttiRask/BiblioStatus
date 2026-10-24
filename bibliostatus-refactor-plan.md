@@ -180,3 +180,5 @@ Lessons from this phase: production merges and workflow dispatches were blocked 
 | Deploy on every nightly fetch | No: on code changes plus a weekly refresh (4.3) |
 | Add FillariStatus to the footer | Yes |
 | Finnish/Swedish UI | Later; Phase 2 only prepares `strings.R` |
+
+**All Cities (2026-10-24, branch `feat/all-cities`, asked for by the user):** "All Cities" is selectable at the top of the city dropdown, to see every library at once; never the default. Details in CLAUDE.md "Filter dropdown rules". It also showed that library 85444 (Kauhajoen pääkirjasto) had coordinates 0, 0 in Turso (the source record was fixed by Kirkanta on 2026-10-24 01:32 Helsinki time; the next weekly library update picks it up), which zoomed the all-cities map out to Africa: see the follow-up on implausible coordinates.
