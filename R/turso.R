@@ -9,6 +9,11 @@ library(jsonlite)
 # timeout a hanging Turso would hang every page load.
 turso_read_timeout <- 8
 turso_retry_wait <- 1
+# An all-or-nothing write (turso_execute_atomic) can be one request carrying
+# thousands of rows; replacing the libraries and services takes about 30 seconds.
+# It is not retried (a retry of a write that may have committed isn't safe), but a
+# connection that hangs must not stall the job for hours.
+turso_atomic_timeout <- 300
 
 # Convert libsql:// URL to https:// for HTTP API
 convert_to_https <- function(url) {
@@ -245,6 +250,7 @@ turso_execute_atomic <- function(statements) {
         `Content-Type` = "application/json"
       ) %>%
       req_body_json(request_body) %>%
+      req_timeout(turso_atomic_timeout) %>%
       req_perform()
   }, error = function(e) {
     stop("Turso atomic execute failed: ", conditionMessage(e))

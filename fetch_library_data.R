@@ -11,6 +11,7 @@ library(tidyr)
 source(here("R/turso.R"))
 source(here("R/schedules.R"))
 source(here("R/coordinates.R"))
+source(here("R/library_write.R"))
 
 # Determine update type from environment variable (default: schedules only)
 update_type <- Sys.getenv("UPDATE_TYPE", unset = "schedules")
@@ -152,45 +153,24 @@ if (update_type %in% c("libraries", "both")) {
   cat(sprintf("Extracted %d library-service combinations (%d unique services)\n",
               nrow(library_services), n_distinct(library_services$service_name)))
 
-  # Write to Turso
+  # The libraries and services are replaced in ONE transaction (see
+  # R/library_write.R), so a page loaded meanwhile sees the old ones, not none.
+  # First: don't replace what is stored with a fetch that looks broken (an API
+  # that returned nothing would otherwise commit an empty database).
+  stored_libraries <- tryCatch(turso_query("SELECT COUNT(*) AS n FROM libraries")$n, error = function(e) NA)
+  if (!library_fetch_looks_complete(nrow(libraries), stored_libraries)) {
+    stop(sprintf(
+      "Fetched %d libraries but %s are stored: the Kirkanta API looks broken. Nothing was written.",
+      nrow(libraries), format(stored_libraries)
+    ))
+  }
+
   turso_success <- tryCatch({
-    cat("Writing libraries to Turso...\n")
-
-    # Delete library_services first (FK constraint requires this order)
-    turso_execute("DELETE FROM library_services")
-
-    # Delete all existing libraries (replace mode)
-    turso_execute("DELETE FROM libraries")
-
-    # Insert each library (library_services now in separate table)
-    library_statements <- purrr::pmap(libraries, function(id, library_branch_name, lat, lon,
-                                                           city_name, library_url, library_phone,
-                                                           library_email, library_address, ...) {
-      list(
-        sql = "INSERT INTO libraries (id, library_branch_name, lat, lon, city_name,
-                                      library_url, library_phone, library_email,
-                                      library_address)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        params = list(
-          id, library_branch_name, lat, lon, city_name,
-          library_url, library_phone, library_email, library_address
-        )
-      )
-    })
-    turso_execute_batch(library_statements)
-    cat(sprintf("✓ Wrote %d libraries to Turso\n", nrow(libraries)))
-
-    # Write services to library_services table
-    cat("Writing library services to Turso...\n")
-    service_statements <- purrr::pmap(library_services, function(library_id, service_name, ...) {
-      list(
-        sql = "INSERT INTO library_services (library_id, service_name) VALUES (?, ?)",
-        params = list(library_id, service_name)
-      )
-    })
-    turso_execute_batch(service_statements)
-    cat(sprintf("✓ Wrote %d service records to Turso\n", nrow(library_services)))
-
+    cat("Writing libraries and services to Turso (one transaction)...\n")
+    statements <- library_replace_statements(libraries, library_services)
+    turso_execute_atomic(statements)
+    cat(sprintf("✓ Wrote %d libraries and %d service records to Turso\n",
+                nrow(libraries), nrow(library_services)))
     TRUE
   }, error = function(e) {
     warning("Failed to write libraries to Turso: ", conditionMessage(e))
