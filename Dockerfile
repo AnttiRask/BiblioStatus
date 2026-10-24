@@ -2,22 +2,28 @@
 # only need R: run.R starts the app with shiny::runApp()
 FROM rocker/r-ver:4.5.2
 
-# System libraries needed by the R packages in renv.lock on this Ubuntu release
-# (list from Posit Package Manager's sysreqs API for Ubuntu 24.04). Retries
-# tolerate transient apt mirror failures.
+# System libraries the R packages in renv.lock link against on this Ubuntu
+# release (24.04, "noble"): curl (libcurl, openssl), png, stringi (ICU), and the
+# build tools.
+# libgdal34t64 is only here because of terra: terra and raster are in the lock
+# because leaflet depends on them, and nothing in the app loads them, but
+# renv::restore() test-loads every package it installs, and terra.so needs libgdal
+# (which pulls in GEOS, PROJ and the rest). The runtime library is enough: the
+# -dev packages and gdal-bin would add about a hundred more packages that nothing
+# uses (a build without any GDAL failed with "libproj.so.25: cannot open shared
+# object file", 2026-10-24). The package name carries Ubuntu's library version
+# (libgdal34 on noble), so it must be looked up again if the base image's Ubuntu
+# release changes. Retries tolerate transient apt mirror failures.
 RUN for i in 1 2 3; do \
         apt-get update && apt-get install -y --no-install-recommends \
             cmake \
             make \
             curl \
-            gdal-bin \
             libabsl-dev \
             libcurl4-openssl-dev \
-            libgdal-dev \
-            libgeos-dev \
+            libgdal34t64 \
             libicu-dev \
             libpng-dev \
-            libproj-dev \
             libsqlite3-dev \
             libssl-dev \
             libudunits2-dev \
