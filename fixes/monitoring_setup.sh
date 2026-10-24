@@ -39,6 +39,7 @@ echo "uptime check id: $CHECK"
 
 post alertPolicies '{
   "displayName": "BiblioStatus /health failing",
+  "severity": "CRITICAL",
   "combiner": "OR",
   "notificationChannels": ["'"$CHANNEL"'"],
   "conditions": [{

@@ -97,7 +97,7 @@ SSL certificate provisioning takes ~15-30 minutes.
 
 ## Monitoring
 
-- **Uptime and alert**: a Cloud Monitoring uptime check calls `/health` every 5 minutes, and an alert policy e-mails after 10 minutes of failure. `fixes/monitoring_setup.sh` creates them (it is not idempotent: running it again duplicates them). The alert e-mail was tested on 2026-10-24 with a temporary failing check; both the alert and the "resolved" e-mail arrived.
+- **Uptime and alert**: a Cloud Monitoring uptime check calls `/health` every 5 minutes, and an alert policy (severity Critical, so the e-mail subject starts with "[ALERT - Critical]") e-mails after 10 minutes of failure. `fixes/monitoring_setup.sh` creates them (it is not idempotent: running it again duplicates them). The alert e-mail was tested on 2026-10-24 with a temporary failing check; both the alert and the "resolved" e-mail arrived.
 - **Other alerts**: the daily URL check e-mails when a library website is broken. There is no budget alert yet (it can only be created in the Cloud console).
 - **Console**: [Cloud Run](https://console.cloud.google.com/run).
 

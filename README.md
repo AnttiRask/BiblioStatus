@@ -108,7 +108,7 @@ All library website URLs are checked automatically every day at 3:00 AM UTC. If 
 ## 🩺 Monitoring & Security
 
 - `GET /health` answers `ok`, or a 503 with a short reason (no data, no opening hours for today, the nightly update lagging, only the backup available)
-- A Google Cloud Monitoring uptime check calls it every 5 minutes and e-mails an alert after 10 minutes of failure (`fixes/monitoring_setup.sh`)
+- A Google Cloud Monitoring uptime check calls it every 5 minutes and e-mails a Critical alert after 10 minutes of failure (`fixes/monitoring_setup.sh`)
 - Security headers on every page, including an **enforced Content-Security-Policy** that allows only the app's own origin, the map tiles and the font stylesheet
 - The app only ever reads from the database (local development included); the pipeline is the only writer
 
