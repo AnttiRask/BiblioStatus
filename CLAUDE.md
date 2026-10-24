@@ -40,7 +40,7 @@ UPDATE_TYPE=both Rscript fetch_library_data.R
 1. **fetch_library_data.R** - Pulls data from Kirkanta API (v4):
    - Daily: schedules (opening hours) for a window of 7 days from today (Finnish date, `R/schedules.R`), requested at 2 AM UTC but GitHub starts the job hours late (06:47 to 07:09 UTC in October). The app reads today's rows, so with only today's day stored every library was unknown from midnight until the job ran; the window means yesterday's run already stored today
    - Weekly (Sunday): library metadata + services
-   - Writes to Turso (primary) and `app/libraries.sqlite` (backup)
+   - Writes to Turso (primary) and `app/libraries.sqlite` (backup). **The schedule window is replaced a group of libraries at a time, each group in one transaction** (`schedule_write_groups()` in `R/schedules.R`, `turso_execute_atomic()` in `R/turso.R`: one Hrana `batch` request, BEGIN, each statement only if the one before worked, COMMIT, else ROLLBACK). The first version deleted the whole window and inserted in separate requests: for the 3 minutes that took (09:43-09:46 Helsinki time on 2026-10-24) the libraries at the end of the table (Oodi, Jätkäsaari, ...) had no rows, and every page loaded then showed them as "no status data". Libraries the fetch returned nothing for keep their old rows. The batch semantics were checked against real Turso with a TEMP table (a failing statement skips the rest, ROLLBACK runs, nothing of the group stays)
 
 2. **Shiny App** (`app/`) reads from Turso, falls back to SQLite if unavailable
 
@@ -111,6 +111,7 @@ Light is the default; `input_dark_mode(mode = "light")` toggles. `app_theme()` (
 - **When Turso fails**: the last complete read from Turso is shown, marked `stale`, for up to `data_max_stale_seconds` (3 h) and only for the same dates; otherwise the backup (`source = "sqlite"`) or nothing. A failed read is not repeated for `data_retry_seconds` (30 s), so a Turso outage costs one timeout, not one per visitor.
 - **Turso reads** (`build_turso_read_request()` in `R/turso.R`) have an 8 s timeout and one more try after a transient error (429/503) or a dropped connection. httr2's mocked responses skip retrying, so the test only checks the policy; the retry itself was shown against a local server (a 503, then success after about 1 s).
 - **The page says so** (`data_notice_for()`, the `data_notice` output above the map): the backup ("Live data is unavailable, so this is the nightly backup"), stale data (with the time of the data), part of the data missing, or nothing loaded at all (the loading text is hidden). These replace the "no opening hours yet" notice, which blames the nightly update for what is a Turso problem.
+- **A page that stays open reloads the data** every `data_reload_seconds` (10 min; `reload_data()` in `server/data.R`, through the shared cache), so a gap or changed opening hours heal without a page reload; a failed reload keeps what the page shows.
 - `/health` (below) has its own read of Turso and the backup and does not go through this cache.
 
 ### Health check (`GET /health`)

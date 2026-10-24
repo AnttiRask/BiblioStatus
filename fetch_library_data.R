@@ -237,23 +237,16 @@ if (update_type %in% c("schedules", "both")) {
   # Write to Turso. Past days are kept (history); the window from today on is
   # replaced, so changed opening hours are picked up and a second run on the same
   # day doesn't pile up duplicate rows (the UNIQUE constraint can't catch rows
-  # with NULL times). The DELETE goes first in the same batch as the first inserts.
+  # with NULL times). Replaced a group of libraries at a time, each group in one
+  # transaction (see schedule_write_groups()): deleting the whole window first and
+  # inserting afterwards left the libraries at the end of the list without a
+  # schedule for the minutes the writing took.
   turso_success <- tryCatch({
     cat("Writing schedules to Turso...\n")
 
-    schedule_statements <- purrr::pmap(schedules, function(library_id, date, from_time,
-                                                            to_time, status_label, ...) {
-      list(
-        sql = "INSERT OR IGNORE INTO schedules (library_id, date, from_time, to_time, status_label)
-               VALUES (?, ?, ?, ?, ?)",
-        params = list(library_id, date, from_time, to_time, status_label)
-      )
-    })
-    replace_window <- list(list(
-      sql = "DELETE FROM schedules WHERE date >= ?",
-      params = list(min(dates))
-    ))
-    turso_execute_batch(c(replace_window, schedule_statements))
+    groups <- schedule_write_groups(schedules, first_date = min(dates))
+    cat(sprintf("%d groups of libraries, each written in one transaction\n", length(groups)))
+    for (group in groups) turso_execute_atomic(group)
     cat(sprintf("✓ Wrote %d schedule records to Turso\n", nrow(schedules)))
     TRUE
   }, error = function(e) {
