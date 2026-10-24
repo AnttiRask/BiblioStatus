@@ -9,21 +9,21 @@
 map_tiles_host <- "https://services.arcgisonline.com"
 font_host <- "https://fonts.cdnfonts.com"
 
-# Enforced: things that can't break the app. frame-ancestors is the modern
-# clickjacking protection (X-Frame-Options below is the fallback).
-csp_enforced <- paste(
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "object-src 'none'",
-    "form-action 'self'",
-    sep = "; "
-)
-
-# Report-only: the full policy. Violations show up in the browser console
-# ("[Report Only] Refused to ...") without blocking anything, so it can be
-# tightened safely. Shiny and htmlwidgets use inline scripts/styles, hence
-# 'unsafe-inline'; wss: is the Shiny websocket.
-csp_report_only <- paste(
+# The Content-Security-Policy, enforced. It was report-only until 2026-10-24: a
+# throwaway copy of the app recorded every violation the browser reported while
+# the app was used (load, all dropdowns and the search box, All Cities with 719
+# markers, popups, the details panel, dark mode, the statistics tab with its chart
+# and table, a forced reconnect, Find Nearest, a phone-sized layout) and there
+# were none; the recorder was checked with deliberate violations. The only
+# external hosts the page uses are the two named below.
+# Shiny and htmlwidgets use inline scripts and styles and eval, hence
+# 'unsafe-inline' and 'unsafe-eval' (that limits what the policy protects against,
+# but it still stops loading anything from other hosts). wss: is the Shiny
+# websocket for browsers that don't count it as 'self'. frame-ancestors is the
+# modern clickjacking protection (X-Frame-Options below is the fallback).
+# If this ever breaks something, put the same string back under
+# "Content-Security-Policy-Report-Only" to see what it blocks without blocking it.
+csp_policy <- paste(
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     paste("style-src 'self' 'unsafe-inline'", font_host),
@@ -39,8 +39,7 @@ csp_report_only <- paste(
 
 security_headers <- function() {
     list(
-        "Content-Security-Policy"             = csp_enforced,
-        "Content-Security-Policy-Report-Only" = csp_report_only,
+        "Content-Security-Policy"             = csp_policy,
         "X-Frame-Options"                     = "DENY",
         "X-Content-Type-Options"              = "nosniff",
         "Referrer-Policy"                     = "strict-origin-when-cross-origin",
