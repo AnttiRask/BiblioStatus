@@ -2,16 +2,17 @@
 # Evaluated inside server() (see server_parts in server.R), so it shares the
 # session's reactive state, input, output and session. State: library_data, library_services_data, all_library_schedules, data_state, library_base, schedule_rows, status_clock.
 
-# The data is loaded once per page; the statuses are recomputed every minute from
-# the loaded schedule rows and the clock (see compute_library_statuses()).
+# The data is loaded when the page starts and again every data_reload_seconds
+# (reload_data() below); the statuses are recomputed every minute from the loaded
+# schedule rows and the clock (see compute_library_statuses()).
 data_state <- reactiveVal(NULL)      # where the data came from (get_app_data() without the data frames)
 library_base <- reactiveVal(NULL)    # the libraries, without a status
 schedule_rows <- reactiveVal(NULL)   # the schedule rows loaded: today and tomorrow
 status_clock <- reactiveVal(NULL)    # the "HH:MM" the statuses were last computed for
 
 # Recompute the statuses for now. library_data() (what the map, the filters and
-# Find Nearest read) is only replaced when something changed, so a minute
-# without a change doesn't redraw the map.
+# Find Nearest read) only changes when something did, so a minute without a
+# change doesn't redraw the map.
 refresh_statuses <- function() {
   libraries <- isolate(library_base())
   rows <- isolate(schedule_rows())
@@ -20,12 +21,12 @@ refresh_statuses <- function() {
   now <- helsinki_time_now()
   today <- format(helsinki_today(), "%Y-%m-%d")
 
-  data <- compute_library_statuses(libraries, rows, today, now)
-  if (!identical(data, isolate(library_data()))) library_data(data)
+  # A reactiveVal given a value identical to the one it holds changes nothing, so
+  # a minute without news redraws nothing and needs no check of its own
+  library_data(compute_library_statuses(libraries, rows, today, now))
 
   # Today's rows for the detail panel and the "no data" notice
-  day_rows <- todays_schedules(rows, today, now)
-  if (!identical(day_rows, isolate(all_library_schedules()))) all_library_schedules(day_rows)
+  all_library_schedules(todays_schedules(rows, today, now))
 
   status_clock(now)
   invisible()

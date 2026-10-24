@@ -340,9 +340,10 @@ add_library_markers <- function(map, data, colors, mobile = FALSE) {
   )
 }
 
-# Zoom to the libraries: a few of them are centred at a fixed zoom, more are
-# fitted into view. Libraries with coordinates that can't be in Finland are
-# left out of the calculation, so one bad row can't zoom the map out to Africa.
+# Zoom to the libraries: one library is centred and shown close up (its
+# neighbourhood), two are centred between them at city level, more are fitted into
+# view. Libraries with coordinates that can't be in Finland are left out of the
+# calculation, so one bad row can't zoom the map out to Africa.
 fit_to_libraries <- function(map, data) {
   data <- data[plausible_location(data$lat, data$lon), ]
   if (nrow(data) == 0) return(map)
@@ -351,7 +352,7 @@ fit_to_libraries <- function(map, data) {
       map,
       lat = mean(data$lat, na.rm = TRUE),
       lng = mean(data$lon, na.rm = TRUE),
-      zoom = DEFAULT_ZOOM_LEVEL
+      zoom = if (dplyr::n_distinct(data$id) == 1) SINGLE_LIBRARY_ZOOM_LEVEL else DEFAULT_ZOOM_LEVEL
     )
   } else {
     leaflet::fitBounds(
