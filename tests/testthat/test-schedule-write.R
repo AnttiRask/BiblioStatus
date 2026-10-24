@@ -198,3 +198,23 @@ test_that("turso_execute_atomic sends one request and stops with the reason when
     "rolled back: disk full"
   )
 })
+
+test_that("an atomic write has a timeout, and is not retried", {
+  withr::local_envvar(TURSO_DATABASE_URL = "libsql://example.turso.io", TURSO_AUTH_TOKEN = "t")
+  seen <- NULL
+  body <- jsonlite::toJSON(
+    list(results = list(list(type = "ok", response = list(type = "batch", result = list(
+      step_results = list(list(), list(affected_row_count = 1), list(), NULL), step_errors = list(NULL, NULL, NULL, NULL)))))),
+    auto_unbox = TRUE, null = "null"
+  )
+  httr2::with_mocked_responses(
+    function(req) {
+      seen <<- req
+      httr2::response(status_code = 200, headers = list(`Content-Type` = "application/json"), body = charToRaw(as.character(body)))
+    },
+    turso_execute_atomic(list(list(sql = "INSERT INTO schedules VALUES (1)", params = list())))
+  )
+  expect_equal(seen$options$timeout_ms, turso_atomic_timeout * 1000)
+  expect_gt(turso_atomic_timeout, 60)                                  # longer than the 30 s the biggest write takes
+  expect_null(seen$policies$retry_max_tries)                           # a write isn't retried
+})
