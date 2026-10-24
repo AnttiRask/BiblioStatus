@@ -369,48 +369,63 @@
             <div class="features-grid">
                 <div class="feature-card">
                     <div class="feature-icon">🗺️</div>
-                    <h3>Interactive Map</h3>
-                    <p>With color-coded markers showing library status at a glance.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📱</div>
-                    <h3>Mobile Optimized</h3>
-                    <p>Responsive design that works great on phones, tablets, and desktop.</p>
+                    <h3>Live Status Map</h3>
+                    <p>Colour-coded markers: open, self-service, closed. The status is recomputed every minute, so it changes while the page is open.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">📍</div>
                     <h3>Find Nearest Library</h3>
-                    <p>Uses GPS to locate 3-5 closest open libraries with distances in kilometers.</p>
+                    <p>Uses GPS to find the 3 (phone) or 5 (desktop) closest open libraries with distances, and can look only for libraries with a chosen service.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">🗺️</div>
-                    <h3>Get Directions</h3>
-                    <p>One-click Google Maps navigation to any library with turn-by-turn directions.</p>
+                    <div class="feature-icon">🔎</div>
+                    <h3>Search All Libraries</h3>
+                    <p>Type part of a name and pick a library in any city: the map jumps to it, close up.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">📞</div>
-                    <h3>Contact Information</h3>
-                    <p>Phone and email links for each library - click to call or email directly.</p>
+                    <div class="feature-icon">🏷️</div>
+                    <h3>City and Service Filters</h3>
+                    <p>240+ services, and an All Cities choice to see every library at once. The lists follow each other and say so when a choice no longer fits.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔗</div>
+                    <h3>Shareable Links</h3>
+                    <p>The filters are in the page address, so a link opens the same view and a reload keeps it.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Service Statistics</h3>
+                    <p>How common each service is, per city, as a chart and a table.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">📅</div>
                     <h3>Complete Daily Schedule</h3>
-                    <p>View all opening periods for the day with different statuses highlighted.</p>
+                    <p>All opening periods for the day with their statuses, and the current one marked.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">🔍</div>
-                    <h3>City Filter</h3>
-                    <p>Filter libraries by city or municipality to find what you need quickly.</p>
+                    <div class="feature-icon">📞</div>
+                    <h3>Contact and Directions</h3>
+                    <p>Phone and e-mail links, the library's website, and one-click Google Maps directions.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="feature-icon">ℹ️</div>
-                    <h3>Rich Popups</h3>
-                    <p>Click markers to see library details, hours, and direct links.</p>
+                    <div class="feature-icon">🌗</div>
+                    <h3>Light and Dark Mode</h3>
+                    <p>Light by default, one click to dark. The map follows.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📱</div>
+                    <h3>Mobile Optimized</h3>
+                    <p>A layout that works on phones, tablets and desktop.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛟</div>
+                    <h3>Says When Data Is Missing</h3>
+                    <p>If the database is unreachable the page shows the last good data or the nightly backup, and tells you which, instead of failing silently.</p>
                 </div>
                 <div class="feature-card">
                     <div class="feature-icon">🔄</div>
-                    <h3>Daily Updates</h3>
-                    <p>Data refreshed nightly via GitHub Actions for accurate status info.</p>
+                    <h3>Updated Every Night</h3>
+                    <p>Opening hours for the next seven days are fetched every night via GitHub Actions; library details and services every week.</p>
                 </div>
             </div>
         </div>
@@ -463,22 +478,22 @@
                 <div class="step">
                     <div class="step-number">1</div>
                     <h3>Fetch</h3>
-                    <p>GitHub Actions runs daily (schedules) and weekly (library metadata) to fetch fresh data from the Kirkanta API.</p>
+                    <p>GitHub Actions fetches the next seven days of opening hours every night, and the library details and services every week, from the Kirkanta API.</p>
                 </div>
                 <div class="step">
                     <div class="step-number">2</div>
                     <h3>Store</h3>
-                    <p>Data is written to Turso (cloud SQLite) with historical preservation, plus a local SQLite backup for failover.</p>
+                    <p>The data is written to Turso (cloud SQLite) in all-or-nothing steps, so a visitor never sees a library without hours. Past days are kept, and a SQLite backup comes with the app.</p>
                 </div>
                 <div class="step">
                     <div class="step-number">3</div>
                     <h3>Load</h3>
-                    <p>The Shiny app queries Turso for real-time data, with automatic fallback to SQLite if needed.</p>
+                    <p>The Shiny app reads Turso (shared between visitors for a few minutes), and falls back to the SQLite backup if it has to, saying so on the page.</p>
                 </div>
                 <div class="step">
                     <div class="step-number">4</div>
                     <h3>Display</h3>
-                    <p>Libraries are plotted on the map with real-time status colors.</p>
+                    <p>Libraries are plotted on the map, and their status colours are recomputed from the opening hours every minute.</p>
                 </div>
             </div>
         </div>

@@ -2,42 +2,50 @@
 
 > Bring BiblioStatus in line with how FillariStatus, Gallery of the Day and TuneTeller now work (`fillaristatus-plan.md`, `gallery-of-the-day-refactor-plan.md`, `tuneteller-refactor-plan.md`), and **fix the filter dropdowns properly instead of patching them again**.
 >
-> **For Claude Code:** read this whole file first. Phase 1 is the dropdown redesign and is the part the user cares most about. Every change is checked with the user before it is committed, pushed or deployed. Phase 4 touches cloud resources and GitHub settings: each step needs approval. Pushes that change the build files redeploy the app, so batch them. Never print secrets.
+> **For Claude Code:** this is the record of the refactor, and **all four phases are done and live (2026-10-24)**: start with `CLAUDE.md` for how the app works now, and read this file for why. Sections 1.1 and 1.2 describe the old dropdown design and the proposal that replaced it (history); the dated paragraphs at the end are what was built after the first plan. Every change is checked with the user before it is committed, pushed or deployed. Cloud resources and GitHub settings need approval. Pushes that change the app or build files redeploy it, so batch them. Never print secrets.
 
-*Written 2026-10-22; status updated 2026-10-23 (Phase 4 done, see section 4 and the table below). Based on reading the three sibling plans and the current `app/server.R`, `app/ui.R`, `app/www/functions.R`, `app/run.R`, `Dockerfile`, the three workflows and `tests/testthat/`. Nothing here has been run or changed yet. Items marked (verify) are suspicions from reading the code, not confirmed behaviour.*
+*Written 2026-10-22 from the three sibling plans and the code of that day (`app/server.R`, `app/ui.R`, `app/www/functions.R`, `app/run.R`, `Dockerfile`, the workflows and `tests/testthat/`); updated as the work was done, last on 2026-10-24. Items marked (verify) were suspicions from reading the code at the time; they were checked while building.*
 
 ---
 
 ## 0. Where things stand
 
-**Repo state:** on 2026-10-22 local `main` was 3 commits behind GitHub (nightly "Update database" commits only); it was pulled with `git pull --rebase --autostash` (the pending `full-fix-plan.md` deletion blocks a plain rebase). Pull before editing; the bot commits every night. `full-fix-plan.md` is still deleted in the working tree (moved to untracked `fixes/full-fix-plan.md`) and the sibling plan files are untracked; decide whether to commit them (see 5.4).
+**Status (2026-10-24): all four phases are done and live.**
 
-**Progress (2026-10-23, end of day):** Phase 4 (CI/CD and infrastructure) and Phase 2 (structure) are **done and deployed**. Phase 1 steps (a) pure rules, (b) dropdowns on the rules, (c) live map are **live**. The week of schedules (Phase 3 item 8) is **live**, and the first week-long fetch ran against production (8,822 rows, 7 dates, all 719 libraries, 7 Unknown rows). Phase 1 (d) `leafletProxy` split, (e) filters in the URL and the theme fix (page and map in the same mode, light by default) are also live; (f) Find Nearest respects the service filter is the last Phase 1 step. Phase 3 item 3 (stale open/closed status in a long session) is built on `feat/live-status`. Still open: Phase 3 leftovers (`/health` + uptime alert, shared cache and never-throwing data layer, popup/stats text into `strings.R`); small items (unused `terra`/`raster` in `renv.lock`, the budget alert, Artifact Registry size check). In the table below, rows marked *done* were gaps when this plan was written. Lessons from the day are in the memory note `bibliostatus-ci-lessons` (apt GDAL stalls, the concurrency collision, GitHub cron running hours late, startup events re-sent after a reconnect).
+- **Phase 4, CI/CD and infrastructure (2026-10-22):** tests gate the deploy, a smoke test checks the revision's commit label, actions pinned to SHAs, deploys on code changes only (plus a weekly refresh), Artifact Registry cleanup.
+- **Phase 2, structure (2026-10-22, PR #7):** `global.R`, `variables.R`, `strings.R`, `app/server/*.R`, JavaScript in its own files.
+- **Phase 1, the dropdowns:** pure rules in `filter_logic.R`; one `selection()`; the map follows it live and is drawn once, then updated through `leafletProxy`; the filters are in the page address; Find Nearest respects the service; the page and the map are always in the same mode (light by default).
+- **Phase 3, data layer and correctness:** statuses recomputed every minute (PR #19); a week of schedules (the "no status in the morning" fix); `GET /health` with a Cloud Monitoring uptime check and e-mail alert (PR #20; the alert e-mail was tested end to end on 2026-10-24); a never-throwing `get_app_data()` with a shared cache, stale fallback and on-page notices (PR #22); all text in `strings.R` (PR #24); safe links and an **enforced Content-Security-Policy** (PRs #25, #31).
+- **Beyond the plan, at the user's request or from what was found:** the "Search All Libraries" box (PR #23), "All Cities" (PR #26), the pipeline's writes made all-or-nothing and the coordinate fallback (PRs #27, #29, #30), our own light/dark button like the sibling apps (PR #32), the statistics table made client-side (PR #33), a closer zoom for a single library (PR #34), and a refresh of the README, `DEPLOY.md` and the project page.
+- **Still open:** the weekly run on 2026-10-25 is the first with the all-or-nothing writes and the coordinate fallback (read its log); Safari, Firefox and a real phone have not been checked; the budget alert (Cloud console only); unused `terra`/`raster` in `renv.lock`; the Artifact Registry size check.
+- **Left alone on purpose:** the user's uncommitted deletions of the old plan files (`full-fix-plan.md`, `fixes/UI_OVERHAUL_PLAN.md`, `fixes/bugfix.md`, `fixes/fixes.md`) and the untracked sibling plans. The nightly job commits the database every night: pull before editing.
 
-**What the siblings did that BiblioStatus has not:**
+Lessons from the work are in the memory note `bibliostatus-ci-lessons` and in `CLAUDE.md`.
+
+**What the siblings did that BiblioStatus had not (the last column is now):**
 
 | Practice | FillariStatus | Gallery | TuneTeller | BiblioStatus now |
 |---|---|---|---|---|
-| `global.R`, `variables.R`, `strings.R` split | yes | yes | yes | no: libraries and 14 constants at the top of `server.R`, UI text inline, a 140-line inline JS block in `ui.R` |
-| JS in its own file | yes | yes (`lightbox.js`) | n/a | no |
-| Never-throwing data layer with explicit states (ok / stale / error / empty) | yes | yes | yes | partly: Turso→SQLite fallback, but an empty or failed read just gives a blank or all-grey map |
-| Shared server-side cache across sessions | yes (60 s) | yes (5 min) | n/a | no: every session runs three Turso queries on load |
-| `/health` + uptime alert | no | yes | no | no |
-| Tests in CI, gating the deploy | yes (in workflow) | `tests.yml` | `tests.yml` | *done 2026-10-22*: `tests.yml` (123 expectations, R 4.5.2 from the lock), the deploy needs it |
-| Deploy smoke test (checks `git-sha` label) | yes | yes | yes | *done*: label + `GET /` = 200 (`/health` check waits for Phase 3.5) |
+| `global.R`, `variables.R`, `strings.R` split | yes | yes | yes | *done* (PR #7); all user-facing text is in `strings.R` since PR #24 |
+| JS in its own file | yes | yes (`lightbox.js`) | n/a | *done*: `app.js`, `mode-toggle.js` |
+| Never-throwing data layer with explicit states (ok / stale / error / empty) | yes | yes | yes | *done* (PR #22): `get_app_data()`, with notices on the page |
+| Shared server-side cache across sessions | yes (60 s) | yes (5 min) | n/a | *done*: 5 minutes, and an open page reloads every 10 |
+| `/health` + uptime alert | no | yes | no | *done* (PR #20): uptime check and e-mail alert, tested 2026-10-24 |
+| Tests in CI, gating the deploy | yes (in workflow) | `tests.yml` | `tests.yml` | *done 2026-10-22*: `tests.yml` (R 4.5.2 from the lock), the deploy needs it; about 1,500 expectations by 2026-10-24 |
+| Deploy smoke test (checks `git-sha` label) | yes | yes | yes | *done*: label + `GET /` = 200; `/health` is deliberately not part of it (a data problem shouldn't turn a code deploy red) |
 | Actions pinned to SHAs, minimal `permissions` | yes | yes | yes | *done*: all pinned; `id-token` only on the deploy job; `fetch_data.yml` keeps `contents: write` (single job that commits the database) |
 | Keyless deploy, dedicated runtime account, no `roles/editor` | yes | yes | yes | yes (done 2026-10-18) |
-| Security headers | yes | yes | yes | yes (`app/www/security.R`) |
-| Reconnect (`allowReconnect("force")`) | yes | considered | no | yes, plus the seeding hack |
-| Artifact Registry cleanup + budget alert | yes | yes | yes | cleanup policy *done 2026-10-22* (the repo held 344 images / 138.8 GB with none); budget alert unverified |
+| Security headers | yes | yes | yes | yes (`app/www/security.R`); the CSP has been enforced since 2026-10-24 (PR #31) |
+| Reconnect (`allowReconnect("force")`) | yes | considered | no | yes; the older seeding observer stays on purpose (the address is written over the websocket, so after a drop the dropdowns can be newer than the address) |
+| Artifact Registry cleanup + budget alert | yes | yes | yes | cleanup policy *done 2026-10-22* (the repo held 344 images / 138.8 GB with none); budget alert still to do (Cloud console only) |
 
-BiblioStatus is ahead of the others in one thing only: it has the most complicated reactive logic, and that is where its remaining problems are.
+BiblioStatus has the most complicated reactive logic of the four, which is where its problems were; that logic is now pure functions with tests.
 
 ---
 
 ## 1. Phase 1 — redesign the filter dropdowns (the main job)
 
-### 1.1 What is wrong today (read from `app/server.R`)
+### 1.1 What was wrong (the old design, read from `app/server.R` on 2026-10-22; history)
 
 The user's report ("doesn't work intuitively, even after the earlier fixes") matches what the code does. The previous plans (`fixes/full-fix-plan.md`, Plan 1) fixed individual symptoms; the structure that produces them is still there.
 
@@ -52,7 +60,7 @@ The user's report ("doesn't work intuitively, even after the earlier fixes") mat
 5. **Library choices are re-sent on every change** (`server = TRUE`, ~700 choices) and the label for "no selection" is an empty-string choice ("All Libraries") that selectize also uses as placeholder.
 6. **Find Nearest ignores the filters** and replaces the map markers through a second code path (`update_map_for_nearest`) that the filter observer then overwrites on its next run; the city observer clears the nearest results as a side effect.
 
-### 1.2 Target behaviour (proposed; confirm with the user before building)
+### 1.2 Target behaviour (the proposal; built, see `CLAUDE.md` "Filter dropdown rules" for the final rules, which differ in one thing: the city list is never narrowed by the other filters)
 
 One mental model: **three filters that narrow the map, live.**
 
@@ -113,7 +121,7 @@ Environment lessons: on the user's machine the Docker bridge (`docker0`) drops t
 
 ---
 
-## 3. Phase 3 — data layer and correctness
+## 3. Phase 3 — data layer and correctness (DONE 2026-10-24; the numbered items below are in the order they were written, with what was built noted on each)
 
 1. **Never-throwing data layer with states** (Fillari `fetch_stations_safe`): `get_app_data()` returns `list(libraries, schedules, services, source = "turso"|"sqlite", fetched_at, stale, error)`. The UI shows a quiet note when it is on the SQLite fallback ("Showing the nightly backup; live data is unavailable") and a plain message when even that fails. Today the fallback is silent, and an empty `schedules` result makes every marker the "Unknown" purple. **Built 2026-10-24:** `app/www/data_layer.R`, notices in `data_notice_for()`; also the stale fallback (last Turso read, marked stale, up to 3 h) and no repeated failures (30 s).
 2. **Shared cache across sessions** (`memoise` with a 5–10 minute TTL, as Fillari and Gallery do). Libraries and services change weekly, schedules daily; three Turso round trips per page load is waste and, on a Turso outage, three timeouts per visitor. Warm the cache at start. Add a request timeout and one retry for reads. **Built 2026-10-24:** 5 minutes, warmed at start; an 8 s timeout and one retry on Turso reads (`R/turso.R`).
@@ -165,10 +173,10 @@ Lessons from this phase: production merges and workflow dispatches were blocked 
 - Phones, Safari and Firefox have not been checked in any sibling plan; the map's mobile branch (`is_mobile`, touch options) is unverified on a real phone.
 - `testServer()` cannot simulate `update*Input()` round trips; Phase 1 reduces what depends on them, and one `shinytest2` test covers the rest.
 
-### 5.4 Docs to update when done
+### 5.4 Docs to update when done (done 2026-10-24: `CLAUDE.md` throughout, then `README.md`, `DEPLOY.md`, the project page and its screenshot; whether to move the plans under `docs/plans/` is still undecided)
 `CLAUDE.md` (the filter section is very long and mostly describes workarounds that will be gone: replace with the new model), `README.md`, `DEPLOY.md`, the project page, and the `docs/` text if it describes "Show on Map". Move this file and the other plans under `docs/plans/` or keep them untracked; decide with the user.
 
-## 6. Decisions to confirm with the user
+## 6. Decisions to confirm with the user (all decided and built as proposed, except that the city list is not narrowed by the other filters: the user chose "always complete")
 
 | Question | Proposed |
 |---|---|
