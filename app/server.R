@@ -10,9 +10,10 @@ server_parts <- lapply(
 )
 
 server <- function(input, output, session) {
-  # bslib::input_dark_mode() reports the string "dark" or "light", so testing it
-  # with isTRUE() was never TRUE and the map (tiles and marker colours) never
-  # went dark. Accept the string, and a logical for older bslib.
+  # The light/dark switch (mode_toggle_button()) reports the string "dark" or
+  # "light" (as bslib's own switch did), so testing it with isTRUE() was never
+  # TRUE and the map (tiles and marker colours) never went dark. Accept the
+  # string, and a logical.
   is_dark <- reactive(identical(input$dark_mode, "dark") || isTRUE(input$dark_mode))
 
   # Reconnect quietly if the websocket drops, e.g. when Cloud Run closes it at

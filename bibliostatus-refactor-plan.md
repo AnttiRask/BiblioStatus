@@ -191,3 +191,5 @@ Lessons from this phase: production merges and workflow dispatches were blocked 
 
 **CSP enforced (2026-10-24, branch `feat/csp-enforce`; Phase 3 item 7):** the report-only policy was promoted to the enforced `Content-Security-Policy` after a violation recording in a throwaway copy of the app (zero violations over a full walk-through, the recorder checked with deliberate violations) and a repeat of the walk-through against the enforced header. The only external hosts are the tile and font hosts; `'unsafe-inline'`/`'unsafe-eval'` remain (Shiny needs them). This completes item 7.
 
+**Light/dark switch (2026-10-24, branch `feat/mode-toggle`, asked for by the user):** BiblioStatus gets the same own button as the other apps instead of bslib's `input_dark_mode()`: it shows the mode a click switches to (moon while light, sun while dark) with a matching label, instead of the current mode's icon. Same `dark_mode` input for the server, so the map, the statistics chart and the filters needed no change.
+

@@ -34,7 +34,7 @@ onShinyReady(function() {
   const FIND_NEAREST_GEO_TIMEOUT_MS = BIBLIO_CONFIG.findNearestTimeoutMs;
   const FIND_NEAREST_GEO_MAX_AGE_MS = BIBLIO_CONFIG.findNearestMaxAgeMs;
 
-  // Watch for bslib dark mode changes (data-bs-theme attribute on <html>)
+  // Watch for dark mode changes (the data-bs-theme attribute on <html>, set by mode-toggle.js)
   var darkModeObserver = new MutationObserver(function(mutations) {
     mutations.forEach(function(mutation) {
       if (mutation.attributeName === 'data-bs-theme') {
