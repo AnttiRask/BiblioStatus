@@ -10,6 +10,7 @@ library(tidyr)
 # Load Turso helper functions and the schedule fetching/parsing
 source(here("R/turso.R"))
 source(here("R/schedules.R"))
+source(here("R/coordinates.R"))
 
 # Determine update type from environment variable (default: schedules only)
 update_type <- Sys.getenv("UPDATE_TYPE", unset = "schedules")
@@ -38,6 +39,10 @@ fetch_libraries_from_api <- function() {
     # Manual data-quality overrides, externalized to data/ so they can grow
     # without bloating this script. See data/library_*.csv for the values.
     coord_overrides <- read.csv(here("data", "library_coordinate_overrides.csv"), stringsAsFactors = FALSE)
+    # The last good coordinates of every library: used when the API has none, or
+    # some that can't be in Finland (it once had 0, 0). See R/coordinates.R.
+    coord_snapshot_path <- here("data", "library_coordinates.csv")
+    coord_snapshot <- read_coordinate_snapshot(coord_snapshot_path)
     url_overrides <- read.csv(here("data", "library_url_overrides.csv"), stringsAsFactors = FALSE)
     exclusions <- read.csv(here("data", "library_exclusions.csv"), stringsAsFactors = FALSE)
 
@@ -55,20 +60,12 @@ fetch_libraries_from_api <- function() {
         library_phone       = primaryContactInfo.phone.number,
         library_email       = primaryContactInfo.email.email
       ) %>%
-      # Fixing Seinäjoki main library coordinates, because there are two
-      # buildings with different opening hours. Also adding coordinates for
-      # the libraries that are missing them, and fixing broken URLs.
-      left_join(
-        coord_overrides %>% select(id, lat_override = lat, lon_override = lon),
-        by = "id"
-      ) %>%
+      # Fixing broken URLs (the coordinates are resolved below)
       left_join(
         url_overrides %>% select(id, url_override = url),
         by = "id"
       ) %>%
       mutate(
-        lat = coalesce(lat_override, lat),
-        lon = coalesce(lon_override, lon),
         library_url = coalesce(url_override, library_url),
         library_address = paste(
           street_address,
@@ -77,12 +74,39 @@ fetch_libraries_from_api <- function() {
           sep = ", "
         )
       ) %>%
-      select(-lat_override, -lon_override, -url_override) %>%
+      select(-url_override, -street_address, -zip_code) %>%
       # Libraries with no separate address of their own (reading rooms etc.)
-      filter(
-        !is.na(lat) & !is.na(lon) & !id %in% exclusions$id
-      ) %>%
-      select(-c(street_address, zip_code))
+      filter(!id %in% exclusions$id)
+
+    # Coordinates: the manual overrides (e.g. the Seinäjoki main library, which
+    # shares an address with another building, and libraries the API has none
+    # for), else the API's if they can be in Finland, else the last good ones
+    coordinates <- resolve_coordinates(libraries, coord_overrides, coord_snapshot)
+    libraries$lat <- coordinates$lat
+    libraries$lon <- coordinates$lon
+
+    # Say what had to be rescued, and keep the snapshot in step
+    from_snapshot <- coordinates$id[coordinates$source == "snapshot"]
+    if (length(from_snapshot) > 0) {
+      cat(sprintf(
+        "The API's coordinates were missing or outside Finland for %d libraries, the last good ones are used: %s\n",
+        length(from_snapshot),
+        paste(sprintf("%s (%s)", from_snapshot, libraries$library_branch_name[match(from_snapshot, libraries$id)]), collapse = ", ")
+      ))
+    }
+    without <- coordinates$id[coordinates$source == "none"]
+    if (length(without) > 0) {
+      warning(sprintf(
+        "%d libraries have no usable coordinates (API and snapshot) and are left out: %s",
+        length(without),
+        paste(sprintf("%s (%s)", without, libraries$library_branch_name[match(without, libraries$id)]), collapse = ", ")
+      ))
+    }
+    if (write_coordinate_snapshot(build_coordinate_snapshot(coordinates, libraries), coord_snapshot_path)) {
+      cat("Updated data/library_coordinates.csv\n")
+    }
+
+    libraries <- libraries %>% filter(!is.na(lat) & !is.na(lon))
 
     return(list(libraries = libraries, raw_data = data))
   } else {

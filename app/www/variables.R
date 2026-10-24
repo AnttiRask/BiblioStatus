@@ -43,10 +43,6 @@ DESKTOP_POPUP_MAX_WIDTH <- 300
 DESKTOP_POPUP_MIN_WIDTH <- 100
 DEFAULT_ZOOM_LEVEL <- 11
 SINGLE_LIBRARY_ZOOM_THRESHOLD <- 2
-# A bit more than Finland (Åland to Utsjoki, Vaalimaa to Käsivarsi): a library
-# outside it has wrong coordinates (the data once had 0, 0) and must not decide
-# where the map looks
-finland_bounds <- list(lat = c(59.5, 70.5), lon = c(19, 32))
 MOBILE_NEAREST_COUNT <- 3
 DESKTOP_NEAREST_COUNT <- 5
 
