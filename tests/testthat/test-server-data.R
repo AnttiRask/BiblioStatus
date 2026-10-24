@@ -82,3 +82,49 @@ test_that("two sessions share one read of the data", {
   testServer(server, { session$flushReact(); expect_equal(nrow(library_data()), 2) })
   expect_equal(calls$libraries, 1)
 })
+
+# ---- a page that stays open asks for the data again ----
+
+test_that("a session that loaded incomplete data gets the rest after the reload time", {
+  mode <- "gap"
+  with_server_fetchers(function() srv_libs,
+    schedules = function() if (mode == "gap") srv_sched[srv_sched$library_id == 1, ] else srv_sched)
+  testServer(server, {
+    session$flushReact()
+    expect_equal(library_data()$open_status[library_data()$id == 2], NA_character_)   # library 2 has no rows: "no status data"
+    expect_equal(library_data()$open_status[library_data()$id == 1], "Open")
+
+    mode <<- "complete"                                 # the nightly update has finished
+    session$elapse(data_reload_seconds * 1000 + 1)
+    session$flushReact()
+    expect_equal(library_data()$open_status[library_data()$id == 2], "Open")
+  })
+})
+
+test_that("nothing is reloaded before the time is up", {
+  calls <- with_server_fetchers(function() srv_libs)
+  testServer(server, {
+    session$flushReact()
+    expect_equal(calls$libraries, 1)
+    session$elapse((data_reload_seconds - 5) * 1000)
+    session$flushReact()
+    expect_equal(calls$libraries, 1)
+    session$elapse(10 * 1000)
+    session$flushReact()
+    expect_equal(calls$libraries, 2)
+  })
+})
+
+test_that("a failed reload leaves what the page shows", {
+  mode <- "ok"
+  with_server_fetchers(function() if (mode == "ok") srv_libs else stop("Turso and the backup are down"))
+  testServer(server, {
+    session$flushReact()
+    expect_equal(nrow(library_data()), 2)
+    mode <<- "down"
+    session$elapse(data_reload_seconds * 1000 + 1)
+    session$flushReact()
+    expect_equal(nrow(library_data()), 2)
+    expect_equal(data_state()$source, "turso")          # not replaced by the failure
+  })
+})

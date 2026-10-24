@@ -111,3 +111,49 @@ fetch_schedules_from_api <- function(libraries, dates = schedule_window()) {
     parse_schedule_response(httr::content(response, "text", encoding = "UTF-8"), library_id, dates)
   })
 }
+
+# The statements that replace the stored schedules of the window with freshly
+# fetched ones, planned so that no library is ever without rows: the libraries
+# are split into groups, and each group (a list of statements) is meant to run as
+# ONE transaction (turso_execute_atomic()): delete the group's rows from
+# `first_date` on, insert its new rows. A reader sees either a group's old rows or
+# its new ones. (The first version deleted the whole window and then inserted in
+# separate requests: for the three minutes that took, the libraries at the end of
+# the list had no schedule and showed as "no status data".) A library the fetch
+# returned nothing for is left alone: its old rows stay.
+# `schedules` has library_id, date, from_time, to_time, status_label.
+schedule_write_groups <- function(schedules, first_date, max_statements = 200) {
+  insert_sql <- "INSERT OR IGNORE INTO schedules (library_id, date, from_time, to_time, status_label)
+               VALUES (?, ?, ?, ?, ?)"
+  by_library <- split(schedules, factor(schedules$library_id, levels = unique(schedules$library_id)))
+
+  groups <- list()
+  current <- list()
+  ids <- character()
+  close_group <- function() {
+    if (length(ids) == 0) return(invisible())
+    delete <- list(
+      sql = sprintf(
+        "DELETE FROM schedules WHERE date >= ? AND library_id IN (%s)",
+        paste(rep("?", length(ids)), collapse = ", ")
+      ),
+      params = c(list(first_date), as.list(ids))
+    )
+    groups[[length(groups) + 1]] <<- c(list(delete), current)
+    current <<- list()
+    ids <<- character()
+  }
+
+  for (rows in by_library) {
+    inserts <- lapply(seq_len(nrow(rows)), function(i) {
+      list(sql = insert_sql, params = list(rows$library_id[i], rows$date[i], rows$from_time[i],
+                                           rows$to_time[i], rows$status_label[i]))
+    })
+    if (length(ids) > 0 && length(current) + length(inserts) + 1 > max_statements) close_group()
+    current <- c(current, inserts)
+    ids <- c(ids, as.character(rows$library_id[1]))
+  }
+  close_group()
+  groups
+}
+

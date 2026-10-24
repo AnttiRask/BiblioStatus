@@ -48,6 +48,24 @@ refresh_data <- function() {
   refresh_statuses()
 }
 
+# Load the data again for a session that stays open. Nothing is thrown away when
+# the read fails (source "none"): what the page shows stays. Replacing a value
+# with an identical one changes nothing, so a reload without news redraws nothing.
+reload_data <- function() {
+  data <- get_app_data()
+  if (data$source == "none") return(invisible())
+  data_state(data[c("source", "fetched_at", "stale", "error")])
+  library_base(data$libraries)
+  schedule_rows(data$schedules)
+  library_services_data(data$services)
+  refresh_statuses()
+  invisible()
+}
+
+# Every few minutes (the first run is the load above)
+data_reload_timer <- reactiveTimer(data_reload_seconds * 1000)
+observeEvent(data_reload_timer(), reload_data(), ignoreInit = TRUE)
+
 # Every minute, a little after the minute changes
 observe({
   invalidateLater(ms_to_next_minute())

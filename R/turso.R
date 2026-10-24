@@ -189,6 +189,82 @@ turso_execute <- function(sql, params = list()) {
   return(invisible(NULL))
 }
 
+# One Hrana "batch" request that runs `statements` (a list of list(sql, params))
+# in a transaction: BEGIN, each statement only if the one before succeeded, then
+# COMMIT if the last one succeeded, else ROLLBACK. Readers see the old rows until
+# the COMMIT, never a half-written state. Step conditions refer to steps by their
+# 0-based position: BEGIN is 0, statement i is i, COMMIT is n + 1, ROLLBACK n + 2.
+build_atomic_batch <- function(statements) {
+  n <- length(statements)
+  step <- function(sql, params = list(), condition = NULL) {
+    s <- list(stmt = list(sql = sql, args = build_turso_args(params)))
+    if (!is.null(condition)) s$condition <- condition
+    s
+  }
+  ok <- function(i) list(type = "ok", step = i)
+
+  steps <- list(step("BEGIN"))
+  for (i in seq_len(n)) {
+    steps[[length(steps) + 1]] <- step(statements[[i]]$sql, statements[[i]]$params, ok(i - 1))
+  }
+  steps[[length(steps) + 1]] <- step("COMMIT", condition = ok(n))
+  steps[[length(steps) + 1]] <- step("ROLLBACK", condition = list(type = "not", cond = ok(n + 1)))
+
+  list(type = "batch", batch = list(steps = steps))
+}
+
+# Say whether a batch response (the decoded `result` of the batch) committed.
+# Returns NULL if it did, else a short reason with the first error.
+atomic_batch_failure <- function(batch_result, n_statements) {
+  errors <- batch_result$step_errors
+  committed_step <- n_statements + 2                    # COMMIT, 1-based
+  if (length(batch_result$step_results) >= committed_step &&
+      !is.null(batch_result$step_results[[committed_step]]) &&
+      is.null(errors[[committed_step]])) {
+    return(NULL)
+  }
+  first <- Filter(Negate(is.null), errors)
+  if (length(first) > 0) return(first[[1]]$message)
+  "the transaction was rolled back"
+}
+
+# Execute `statements` all or nothing (see build_atomic_batch()) in ONE request.
+# Returns the number of rows affected by the statements. Stops on failure, and
+# nothing of the statements is then in the database.
+turso_execute_atomic <- function(statements) {
+  if (length(statements) == 0) return(invisible(0))
+
+  creds <- load_turso_credentials()
+  https_url <- convert_to_https(creds$url)
+  request_body <- list(requests = list(build_atomic_batch(statements)))
+
+  response <- tryCatch({
+    request(paste0(https_url, "/v2/pipeline")) %>%
+      req_headers(
+        Authorization = paste("Bearer", creds$token),
+        `Content-Type` = "application/json"
+      ) %>%
+      req_body_json(request_body) %>%
+      req_perform()
+  }, error = function(e) {
+    stop("Turso atomic execute failed: ", conditionMessage(e))
+  })
+
+  result <- resp_body_json(response, simplifyVector = FALSE)
+  if (!is.null(result$error)) stop("Turso atomic execute error: ", result$error$message)
+  entry <- result$results[[1]]
+  if (!is.null(entry$error)) stop("Turso atomic execute error: ", entry$error$message)
+
+  batch_result <- entry$response$result
+  failure <- atomic_batch_failure(batch_result, length(statements))
+  if (!is.null(failure)) stop("Turso atomic execute rolled back: ", failure)
+
+  sum(vapply(batch_result$step_results[seq_along(statements) + 1], function(r) {
+    affected <- r$affected_row_count
+    if (is.null(affected)) 0 else affected
+  }, numeric(1)))
+}
+
 # Execute many INSERT/UPDATE/DELETE statements in as few HTTP round-trips as
 # possible, using Turso's /v2/pipeline support for multiple statements per
 # request. `statements` is a list of list(sql = ..., params = ...). Statements
