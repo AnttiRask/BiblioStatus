@@ -40,6 +40,7 @@ output$nearest_libraries_ui <- renderUI({
         tags$a(
           href = maps_url,
           target = "_blank",
+          rel = "noopener noreferrer",
           class = "btn btn-sm btn-directions mt-2",
           icon("location-arrow"), txt$get_directions
         )
@@ -87,24 +88,25 @@ output$library_services <- renderUI({
 
       # Contact information (phone)
       if (!is.na(selected$library_phone)) {
-        tagList(
-          tags$a(
-            href = paste0("tel:", selected$library_phone),
-            icon("phone"), " ", selected$library_phone,
-            style = "display: block; margin-bottom: 8px; color: var(--brand-accent); text-decoration: none;"
-          )
-        )
+        phone_href <- safe_tel_href(selected$library_phone)
+        contact_style <- "display: block; margin-bottom: 8px; color: var(--brand-accent); text-decoration: none;"
+        # Not a number we can dial (opening hours in the field, say): text only
+        if (is.na(phone_href)) {
+          tags$span(icon("phone"), " ", selected$library_phone, style = "display: block; margin-bottom: 8px;")
+        } else {
+          tags$a(href = paste0("tel:", phone_href), icon("phone"), " ", selected$library_phone, style = contact_style)
+        }
       },
 
       # Contact information (email)
       if (!is.na(selected$library_email)) {
-        tagList(
-          tags$a(
-            href = paste0("mailto:", selected$library_email),
-            icon("envelope"), " ", selected$library_email,
-            style = "display: block; margin-bottom: 8px; color: var(--brand-accent); text-decoration: none;"
-          )
-        )
+        email <- safe_mailto_address(selected$library_email)
+        if (is.na(email)) {
+          tags$span(icon("envelope"), " ", selected$library_email, style = "display: block; margin-bottom: 8px;")
+        } else {
+          tags$a(href = paste0("mailto:", email), icon("envelope"), " ", selected$library_email,
+            style = "display: block; margin-bottom: 8px; color: var(--brand-accent); text-decoration: none;")
+        }
       },
       br(),
 
@@ -112,6 +114,7 @@ output$library_services <- renderUI({
       tags$a(
         href = maps_url,
         target = "_blank",
+        rel = "noopener noreferrer",
         class = "btn btn-sm btn-directions mb-3",
         icon("location-arrow"), txt$get_directions
       ),

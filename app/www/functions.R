@@ -116,12 +116,45 @@ calculate_distances_to_libraries <- function(user_lat, user_lon, library_data) {
     )
 }
 
+# Links made from text in the library data (Kirkanta): only what is safe as a
+# link target is used, anything else is shown as plain text (or not linked).
+# `javascript:` and `data:` URLs would run in the visitor's page.
+
+# The URL if it is an http(s) address, else NA. Vector-safe.
+safe_http_url <- function(url) {
+  url <- trimws(as.character(url))
+  ok <- !is.na(url) & grepl("^https?://[^[:space:]<>\"']+$", url, ignore.case = TRUE)
+  ifelse(ok, url, NA_character_)
+}
+
+# The target of a tel: link (digits and a leading +) if the text looks like a
+# phone number, else NA: "02 623 4200", "(014) 267 1249" and "+358 9 310 1234" qualify, "ma-pe 9-15"
+# or "javascript:..." don't.
+safe_tel_href <- function(phone) {
+  phone <- trimws(as.character(phone))
+  if (length(phone) != 1 || is.na(phone) || !grepl("^\\+?[(]?[0-9][0-9 ()./-]*$", phone)) return(NA_character_)
+  digits <- gsub("[^0-9]", "", phone)
+  if (nchar(digits) < 5 || nchar(digits) > 15) return(NA_character_)
+  paste0(if (startsWith(phone, "+")) "+" else "", digits)
+}
+
+# The address for a mailto: link if the text is a plain e-mail address, else NA
+safe_mailto_address <- function(email) {
+  email <- trimws(as.character(email))
+  if (length(email) != 1 || is.na(email) ||
+      !grepl("^[^[:space:]@<>\"',;:?&=]+@[^[:space:]@<>\"',;:?&=]+\\.[^[:space:]@<>\"',;:?&=]+$", email)) {
+    return(NA_character_)
+  }
+  email
+}
+
 # Build the HTML for a library's map popup. Vector-safe (used inside a `~`
 # formula over a data frame in addCircleMarkers). Pass opening_hours for the
 # main map popup, or distance_display for the "nearest libraries" popup.
 build_library_popup <- function(library_url, library_branch_name, library_address,
                                  open_status, lat, lon,
                                  opening_hours = NULL, distance_display = NULL) {
+  library_url <- safe_http_url(library_url)
   name_html <- if_else(
     !is.na(library_url),
     paste0("<b><a href='", htmltools::htmlEscape(library_url, attribute = TRUE), "' target='_blank' rel='noopener noreferrer'>",
