@@ -1,6 +1,6 @@
 # R 4.5.2 matches renv.lock. r-ver is much smaller than rocker/shiny, and we
 # only need R: run.R starts the app with shiny::runApp()
-FROM rocker/r-ver:4.5.2
+FROM rocker/r-ver:4.6.1
 
 # System libraries the R packages in renv.lock link against on this Ubuntu
 # release (24.04, "noble"): curl (libcurl, openssl), png, stringi (ICU), and the
