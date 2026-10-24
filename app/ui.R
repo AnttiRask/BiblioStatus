@@ -40,6 +40,7 @@ ui <- page_navbar(
       "window.BIBLIO_CONFIG = %s;",
       jsonlite::toJSON(client_config, auto_unbox = TRUE)
     ))),
+    tags$script(src = asset("mode-toggle.js")),
     tags$script(src = asset("app.js")),
     # Enable JavaScript interactivity
     useShinyjs(),
@@ -155,7 +156,8 @@ ui <- page_navbar(
     )
   ),
 
-  # Dark mode toggle (top-right in navbar)
+  # Light/dark switch (top-right in navbar); light by default. Our own button, see
+  # mode_toggle_button()
   nav_spacer(),
-  nav_item(input_dark_mode(id = "dark_mode", mode = "light"))
+  nav_item(mode_toggle_button())
 )

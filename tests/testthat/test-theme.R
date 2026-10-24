@@ -20,9 +20,13 @@ test_that("the app starts in light mode, like the map", {
   env <- new.env(parent = globalenv())
   withr::with_dir(here::here("app"), source("ui.R", local = env))
   html <- paste(as.character(env$ui), collapse = "\n")
-  # the toggle component carries the starting mode
-  expect_match(html, '<bslib-input-dark-mode id="dark_mode"[^>]*mode="light"')
-  expect_false(grepl('<bslib-input-dark-mode[^>]*mode="dark"', html))
+  # the switch is our own button (bslib's component carried the starting mode);
+  # in light mode a click switches to dark, so that is what its label says
+  expect_match(html, paste0('id="mode-toggle"[^>]*aria-label="', txt$mode_to_dark, '"'))
+  expect_false(grepl("bslib-input-dark-mode", html, fixed = TRUE))
+  # and mode-toggle.js sets light mode before the page is drawn
+  js <- paste(readLines(here::here("app/www/mode-toggle.js"), warn = FALSE), collapse = "\n")
+  expect_match(js, 'root.setAttribute("data-bs-theme", "light");', fixed = TRUE)
 })
 
 test_that("the CSS accent colour matches the brand colours in both modes", {

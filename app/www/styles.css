@@ -11,6 +11,23 @@
   --brand-accent: #F26B70;
 }
 
+/* The light/dark switch: its icon shows the mode a click switches to, a moon while
+   light and a sun while dark (mode-toggle.js sets data-bs-theme on <html>) */
+.biblio-mode-button {
+  background: none;
+  border: none;
+  border-radius: 50%;
+  padding: 0.4rem;
+  line-height: 0;
+  color: var(--bs-body-color);
+  cursor: pointer;
+}
+.biblio-mode-button:hover { background-color: var(--bs-tertiary-bg); }
+.biblio-mode-button:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 2px; }
+.biblio-icon-sun { display: none; }
+[data-bs-theme="dark"] .biblio-icon-sun { display: block; }
+[data-bs-theme="dark"] .biblio-icon-moon { display: none; }
+
 /* ============================================
    MOBILE RESPONSIVENESS
    ============================================ */

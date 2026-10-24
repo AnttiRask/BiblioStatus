@@ -23,6 +23,8 @@ txt <- list(
   clear_library        = "Clear library selection",
   clear_service        = "Clear service selection",
   reset_filters        = "Reset filters",
+  mode_to_light        = "Switch to light mode",
+  mode_to_dark         = "Switch to dark mode",
   summary_one          = "%d library",
   summary_many         = "%d libraries",
   find_nearest         = "Find Nearest Open Library",
