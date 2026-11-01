@@ -20,7 +20,12 @@ permissions:
 
 jobs:
   fetch_data:
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: the label moved to Ubuntu 26.04 on 2026-10-31 (seen on
+    # 2026-11-01), and this project is built for 24.04, like the production image
+    # (rocker/r-ver:4.5.2): `libgdal34t64` exists only there, and `later` 1.4.1 from
+    # renv.lock does not compile on 26.04 (glibc/GCC 15). Move to a newer Ubuntu on
+    # purpose, after updating `later` in the lock and testing a full restore there.
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
 
     steps:
