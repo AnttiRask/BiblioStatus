@@ -275,7 +275,7 @@ test_that("picking a library sets its city, and clearing the library keeps the s
 # input$service_filter after such an update call would pass or fail based on
 # a testServer limitation, not the actual app behavior. That behavior was
 # verified against the real running app with a Playwright browser script
-# during Plan 1's implementation (see full-fix-plan.md, Plan 1's "Outcome").
+# during Plan 1's implementation (see Plan 1's "Outcome" in full-fix-plan.md, deleted 2026-11-01; it is in git history).
 # A real regression test for it would need shinytest2, which drives an actual
 # browser, rather than testServer().
 
