@@ -83,7 +83,7 @@ There is no map-tile key: the basemap is Esri's keyless World Light/Dark Gray ca
 - **fetch_data.yml** - Daily schedules (2 AM UTC), weekly full refresh (Sunday)
 - **tests.yml** - Runs the testthat suite on the locked packages (push, pull request, manual); the deploy calls it first
 - **deploy_shiny_app.yml** - Deploys to Cloud Run when tests pass, on pushes that change the app or build files (not the nightly database commit), weekly (Monday 04:00 UTC, refreshes the SQLite fallback in the image) and on demand; labels the revision with the commit and smoke tests it. Turso is the primary data source, so the nightly data fetch no longer redeploys. The SQLite fallback holds the 7-day window written by the last fetch, so an old image shows opening hours for up to a week during a Turso outage
-- **check_library_urls.yml** - Daily URL validation (3 AM UTC)
+- **check_library_urls.yml** - Daily URL validation (3 AM UTC). Its e-mail step (only runs when a URL is broken) uses `dawidd6/action-send-mail` **v23, pinned to a commit** (third-party, it handles the Gmail password). v23 rejects a `from` without an e-mail address (`'from' address is invalid`; v3 added the SMTP username to a bare name), so `from` is `"BiblioStatus URL Checker <${{ secrets.EMAIL_USERNAME }}>"`, and `require_tls` is on (port 587 STARTTLS). The Dependabot bump to v23 alone would have broken the alert silently (its check never runs that step); it was fixed and **proved with one real test e-mail** on 2026-11-01 (a throwaway workflow with the real step's settings, only subject and body different: it arrived once, with its attachment). Any future bump of this action needs the same real test, which means asking the owner first (it sends mail on their behalf)
 
 ## Code Patterns
 

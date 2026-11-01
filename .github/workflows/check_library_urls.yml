@@ -56,15 +56,19 @@ jobs:
 
       - name: Send email if broken URLs found
         if: failure() || contains(steps.check_urls.outputs.exit_code, '1')
-        uses: dawidd6/action-send-mail@2cea9617b09d79a095af21254fbcb7ae95903dde # v3 (third-party, pinned to a commit; handles the mail password)
+        uses: dawidd6/action-send-mail@47af4a10b540781705f283a2cf1a9650713ac795 # v23 (third-party, pinned to a commit; handles the mail password)
         with:
           server_address: smtp.gmail.com
           server_port: 587
+          # STARTTLS on port 587: refuse to send the password if the server doesn't negotiate it
+          require_tls: true
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: "BiblioStatus: Broken Library URLs Detected"
           to: anttilennartrask@gmail.com
-          from: BiblioStatus URL Checker
+          # v23 needs an address in `from` (v3 added the SMTP username to a bare name):
+          # a bare name is rejected with "'from' address is invalid"
+          from: "BiblioStatus URL Checker <${{ secrets.EMAIL_USERNAME }}>"
           body: |
             Broken library URLs were detected during the daily check.
 
