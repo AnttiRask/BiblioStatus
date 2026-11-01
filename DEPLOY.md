@@ -12,14 +12,15 @@ The app runs as a Docker container on Cloud Run (project `bibliostatus-app`, reg
    gh workflow run deploy_shiny_app.yml --ref main
    ```
 
-4. What the workflow does, in order:
+4. All the workflows run on `ubuntu-24.04`, pinned on purpose (never `ubuntu-latest`): the project and the production image are Ubuntu 24.04, and the label moving to 26.04 broke the data fetch and the URL check on 2026-11-01 (see CLAUDE.md).
+5. What the workflow does, in order:
    - runs the tests again; a failing test stops the deploy
    - logs in to Google Cloud **without a key file** (Workload Identity Federation, service account `github-deploy`)
    - builds the image with Cloud Build into Artifact Registry (`europe-north1-docker.pkg.dev/bibliostatus-app/cloud-run-source-deploy/bibliostatus-app`)
    - deploys it with `gcloud run deploy`: 1 GiB memory, 3600-second request timeout (the websocket limit; the app reconnects quietly when it is reached), concurrency 80, at most 3 instances, session affinity, running as the service account `bibliostatus-runtime`
    - labels the revision with the commit (`git-sha`)
    - **smoke test**: the service must carry this commit's label and answer HTTP 200 on `/`. It deliberately does not check `/health`: a data problem shouldn't turn a code deploy red.
-5. The whole thing takes about 8 minutes. Deploys don't overlap: a newer one waits for the one that is running (and if several queue up, only the newest queued one runs).
+6. The whole thing takes 8 to 10 minutes (tests, image build, deploy, smoke test). Deploys don't overlap: a newer one waits for the one that is running (and if several queue up, only the newest queued one runs).
 
 The nightly data update (`.github/workflows/fetch_data.yml`) does **not** redeploy: the app reads the data from Turso. Only the SQLite backup in the image waits for the next deploy.
 
@@ -109,4 +110,4 @@ Google Cloud Run has a generous free tier that covers personal use:
 - 360,000 GB-seconds of memory
 - 180,000 vCPU-seconds of compute
 
-For a personal project with occasional use, this should be **completely free**. Artifact Registry keeps only recent images (`infra/artifact-registry-cleanup.json`).
+For a personal project with occasional use, this should be **completely free**. Artifact Registry keeps the 5 newest images and deletes the rest after 14 days (`infra/artifact-registry-cleanup.json`); the repository held 138.8 GB before that policy existed.

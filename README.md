@@ -114,7 +114,7 @@ All library website URLs are checked automatically every day at 3:00 AM UTC. If 
 
 ## 🔐 Deployment
 
-The app runs as a Docker container on Google Cloud Run. Every change goes through a pull request whose tests must pass; merging to `main` deploys it (the build takes about 8 minutes) through a GitHub Actions workflow with keyless Google Cloud login. See [DEPLOY.md](DEPLOY.md) for how it works and for manual deployment.
+The app runs as a Docker container on Google Cloud Run. Every change goes through a pull request whose tests must pass; merging to `main` deploys it (the whole run takes 8 to 10 minutes) through a GitHub Actions workflow with keyless Google Cloud login. See [DEPLOY.md](DEPLOY.md) for how it works and for manual deployment.
 
 ## 🧪 Local Development
 
