@@ -78,6 +78,8 @@ There is no map-tile key: the basemap is Esri's keyless World Light/Dark Gray ca
 
 ## GitHub Actions Workflows
 
+**Every workflow is pinned to `runs-on: ubuntu-24.04`, never `ubuntu-latest`.** The label moved to Ubuntu 26.04 on 2026-10-31 and on 2026-11-01 the weekly data fetch failed at apt (`Unable to locate package libgdal34t64`: that name exists only on 24.04) and the URL check failed compiling `later` 1.4.1 from `renv.lock` (glibc/GCC 15 on 26.04: `conflicting types for 'pthread_once_t'`). The project and the production image (`rocker/r-ver:4.5.2`) are Ubuntu 24.04. Moving to a newer Ubuntu is a deliberate step: update `later` in the lock (1.4.7+ compiles there; gallery-of-the-day did it), look up the new `libgdal` package name, and test a full restore on the new image first.
+
 - **fetch_data.yml** - Daily schedules (2 AM UTC), weekly full refresh (Sunday)
 - **tests.yml** - Runs the testthat suite on the locked packages (push, pull request, manual); the deploy calls it first
 - **deploy_shiny_app.yml** - Deploys to Cloud Run when tests pass, on pushes that change the app or build files (not the nightly database commit), weekly (Monday 04:00 UTC, refreshes the SQLite fallback in the image) and on demand; labels the revision with the commit and smoke tests it. Turso is the primary data source, so the nightly data fetch no longer redeploys. The SQLite fallback holds the 7-day window written by the last fetch, so an old image shows opening hours for up to a week during a Turso outage
