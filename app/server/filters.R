@@ -4,7 +4,7 @@
 # State: selection, startup_city*.
 #
 # The rules (which choices each dropdown offers, what a change does to the other
-# dropdowns, the notices) are in www/filter_logic.R, which has no Shiny in it and
+# dropdowns, the notices) are in lib/filter_logic.R, which has no Shiny in it and
 # is tested on its own. This file only connects them to the inputs:
 #   * `selection()` is the one place that says what the dropdowns hold. The
 #     browser's input$* values are only read as "the user changed this".

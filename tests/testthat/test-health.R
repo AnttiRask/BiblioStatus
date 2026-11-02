@@ -1,6 +1,6 @@
-# GET /health (app/www/health.R): what the uptime monitor sees.
+# GET /health (app/lib/health.R): what the uptime monitor sees.
 
-source(here::here("app/www/security.R"))   # for the wrapper test at the end
+source(here::here("app/lib/security.R"))   # for the wrapper test at the end
 
 today <- as.Date("2026-10-23")
 probe <- function(source = "turso", libraries = 719L, schedules_today = 1400L, newest_date = "2026-10-29") {

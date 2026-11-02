@@ -35,7 +35,7 @@ server <- function(input, output, session) {
   startup_city_set  <- reactiveVal(FALSE)    # Tracks whether initial city has been set
   startup_city      <- reactiveVal("Helsinki") # City determined on startup (geolocation / fallback)
   # What the three dropdowns hold: list(city, service, library), "" = all. The
-  # rules for changing it are in www/filter_logic.R; server/filters.R connects
+  # rules for changing it are in lib/filter_logic.R; server/filters.R connects
   # them to the inputs. The map follows it directly. Everything that needs the
   # current selection reads this and not input$*, which can lag behind what the
   # server has just sent.

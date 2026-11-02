@@ -1,4 +1,4 @@
-# Tests for app/www/filter_logic.R: the dropdown rules, with no Shiny in them.
+# Tests for app/lib/filter_logic.R: the dropdown rules, with no Shiny in them.
 #
 # Fixture: 3 cities, 6 libraries. Services:
 #   Sauna:  1 (Helsinki), 3 (Espoo)

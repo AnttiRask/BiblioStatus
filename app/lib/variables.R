@@ -75,7 +75,7 @@ brand_colours <- list(
   dark_bg     = "#191414"
 )
 
-# Data layer (get_app_data(), www/data_layer.R)
+# Data layer (get_app_data(), lib/data_layer.R)
 data_cache_seconds     <- 300       # libraries, schedules and services are shared by all sessions for this long
 data_retry_seconds     <- 30        # after a failed load Turso isn't asked again for this long (not one timeout per visitor)
 data_max_stale_seconds <- 3 * 3600  # data from Turso that may be shown, marked stale, while Turso is down
@@ -86,7 +86,7 @@ data_max_stale_seconds <- 3 * 3600  # data from Turso that may be shown, marked 
 # without a reload of the page
 data_reload_seconds <- 600
 
-# Health check (GET /health, see www/health.R)
+# Health check (GET /health, see lib/health.R)
 health_min_days_ahead <- 2     # the newest stored opening hours must be at least this many days ahead of today
 health_cache_seconds  <- 60    # a monitor checking from several places is answered from a short cache
 

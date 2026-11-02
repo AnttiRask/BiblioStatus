@@ -60,14 +60,15 @@ app/
 ├── server/                 # data (loading, reloading), filters, url (the address), map, panels
 ├── modules/service_stats.R # The Service Statistics tab
 ├── libraries.sqlite        # SQLite backup (written by the pipeline)
-└── www/
-    ├── functions.R         # Database queries, status calculation, map drawing, popups
-    ├── data_layer.R        # get_app_data(): never throws, shared cache, stale/backup states
-    ├── filter_logic.R      # The dropdown rules (no Shiny in it), the search box, the address
-    ├── health.R, security.R # /health and the security headers (including the CSP)
-    ├── strings.R           # All user-facing text
-    ├── variables.R         # Colours, map settings, cache and reload times
-    ├── app.js, mode-toggle.js, styles.css
+├── lib/                    # The R code (not in www/, which Shiny serves to anyone)
+│   ├── functions.R         # Database queries, status calculation, map drawing, popups
+│   ├── data_layer.R        # get_app_data(): never throws, shared cache, stale/backup states
+│   ├── filter_logic.R      # The dropdown rules (no Shiny in it), the search box, the address
+│   ├── health.R, security.R # /health and the security headers (including the CSP)
+│   ├── strings.R           # All user-facing text
+│   └── variables.R         # Colours, map settings, cache and reload times
+└── www/                    # What the browser may fetch
+    └── app.js, mode-toggle.js, styles.css, favicon.png
 tests/testthat/             # The test suite (about 1,500 expectations)
 .github/workflows/          # tests, fetch_data, check_library_urls, deploy_shiny_app
 infra/, fixes/              # Artifact Registry cleanup policy, the monitoring setup script

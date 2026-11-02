@@ -33,7 +33,7 @@ refresh_statuses <- function() {
 }
 
 # Data fetching and processing. get_app_data() never throws and is shared by
-# all sessions (www/data_layer.R); data_state says where the data came from, for
+# all sessions (lib/data_layer.R); data_state says where the data came from, for
 # the notice above the map.
 refresh_data <- function() {
   data <- get_app_data()

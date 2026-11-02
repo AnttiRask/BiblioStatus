@@ -13,8 +13,8 @@ library(RSQLite)
 library(shiny)
 library(shinyjs)
 
-source("www/variables.R")
-source("www/strings.R")
+source("lib/variables.R")
+source("lib/strings.R")
 
 # What app.js gets as window.BIBLIO_CONFIG: the timings (variables.R), and the
 # messages it shows itself (strings.R)
@@ -24,10 +24,10 @@ client_config <- c(geo_config, list(messages = list(
   geolocationFailed      = txt$geolocation_failed
 )))
 
-source("www/functions.R")
-source("www/filter_logic.R")
-source("www/health.R")
-source("www/data_layer.R")
+source("lib/functions.R")
+source("lib/filter_logic.R")
+source("lib/health.R")
+source("lib/data_layer.R")
 source("modules/service_stats.R")
 
 # Warm the shared data cache so the first visitor doesn't wait for Turso

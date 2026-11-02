@@ -209,7 +209,7 @@ test_that("the summary line says how many libraries are shown and for what", {
   })
 })
 
-# A library never narrows the service list now (see www/filter_logic.R), and
+# A library never narrows the service list now (see lib/filter_logic.R), and
 # the library list only offers libraries that match the city and the service.
 # Uses fixture_services_distinct (library 1: Printing + Scanning, library 2:
 # Yoga only) so the two libraries' service sets differ.

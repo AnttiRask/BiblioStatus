@@ -101,7 +101,7 @@ test_that("no text of txt is written out again in the code", {
     here::here("app", c("ui.R", "server.R")),
     list.files(here::here("app", "server"), "\\.R$", full.names = TRUE),
     list.files(here::here("app", "modules"), "\\.R$", full.names = TRUE),
-    here::here("app", "www", c("functions.R", "filter_logic.R", "data_layer.R", "app.js"))
+    here::here("app", c("lib/functions.R", "lib/filter_logic.R", "lib/data_layer.R", "www/app.js"))
   )
   code <- unlist(lapply(code_files, readLines, warn = FALSE))
   code <- code[!grepl("^\\s*(#|//)", code)]

@@ -1,5 +1,5 @@
 # The selection in the page address: a link restores a selection, and the
-# address follows the dropdowns. The rules are in www/filter_logic.R
+# address follows the dropdowns. The rules are in lib/filter_logic.R
 # (selection_from_query / selection_to_query).
 # Evaluated inside server() (see server_parts in server.R).
 # State: selection, startup_city_set.
