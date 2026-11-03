@@ -18,10 +18,13 @@ source("lib/strings.R")
 
 # What app.js gets as window.BIBLIO_CONFIG: the timings (variables.R), and the
 # messages it shows itself (strings.R)
-client_config <- c(geo_config, list(messages = list(
+client_config <- c(geo_config, session_config, list(messages = list(
   geolocationUnsupported = txt$geolocation_unsupported,
   geolocationDenied      = txt$geolocation_denied,
-  geolocationFailed      = txt$geolocation_failed
+  geolocationFailed      = txt$geolocation_failed,
+  sessionEndedTitle      = txt$session_ended_title,
+  sessionEndedText       = txt$session_ended_text,
+  sessionEndedReload     = txt$session_ended_reload
 )))
 
 source("lib/functions.R")

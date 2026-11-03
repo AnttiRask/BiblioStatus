@@ -105,4 +105,62 @@ onShinyReady(function() {
       { enableHighAccuracy: true, timeout: FIND_NEAREST_GEO_TIMEOUT_MS, maximumAge: FIND_NEAREST_GEO_MAX_AGE_MS }
     );
   });
+
+  // The connection to the server is gone for good. The server reconnects a dropped
+  // websocket by itself (session$allowReconnect("force") in server.R), which takes about
+  // 2 s, so the message only appears if no reconnect has happened after
+  // BIBLIO_CONFIG.sessionEndedAfterMs; Shiny itself only greys the page out and the
+  // page looks frozen. A reconnect that comes later takes the message away. The page
+  // is never reloaded on its own. Closing or reloading the page also closes the
+  // connection: that is not a lost session.
+  (function() {
+    var unloading = false;
+    var timer = null;
+    window.addEventListener('beforeunload', function() { unloading = true; });
+    window.addEventListener('pagehide', function() { unloading = true; });
+    window.addEventListener('pageshow', function() { unloading = false; });
+
+    function hide() {
+      var box = document.getElementById('session-ended');
+      if (box) box.remove();
+    }
+
+    function show() {
+      if (document.getElementById('session-ended')) return;
+      var box = document.createElement('div');
+      box.id = 'session-ended';
+      box.setAttribute('role', 'alertdialog');
+      box.setAttribute('aria-labelledby', 'session-ended-title');
+
+      var title = document.createElement('h2');
+      title.id = 'session-ended-title';
+      title.textContent = BIBLIO_CONFIG.messages.sessionEndedTitle;
+
+      var text = document.createElement('p');
+      text.textContent = BIBLIO_CONFIG.messages.sessionEndedText;
+
+      var button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'btn btn-primary';
+      button.textContent = BIBLIO_CONFIG.messages.sessionEndedReload;
+      button.addEventListener('click', function() { window.location.reload(); });
+
+      box.appendChild(title);
+      box.appendChild(text);
+      box.appendChild(button);
+      document.body.appendChild(box);
+      button.focus();
+    }
+
+    $(document).on('shiny:disconnected', function() {
+      if (unloading || timer) return;
+      timer = setTimeout(function() { timer = null; show(); }, BIBLIO_CONFIG.sessionEndedAfterMs);
+    });
+
+    $(document).on('shiny:connected', function() {
+      clearTimeout(timer);
+      timer = null;
+      hide();
+    });
+  })();
 });

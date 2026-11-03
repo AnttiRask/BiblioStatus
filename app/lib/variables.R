@@ -67,6 +67,12 @@ geo_config <- list(
   findNearestMaxAgeMs  = 300000
 )
 
+# The page waits this long for the browser to reconnect (session$allowReconnect("force")
+# does that within about 2 s) before it says the connection is gone
+session_config <- list(
+  sessionEndedAfterMs = 10000
+)
+
 # Brand colours. The red is for the light page; on the dark page it is too dim
 # (3.1:1 on the dark background), so text uses the lighter red there.
 brand_colours <- list(
