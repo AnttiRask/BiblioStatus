@@ -87,10 +87,16 @@ test_that("app.js gets its messages from txt", {
   expect_equal(client_config$messages$geolocationDenied, txt$geolocation_denied)
   expect_equal(client_config$messages$geolocationFailed, txt$geolocation_failed)
   expect_equal(client_config$startupTimeoutMs, geo_config$startupTimeoutMs)   # the timings are still there
+  expect_equal(client_config$messages$sessionEndedTitle, txt$session_ended_title)
+  expect_equal(client_config$messages$sessionEndedText, txt$session_ended_text)
+  expect_equal(client_config$messages$sessionEndedReload, txt$session_ended_reload)
+  expect_equal(client_config$sessionEndedAfterMs, session_config$sessionEndedAfterMs)
 
   js <- paste(readLines(here::here("app", "www", "app.js")), collapse = "\n")
   expect_match(js, "BIBLIO_CONFIG.messages.geolocationDenied", fixed = TRUE)
   expect_false(grepl("Please enable location", js, fixed = TRUE))
+  expect_match(js, "BIBLIO_CONFIG.messages.sessionEndedText", fixed = TRUE)
+  expect_false(grepl("connection to the server was lost", js, fixed = TRUE))
 })
 
 # Guard: a text that is in txt must not be written out again in the code.

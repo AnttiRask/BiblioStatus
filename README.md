@@ -28,6 +28,7 @@
 **Reliability**
 
 - 📦 Data from the Kirkanta API is updated nightly via GitHub Actions and stored in Turso (cloud SQLite) with a SQLite backup in the app
+- 🔌 If the connection to the server is lost for good (the device slept, the network dropped) the page says so and offers Reload; a short drop reconnects by itself without a word
 - 🛟 If the database is unreachable the page says so: it shows the last good data (marked with its time), the nightly backup, or a plain message, instead of failing silently
 - 🩺 `GET /health` for uptime monitoring, with a Cloud Monitoring check and an e-mail alert
 - ✅ Automated URL monitoring with an e-mail alert for broken links

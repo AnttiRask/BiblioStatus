@@ -82,3 +82,27 @@ test_that("the script and the styles agree with the button on names and on what 
   expect_match(css, '[data-bs-theme="dark"] .biblio-icon-moon { display: none; }', fixed = TRUE)
   expect_match(css, ".biblio-icon-sun { display: none; }", fixed = TRUE)
 })
+
+# The "connection lost" message (end of app.js). There is no JavaScript runner in the
+# tests; these lines pin what matters: it waits before showing (the server reconnects
+# by itself), a reconnect takes it away, closing the page doesn't count, and it never
+# reloads on its own.
+test_that("the session-ended message waits for the reconnect, and is styled for both themes", {
+  js <- paste(readLines(here::here("app", "www", "app.js")), collapse = "\n")
+  expect_match(js, "$(document).on('shiny:disconnected'", fixed = TRUE)
+  expect_match(js, "setTimeout(function() { timer = null; show(); }, BIBLIO_CONFIG.sessionEndedAfterMs)", fixed = TRUE)
+  expect_match(js, "$(document).on('shiny:connected'", fixed = TRUE)
+  expect_match(js, "clearTimeout(timer);", fixed = TRUE)
+  expect_match(js, "hide();", fixed = TRUE)
+  expect_match(js, "if (unloading || timer) return;", fixed = TRUE)
+  expect_match(js, "window.addEventListener('beforeunload'", fixed = TRUE)
+  expect_match(js, "window.location.reload()", fixed = TRUE)
+  expect_equal(lengths(regmatches(js, gregexpr("location.reload", js, fixed = TRUE))), 1)   # only the button reloads
+
+  css <- paste(readLines(here::here("app", "www", "styles.css")), collapse = "\n")
+  expect_match(css, "#session-ended {", fixed = TRUE)
+  expect_match(css, "background: var(--bs-body-bg);", fixed = TRUE)   # the page's own colours, light or dark
+  expect_match(css, "color: var(--bs-body-color);", fixed = TRUE)
+
+  expect_gt(session_config$sessionEndedAfterMs, 5000)   # longer than a normal reconnect takes
+})

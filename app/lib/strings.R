@@ -60,6 +60,10 @@ txt <- list(
   geolocation_denied      = "Please enable location permissions to find nearby libraries",
   geolocation_failed      = "Unable to get your location. Please try again.",
 
+  session_ended_title  = "The connection to the server was lost",
+  session_ended_text   = "It could not be restored. That happens when the device sleeps or loses its network. Reload the page to continue; your filters are kept in the address.",
+  session_ended_reload = "Reload",
+
   footer_created_by    = "Created by",
 
   stats_heading        = "Library Service Statistics",
