@@ -1,4 +1,4 @@
-# The functions that draw the map (app/www/functions.R). They work on a plain
+# The functions that draw the map (app/lib/functions.R). They work on a plain
 # leaflet map, so the calls they add can be inspected without a browser.
 
 lib <- function(ids, status = "Open") {

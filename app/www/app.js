@@ -25,7 +25,7 @@ function onShinyReady(callback) {
 }
 
 onShinyReady(function() {
-  // Geolocation timing (ms) comes from geo_config in app/www/variables.R via
+  // Geolocation timing (ms) comes from geo_config in app/lib/variables.R via
   // window.BIBLIO_CONFIG (set by ui.R). Startup uses a coarse/cached location
   // for a fast first paint; Find Nearest waits longer for a precise, fresh fix.
   const STARTUP_GEO_TIMEOUT_MS = BIBLIO_CONFIG.startupTimeoutMs;

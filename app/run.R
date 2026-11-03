@@ -3,8 +3,8 @@ library(shiny)
 # Run from the app directory so ui.R / server.R find their relative paths,
 # and wrap the page handler so every page response carries security headers
 # and GET /health answers the uptime monitor
-source("app/www/security.R")
-source("app/www/health.R")
+source("app/lib/security.R")
+source("app/lib/health.R")
 setwd("app")
 
 port <- as.integer(Sys.getenv("PORT", "8080"))

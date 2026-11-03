@@ -3,7 +3,7 @@
 
 /* Brand accent for text and icons. The brand red is too dim on the dark page
    (3.1:1), so dark mode uses a lighter red; keep in sync with brand_colours in
-   app/www/variables.R. Backgrounds with white text (buttons) keep the brand red. */
+   app/lib/variables.R. Backgrounds with white text (buttons) keep the brand red. */
 :root {
   --brand-accent: #C1272D;
 }

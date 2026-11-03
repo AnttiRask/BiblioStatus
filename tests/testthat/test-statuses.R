@@ -1,4 +1,4 @@
-# compute_library_statuses() and friends (app/www/functions.R): a library's status
+# compute_library_statuses() and friends (app/lib/functions.R): a library's status
 # from its schedule rows and the clock. Recomputed every minute by the app.
 
 st_libs <- data.frame(
