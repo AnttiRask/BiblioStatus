@@ -99,7 +99,7 @@ SSL certificate provisioning takes ~15-30 minutes.
 ## Monitoring
 
 - **Uptime and alert**: a Cloud Monitoring uptime check calls `/health` every 5 minutes, and an alert policy (severity Critical, so the e-mail subject starts with "[ALERT - Critical]") e-mails after 10 minutes of failure. `fixes/monitoring_setup.sh` creates them (it is not idempotent: running it again duplicates them). The alert e-mail was tested on 2026-10-24 with a temporary failing check; both the alert and the "resolved" e-mail arrived.
-- **Other alerts**: the daily URL check e-mails when a library website is broken. There is no budget alert yet (it can only be created in the Cloud console).
+- **Other alerts**: the daily URL check e-mails when a library website is broken. **Budget alerts**: two budgets of EUR 30 a month on this project (shared with FillariStatus), named "BiblioStatus ja FillariStatus" and "BiblioStatus ja FillariStatus (functions", email at 50%, 80% and 100% of actual spend; found by reading the billing account on 2026-11-05. They only alert. Read them with `gcloud billing budgets list --billing-account 01022A-90DC69-4116A8 --billing-project=<a project where the Billing Budgets API is enabled>`.
 - **Console**: [Cloud Run](https://console.cloud.google.com/run).
 
 ## Cost
@@ -110,4 +110,4 @@ Google Cloud Run has a generous free tier that covers personal use:
 - 360,000 GB-seconds of memory
 - 180,000 vCPU-seconds of compute
 
-For a personal project with occasional use, this should be **completely free**. Artifact Registry keeps the 5 newest images and deletes the rest after 14 days (`infra/artifact-registry-cleanup.json`); the repository held 138.8 GB before that policy existed.
+For a personal project with occasional use, this should be **completely free**. Artifact Registry keeps the 5 newest images and deletes the rest after 14 days (`infra/artifact-registry-cleanup.json`); the repository held 138.8 GB before that policy existed. The two build buckets (`bibliostatus-app_cloudbuild`, 522 MB at the time, and `run-sources-bibliostatus-app-europe-north1`; FillariStatus's builds use them too) delete objects older than 30 days (lifecycle rule applied 2026-11-05, 7-day soft delete kept): `gcloud storage buckets update gs://<bucket> --project bibliostatus-app --lifecycle-file=<file with {"rule":[{"action":{"type":"Delete"},"condition":{"age":30}}]}>`.
