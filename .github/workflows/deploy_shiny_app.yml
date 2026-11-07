@@ -57,7 +57,7 @@ jobs:
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           workload_identity_provider: projects/884476669514/locations/global/workloadIdentityPools/github/providers/github-oidc
-          service_account: github-deploy@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+          service_account: bibliostatus-deploy@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
@@ -93,13 +93,15 @@ jobs:
             sleep 30
           done
 
+      # No --allow-unauthenticated: the service is already public and the deploy
+      # account may not change IAM (with the flag every deploy warned "Setting IAM
+      # policy failed"). deploy.sh, run by the owner, keeps the flag.
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy bibliostatus-app \
             --image europe-north1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/cloud-run-source-deploy/bibliostatus-app \
             --platform managed \
             --region europe-north1 \
-            --allow-unauthenticated \
             --memory 1Gi \
             --timeout 3600 \
             --service-account bibliostatus-runtime@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
