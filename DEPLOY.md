@@ -15,7 +15,7 @@ The app runs as a Docker container on Cloud Run (project `bibliostatus-app`, reg
 4. All the workflows run on `ubuntu-24.04`, pinned on purpose (never `ubuntu-latest`): the project and the production image are Ubuntu 24.04, and the label moving to 26.04 broke the data fetch and the URL check on 2026-11-01 (see CLAUDE.md).
 5. What the workflow does, in order:
    - runs the tests again; a failing test stops the deploy
-   - logs in to Google Cloud **without a key file** (Workload Identity Federation, service account `github-deploy`)
+   - logs in to Google Cloud **without a key file** (Workload Identity Federation, service account `github-deploy`; a dedicated account for this repo is prepared in `infra/setup_keyless_deploy.sh`, not run yet)
    - builds the image with Cloud Build into Artifact Registry (`europe-north1-docker.pkg.dev/bibliostatus-app/cloud-run-source-deploy/bibliostatus-app`)
    - deploys it with `gcloud run deploy`: 1 GiB memory, 3600-second request timeout (the websocket limit; the app reconnects quietly when it is reached), concurrency 80, at most 3 instances, session affinity, running as the service account `bibliostatus-runtime` (the Turso secrets are read by it and by `github-deploy` only: the default compute account lost its access on 2026-11-07)
    - labels the revision with the commit (`git-sha`)
