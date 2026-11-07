@@ -17,7 +17,7 @@ The app runs as a Docker container on Cloud Run (project `bibliostatus-app`, reg
    - runs the tests again; a failing test stops the deploy
    - logs in to Google Cloud **without a key file** (Workload Identity Federation, service account `github-deploy`)
    - builds the image with Cloud Build into Artifact Registry (`europe-north1-docker.pkg.dev/bibliostatus-app/cloud-run-source-deploy/bibliostatus-app`)
-   - deploys it with `gcloud run deploy`: 1 GiB memory, 3600-second request timeout (the websocket limit; the app reconnects quietly when it is reached), concurrency 80, at most 3 instances, session affinity, running as the service account `bibliostatus-runtime`
+   - deploys it with `gcloud run deploy`: 1 GiB memory, 3600-second request timeout (the websocket limit; the app reconnects quietly when it is reached), concurrency 80, at most 3 instances, session affinity, running as the service account `bibliostatus-runtime` (the Turso secrets are read by it and by `github-deploy` only: the default compute account lost its access on 2026-11-07)
    - labels the revision with the commit (`git-sha`)
    - **smoke test**: the service must carry this commit's label and answer HTTP 200 on `/`. It deliberately does not check `/health`: a data problem shouldn't turn a code deploy red.
 6. The whole thing takes 8 to 10 minutes (tests, image build, deploy, smoke test). Deploys don't overlap: a newer one waits for the one that is running (and if several queue up, only the newest queued one runs).
