@@ -14,8 +14,9 @@
 #   2. infra/setup_keyless_deploy.sh               (does it)
 #   3. change `service_account:` in .github/workflows/deploy_shiny_app.yml to the
 #      value printed at the end, merge, run the workflow by hand, check the result
-# `github-deploy` is NOT touched here: until both repos have deployed with their new
-# account, putting `github-deploy` back in the workflow is the way back.
+# `github-deploy` was NOT touched by this script: until both repos had deployed with their
+# new account, putting `github-deploy` back in the workflow was the way back. Both did, and
+# it was stripped of its roles and deleted by hand on 2026-11-09.
 #
 # Every step prints what it does and stops on the first error. Re-running skips what
 # already exists. Step 1 (the provider's condition) is the same in both scripts.
@@ -69,7 +70,11 @@ if [ -n "$DRY_RUN" ]; then
 else
   mkdir -p "$BACKUP_DIR"
   gcloud projects get-iam-policy "$PROJECT" --format=json </dev/null > "$BACKUP_DIR/${PROJECT}.project-policy.$(date +%H%M%S).json"
-  gcloud iam service-accounts get-iam-policy "github-deploy@${PROJECT}.iam.gserviceaccount.com" --project "$PROJECT" --format=json </dev/null > "$BACKUP_DIR/${PROJECT}.github-deploy-policy.$(date +%H%M%S).json"
+  if gcloud iam service-accounts describe "github-deploy@${PROJECT}.iam.gserviceaccount.com" --project "$PROJECT" >/dev/null 2>&1 </dev/null; then
+    gcloud iam service-accounts get-iam-policy "github-deploy@${PROJECT}.iam.gserviceaccount.com" --project "$PROJECT" --format=json </dev/null > "$BACKUP_DIR/${PROJECT}.github-deploy-policy.$(date +%H%M%S).json"
+  else
+    echo "github-deploy no longer exists (deleted 2026-11-09): nothing to save for it"
+  fi
   ls -l "$BACKUP_DIR" | tail -3
 fi
 
@@ -140,4 +145,4 @@ step "Done. Values for the workflow:"
 echo "workload_identity_provider: projects/${NUMBER}/locations/global/workloadIdentityPools/${POOL}/providers/${PROVIDER}   (unchanged)"
 echo "service_account:            ${DEPLOY_SA}"
 echo
-echo "Not done on purpose: github-deploy keeps all its roles until both repos deploy with their own account."
+echo "Note: the older, shared github-deploy account was deleted on 2026-11-09, after both repos had deployed with their own account."
